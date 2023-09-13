@@ -294,11 +294,13 @@ class Nemesis(object):
       print("coll:", ci)
 
     subsystems=self.particles.collection_attributes.subsystems
-    collsubset=self.particles[0:0]
+    #collsubset=self.particles[0:0]
+    collsubset=Particles(2)
     print("collsubset:", collsubset)
     collsubsystems=dict()
     for p in coll_set:
-      collsubset+=p
+      #collsubset+=p
+      collsubset.add_particle(p)
       if p in self.subcodes:
         code=self.subcodes[p]
         offset=self.time_offsets[code]
