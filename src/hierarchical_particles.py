@@ -30,10 +30,12 @@ class HierarchicalParticles(ParticlesOverlay):
   def all(self):
     """Get copy of complete particle set"""
     parts = self.copy_to_memory()
+    print("parents")
     for parent, sys in self.collection_attributes.subsystems.items():
       parts.remove_particle(parent)
       subsys = parts.add_particles(sys)
       subsys.sub_worker_radius = subsys.radius
+      print(subsys.key, subsys.sub_worker_radius.in_(units.RSun))
       subsys.position+=parent.position
       subsys.velocity+=parent.velocity
     return parts
