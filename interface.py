@@ -11,11 +11,9 @@ from src.environment_functions import EnvironmentFunctions
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
-def snap_name(dpath, dt_iter):
-  return dpath+"/simulation_snapshot/snap_dt"+str(dt_iter)
-
 def run_code(sim_dir, tend, eta, code_dt, 
-             par_nworker, dE_track, gal_field):
+             par_nworker, chd_nworker, 
+             dE_track, gal_field):
   """Function to run simulation.
 
      Inputs:
@@ -23,6 +21,7 @@ def run_code(sim_dir, tend, eta, code_dt,
      tend:         Simulation end time
      eta:          Parent system simulation step-time
      par_nworker:  Number of workers for parent code
+     chd_nworker:  Number of workers for children code
      dE_track:     Flag turning on energy error tracker
      gal_field:    Flag turning on galactic field or not
   """
@@ -38,7 +37,8 @@ def run_code(sim_dir, tend, eta, code_dt,
   #Making data files
   data_direc = os.path.join(sim_dir, "sim_data")
   if sim_dir.lower()=="examples/realistic_cluster/":
-    star_evol = True
+    star_evol=True
+    GRX_sim=False
 
     Nconfig = len(glob.glob(data_direc+"/*"))
     config_name = "Nrun"+str(Nconfig)
@@ -53,12 +53,15 @@ def run_code(sim_dir, tend, eta, code_dt,
       for path in subdir:
           os.makedirs(os.path.join(dir_path, path))
       dir_changes = os.path.join(dir_path, "system_changes")
+    snapdir_path = os.path.join(dir_path, "simulation_snapshot")
     particle_set = read_set_from_file(os.path.join(sim_dir, "initial_particles/init_particle_set"))
     major_bodies = particle_set[particle_set.type=="STAR"]
+    rmax = None
 
   elif sim_dir.lower()=="examples/runaway_bh/":
-    star_evol = False
+    star_evol=False
     resume=False
+    GRX_sim=True
 
     configuration = glob.glob(data_direc+"/*")
     config = configuration[0]
@@ -81,11 +84,12 @@ def run_code(sim_dir, tend, eta, code_dt,
     ep_dir = os.path.join(config, "ejec_par_change", fname)
     merge_dir = os.path.join(config, "child_merge", fname)
     pchange_dir = os.path.join(config, "parent_change", fname)
-    simsnap_dir = os.path.join(config, "simulation_snapshot", fname)
+    snapdir_path = os.path.join(config, "simulation_snapshot", fname)
 
     print("Simulating ", init_pset)
     particle_set = read_set_from_file(init_pset)
     major_bodies = particle_set
+    rmax = max(0.01|units.pc, (0.05|units.pc)*(np.log10(major_bodies.mass.max()/(4e6|units.MSun)))**0.75)
 
   env_func = EnvironmentFunctions()
   if (gal_field):
@@ -125,17 +129,19 @@ def run_code(sim_dir, tend, eta, code_dt,
   print("Rvir: ", Rvir_init)
   print("Qvir: ", Q_init)
 
+  #Setting up system
   conv_child = nbody_system.nbody_to_si(np.mean(parents.mass), 
                                         np.mean(parents.radius))
   nemesis = Nemesis(conv_par, conv_child, dt, code_dt, 
-                    par_nworker, dE_track, star_evol, 
-                    gal_field)
+                    par_nworker, chd_nworker, dE_track, 
+                    star_evol, gal_field, GRX_sim)
   nemesis.timestep = dt
   nemesis.particles.add_particles(parents)
   nemesis.parents = parents.copy_to_memory()
   nemesis.radius = env_func.parent_radius(parents.mass, code_dt)
   nemesis.commit_particles(conv_child)
   nemesis.channel_makers()
+  nemesis.rmax = rmax
   allparts = nemesis.particles.all()
   if (dE_track):
     E0a = allparts.kinetic_energy()+allparts.potential_energy()
@@ -148,7 +154,7 @@ def run_code(sim_dir, tend, eta, code_dt,
   event_iter = [ ]
   dt_iter = 0
   write_set_to_file(allparts.savepoint(0|units.Myr), 
-                    snap_name(dir_path, str(dt_iter)), 
+                    os.path.join(snapdir_path, "snap_"+str(dt_iter)), 
                     'amuse', close_file=True, 
                     overwrite_file=True)
   while t < tend:
@@ -167,7 +173,7 @@ def run_code(sim_dir, tend, eta, code_dt,
     if dt_iter%10==1:
       print("Time: ", t.in_(units.yr), end=' ')
       write_set_to_file(allparts.savepoint(0|units.Myr), 
-                        snap_name(dir_path, str(dt_iter)), 
+                        os.path.join(snapdir_path, "snap_"+str(dt_iter)), 
                         'amuse', close_file=True, 
                         overwrite_file=True)
 
@@ -213,4 +219,5 @@ if __name__=="__main__":
   #sim_dir ="examples/runaway_bh/"
   run_code(sim_dir=sim_dir, tend=50 | units.Myr, 
            eta=1e-4, code_dt=5e-2, par_nworker=1,
-           gal_field=False, dE_track=False,)
+           chd_nworker=1, gal_field=False, 
+           dE_track=False)

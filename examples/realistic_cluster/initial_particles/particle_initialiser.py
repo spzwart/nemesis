@@ -44,7 +44,7 @@ def load_particles():
                           "initial_particles", "data_files")
 
   env_files = natsorted(glob.glob(os.path.join(data_dir, "cluster_data/*")))[-1]
-  env_data = read_set_from_file(env_files, "hdf5")[:20]
+  env_data = read_set_from_file(env_files, "hdf5")[:600]
 
   stars = Particles(len(env_data))
   stars.mass = env_data.mass
@@ -54,7 +54,7 @@ def load_particles():
   stars.type = "STAR"
   stars.syst_id = -1
   
-  planet_data = natsorted(glob.glob(os.path.join(data_dir, "acc3_vis4_cluster/*_planet.npz")))[:2]
+  planet_data = natsorted(glob.glob(os.path.join(data_dir, "acc3_vis4_cluster/*_planet.npz")))[:3]
   planet_no = np.asarray([int(f_.split("_planet")[0][74:]) for f_ in planet_data])
   
   pset = Particles()
