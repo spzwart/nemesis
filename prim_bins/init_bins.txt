@@ -1,0 +1,3452 @@
+solarsystem params: 
+                 key          aop          ecc          inc         mass         name   orb_period       radius         semi    true_anom           vx           vy           vz            x            y            z
+                   -         none         none         none         MSun         none  2.742546807902133e-10 * m**0.5 * kg**-0.5         RSun  149597870691.0 * m         none       km / s       km / s       km / s           AU           AU           AU
+====================  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========
+15235136428548727961    0.000e+00    0.000e+00    0.000e+00    1.000e+00          SUN    0.000e+00    1.000e+00    0.000e+00    0.000e+00   -1.874e-03   -1.560e-02    1.104e-04   -8.354e-03    1.923e-03    2.145e-04
+ 9959022268197062155    2.589e-04    1.697e-02   -1.792e+02    3.040e-06     EARTHMOO    9.999e-01    1.482e-02    9.997e-01    9.776e+01    2.844e+01    6.966e+00    1.301e-04    2.337e-01   -9.855e-01    2.100e-04
+ 9559769732047075112    1.850e+00    9.343e-02    1.048e+02    3.227e-07         MARS    1.234e+00    7.853e-03    1.523e+00   -7.372e+01   -2.299e+01    5.985e+00    6.908e-01    2.435e-01    1.528e+00    2.599e-02
+ 3948546849536606001    1.305e+00    4.831e-02   -2.928e+01    9.548e-04      JUPITER    2.280e+00    1.619e-01    5.202e+00   -8.466e+01    2.872e+00    1.331e+01   -1.194e-01    4.833e+00   -1.158e+00   -1.034e-01
+ 4467592275954806380    2.485e+00    5.394e-02   -6.246e+01    2.859e-04       SATURN    3.094e+00    1.342e-01    9.576e+00   -2.488e+01   -4.794e+00    8.639e+00    4.001e-02    8.335e+00    4.127e+00   -4.033e-01
+ 7321693351652578482    7.732e-01    4.295e-02    1.368e+02    4.366e-05       URANUS    4.391e+00    5.834e-02    1.928e+01    9.964e+01    5.131e+00    4.103e+00   -5.124e-02    1.289e+01   -1.511e+01   -2.231e-01
+ 8777477017142563122    1.768e+00    1.080e-02   -7.690e+01    5.151e-05      NEPTUNE    5.497e+00    5.572e-02    3.022e+01   -1.142e+02    4.640e+00    2.804e+00   -1.647e-01    1.537e+01   -2.592e+01    1.795e-01
+====================  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========  ===========
+
+
+
+Star1 key = 6884209218212347128   Star2 key= 563077449013119018
+semi = 5190.00166823 au
+ecc = 0.858907423683
+inclination = -175.682790803 deg
+true anomaly = -5.44994013042 deg
+argument of periapsis = 150.929141554 deg
+ascending node = -92.3350121122 deg
+
+
+Star1 key = 563077449013119018   Star2 key= 12972387338323771447
+semi = 7025.54294242 au
+ecc = 0.873975848636
+inclination = -171.717375991 deg
+true anomaly = -164.756138456 deg
+argument of periapsis = 89.0380959243 deg
+ascending node = 170.471170283 deg
+
+
+Star1 key = 6269791435733875552   Star2 key= 4512372416890641312
+semi = 1975.21240985 au
+ecc = 0.235415434701
+inclination = 177.550710936 deg
+true anomaly = 62.5180989689 deg
+argument of periapsis = 40.8234432745 deg
+ascending node = -151.391750981 deg
+
+
+Star1 key = 2316378612503918895   Star2 key= 7839413156203190445
+semi = 1659.9520584 au
+ecc = 0.672606674889
+inclination = 141.96207543 deg
+true anomaly = -21.4904668669 deg
+argument of periapsis = 150.684452233 deg
+ascending node = 13.5034817767 deg
+
+
+Star1 key = 18051182067908558620   Star2 key= 4149714387956133396
+semi = 4183.21265144 au
+ecc = 0.975099436403
+inclination = 170.278868054 deg
+true anomaly = 109.148560488 deg
+argument of periapsis = 154.628948689 deg
+ascending node = -40.5282114126 deg
+
+
+Star1 key = 12363616171031865004   Star2 key= 6442042742847209293
+semi = 3208.39693014 au
+ecc = 0.574111541968
+inclination = -167.896650748 deg
+true anomaly = -124.014960428 deg
+argument of periapsis = 66.6327993745 deg
+ascending node = -121.921455812 deg
+
+
+Star1 key = 5724213460463727856   Star2 key= 10648253308890230509
+semi = 9603.45998489 au
+ecc = 0.194813667492
+inclination = 24.4119172206 deg
+true anomaly = -44.0731326708 deg
+argument of periapsis = 84.806565445 deg
+ascending node = -78.4277877685 deg
+
+
+Star1 key = 5599308678303976113   Star2 key= 1449891286097608776
+semi = 9556.33453299 au
+ecc = 0.688725322644
+inclination = -174.307089992 deg
+true anomaly = -168.657472657 deg
+argument of periapsis = 138.501547533 deg
+ascending node = 59.3882968304 deg
+
+
+Star1 key = 4149714387956133396   Star2 key= 11222076115880473695
+semi = 8558.76492935 au
+ecc = 0.600065419331
+inclination = 170.500583777 deg
+true anomaly = 103.024036985 deg
+argument of periapsis = 37.1678683862 deg
+ascending node = 80.6790771523 deg
+
+
+Star1 key = 2651589820633504091   Star2 key= 7198248740095270571
+semi = 9655.54034325 au
+ecc = 0.225286938292
+inclination = -41.5108412867 deg
+true anomaly = 99.5430313591 deg
+argument of periapsis = 77.3824389839 deg
+ascending node = 116.668637416 deg
+
+
+Star1 key = 13994000140715302642   Star2 key= 4444672479077344921
+semi = 5628.44274073 au
+ecc = 0.916812563652
+inclination = 176.460312698 deg
+true anomaly = -177.062534875 deg
+argument of periapsis = 115.502394529 deg
+ascending node = -27.9448248667 deg
+
+
+Star1 key = 2481273913979630018   Star2 key= 14013213430156406836
+semi = 6242.15131899 au
+ecc = 0.9021512272
+inclination = 117.914430119 deg
+true anomaly = -89.896960784 deg
+argument of periapsis = 30.611075642 deg
+ascending node = -4.28416974717 deg
+
+
+Star1 key = 7975826485447710832   Star2 key= 11140395875040400105
+semi = 9778.70282205 au
+ecc = 0.663948984529
+inclination = -165.137113467 deg
+true anomaly = 174.508383701 deg
+argument of periapsis = 42.294126887 deg
+ascending node = -13.8880973708 deg
+
+
+Star1 key = 1119679117706117074   Star2 key= 4354540911349210216
+semi = 6310.63307943 au
+ecc = 0.429626949142
+inclination = 169.620453723 deg
+true anomaly = 65.8648185826 deg
+argument of periapsis = 106.145160259 deg
+ascending node = -29.8262872033 deg
+
+
+Star1 key = 1119679117706117074   Star2 key= 1457762848780594309
+semi = 5889.03947986 au
+ecc = 0.378389403988
+inclination = -85.8164236156 deg
+true anomaly = -65.6303681903 deg
+argument of periapsis = 145.435166141 deg
+ascending node = -33.0274893097 deg
+
+
+Star1 key = 12589060349701304876   Star2 key= 8454735952009759195
+semi = 8626.16425289 au
+ecc = 0.686917885594
+inclination = 175.888067411 deg
+true anomaly = -161.732726673 deg
+argument of periapsis = 97.9006255119 deg
+ascending node = 62.1638008375 deg
+
+
+Star1 key = 12589060349701304876   Star2 key= 1863886809587340140
+semi = 4181.78361398 au
+ecc = 0.995586020553
+inclination = 178.498522825 deg
+true anomaly = 23.4882121673 deg
+argument of periapsis = 81.0441592192 deg
+ascending node = 141.822190221 deg
+
+
+Star1 key = 18351536310377236332   Star2 key= 14817775458203071147
+semi = 6604.21227935 au
+ecc = 0.501792644545
+inclination = -121.837152738 deg
+true anomaly = -151.810469968 deg
+argument of periapsis = 39.7659918956 deg
+ascending node = 13.8725699024 deg
+
+
+Star1 key = 223465837188431248   Star2 key= 5988061103847584715
+semi = 9779.40206782 au
+ecc = 0.720427569369
+inclination = -123.745660932 deg
+true anomaly = 113.090938196 deg
+argument of periapsis = 54.1006774017 deg
+ascending node = 16.9231617597 deg
+
+
+Star1 key = 3247650763096157573   Star2 key= 5988061103847584715
+semi = 6220.36140539 au
+ecc = 0.571642469359
+inclination = 105.415397752 deg
+true anomaly = -25.7629045724 deg
+argument of periapsis = 83.2909742989 deg
+ascending node = 128.182403763 deg
+
+
+Star1 key = 7586541109054513857   Star2 key= 4288289588086229973
+semi = 9478.18862485 au
+ecc = 0.623081554521
+inclination = -160.440782418 deg
+true anomaly = 75.2219851564 deg
+argument of periapsis = 17.7339032775 deg
+ascending node = 33.1782452243 deg
+
+
+Star1 key = 2865411204076245319   Star2 key= 6443683387476174055
+semi = 4708.78855675 au
+ecc = 0.275983301579
+inclination = -75.2704796782 deg
+true anomaly = 88.9272810184 deg
+argument of periapsis = 172.342006514 deg
+ascending node = -54.9089247086 deg
+
+
+Star1 key = 10976923409713274247   Star2 key= 3605744369409903789
+semi = 6101.84517694 au
+ecc = 0.968080302794
+inclination = -167.632675239 deg
+true anomaly = 154.794646676 deg
+argument of periapsis = 175.903682792 deg
+ascending node = 0.446448732222 deg
+
+
+Star1 key = 10687253279643815048   Star2 key= 760962366646573164
+semi = 6794.86261517 au
+ecc = 0.154758625056
+inclination = -54.3546610115 deg
+true anomaly = 115.830719827 deg
+argument of periapsis = 96.3375018406 deg
+ascending node = 3.18395839007 deg
+
+
+Star1 key = 11140395875040400105   Star2 key= 18218199639585212715
+semi = 1207.00393362 au
+ecc = 0.997353261478
+inclination = 178.569581142 deg
+true anomaly = 19.8082928283 deg
+argument of periapsis = 145.886494794 deg
+ascending node = -155.589229326 deg
+
+
+Star1 key = 5544494972439608975   Star2 key= 18218199639585212715
+semi = 6158.95540031 au
+ecc = 0.573746272882
+inclination = 155.209433499 deg
+true anomaly = 74.0896263933 deg
+argument of periapsis = 50.908220374 deg
+ascending node = 120.504724854 deg
+
+
+Star1 key = 5544494972439608975   Star2 key= 1361327764017487796
+semi = 9056.79520883 au
+ecc = 0.475341348557
+inclination = -169.99030248 deg
+true anomaly = -164.904201661 deg
+argument of periapsis = 73.0226305224 deg
+ascending node = -62.2121261656 deg
+
+
+Star1 key = 18218199639585212715   Star2 key= 9718946484623763815
+semi = 4497.3979867 au
+ecc = 0.857002174129
+inclination = 162.475579956 deg
+true anomaly = -47.9155382638 deg
+argument of periapsis = 21.7176739724 deg
+ascending node = -117.961746096 deg
+
+
+Star1 key = 17358864012085386362   Star2 key= 2990645725131185690
+semi = 3873.8164835 au
+ecc = 0.808234531678
+inclination = -154.69259382 deg
+true anomaly = 35.7074434774 deg
+argument of periapsis = 107.020432447 deg
+ascending node = 10.3814948275 deg
+
+
+Star1 key = 12842470842093590660   Star2 key= 12519415088607742515
+semi = 8341.47014471 au
+ecc = 0.762024410993
+inclination = 85.8715491929 deg
+true anomaly = -84.9947912918 deg
+argument of periapsis = 45.9705363006 deg
+ascending node = -55.2467647294 deg
+
+
+Star1 key = 4131994706043465015   Star2 key= 9885637319527536892
+semi = 7580.07205838 au
+ecc = 0.750420212544
+inclination = -178.554722616 deg
+true anomaly = -27.2347784966 deg
+argument of periapsis = 41.3977307441 deg
+ascending node = -50.2972138855 deg
+
+
+Star1 key = 17410259869648591788   Star2 key= 11733955991651455640
+semi = 5793.14134618 au
+ecc = 0.873128606569
+inclination = 176.248414697 deg
+true anomaly = 47.624731044 deg
+argument of periapsis = 42.3937100323 deg
+ascending node = 118.438708852 deg
+
+
+Star1 key = 6979074082802125531   Star2 key= 6223881440332333929
+semi = 4041.89552663 au
+ecc = 0.88068172168
+inclination = -168.506124501 deg
+true anomaly = 115.968356801 deg
+argument of periapsis = 120.891687879 deg
+ascending node = -47.6712223014 deg
+
+
+Star1 key = 15174828132094221208   Star2 key= 233989069795405008
+semi = 9030.07093368 au
+ecc = 0.87184771448
+inclination = 173.451396148 deg
+true anomaly = -162.665274444 deg
+argument of periapsis = 164.868335692 deg
+ascending node = -92.1535079844 deg
+
+
+Star1 key = 15117277914293284434   Star2 key= 16410715051329700233
+semi = 7053.62291962 au
+ecc = 0.97568043905
+inclination = 178.093170474 deg
+true anomaly = 166.817330458 deg
+argument of periapsis = 25.3196981352 deg
+ascending node = -130.85308093 deg
+
+
+Star1 key = 15117277914293284434   Star2 key= 9050735895169271526
+semi = 2545.66334215 au
+ecc = 0.680255910696
+inclination = 177.430239331 deg
+true anomaly = 88.0217509244 deg
+argument of periapsis = 49.7417549497 deg
+ascending node = 91.470734092 deg
+
+
+Star1 key = 15117277914293284434   Star2 key= 17977359574913673377
+semi = 9445.78876303 au
+ecc = 0.833556127707
+inclination = -165.884141301 deg
+true anomaly = -166.770732147 deg
+argument of periapsis = 117.326795128 deg
+ascending node = -1.54601671312 deg
+
+
+Star1 key = 15445402783849825155   Star2 key= 7203404682887520201
+semi = 6167.16476389 au
+ecc = 0.669728446983
+inclination = 169.193151881 deg
+true anomaly = -24.5512908078 deg
+argument of periapsis = 29.3067251679 deg
+ascending node = 150.64842065 deg
+
+
+Star1 key = 16088022457210236405   Star2 key= 1863886809587340140
+semi = 8847.79963251 au
+ecc = 0.901987605372
+inclination = -178.978321835 deg
+true anomaly = 116.498276275 deg
+argument of periapsis = 93.9595154308 deg
+ascending node = 120.847352745 deg
+
+
+Star1 key = 6427500634974331546   Star2 key= 1801375724114010703
+semi = 4379.83313846 au
+ecc = 0.811250768799
+inclination = 167.145152963 deg
+true anomaly = 3.07793288658 deg
+argument of periapsis = 94.4720803926 deg
+ascending node = 130.554142556 deg
+
+
+Star1 key = 8679742003727313884   Star2 key= 7409136660429387917
+semi = 8397.43459368 au
+ecc = 0.625176552695
+inclination = -178.313398947 deg
+true anomaly = 67.8331712773 deg
+argument of periapsis = 44.3112938525 deg
+ascending node = 128.536600328 deg
+
+
+Star1 key = 8169455259338911525   Star2 key= 5001987503819510367
+semi = 8024.7611074 au
+ecc = 0.695018436192
+inclination = 155.720060196 deg
+true anomaly = -15.7622810919 deg
+argument of periapsis = 113.24854112 deg
+ascending node = 133.781403001 deg
+
+
+Star1 key = 16634651380306181744   Star2 key= 7387425972423195564
+semi = 4431.48606127 au
+ecc = 0.744529177373
+inclination = -146.328536825 deg
+true anomaly = -44.2507272419 deg
+argument of periapsis = 87.6677922733 deg
+ascending node = -120.198140304 deg
+
+
+Star1 key = 11125933843246577639   Star2 key= 5001744164064137877
+semi = 8547.76811072 au
+ecc = 0.678358717912
+inclination = 169.096958595 deg
+true anomaly = 83.1338981355 deg
+argument of periapsis = 92.6712361245 deg
+ascending node = 125.845286283 deg
+
+
+Star1 key = 8633564290494830259   Star2 key= 16679544964264780306
+semi = 6938.58314309 au
+ecc = 0.957598571786
+inclination = -175.835741561 deg
+true anomaly = -147.395758253 deg
+argument of periapsis = 120.70765651 deg
+ascending node = 14.5415592015 deg
+
+
+Star1 key = 17862889691233798022   Star2 key= 7207097254257010622
+semi = 5925.1105258 au
+ecc = 0.719205532426
+inclination = 92.213502689 deg
+true anomaly = -48.1174796548 deg
+argument of periapsis = 45.7883951816 deg
+ascending node = -84.2128557166 deg
+
+
+Star1 key = 14385556029466558622   Star2 key= 2537491974546955416
+semi = 8739.12428924 au
+ecc = 0.272090606347
+inclination = -150.099454239 deg
+true anomaly = -133.424449298 deg
+argument of periapsis = 119.059456153 deg
+ascending node = -16.6902044988 deg
+
+
+Star1 key = 1825599806110933986   Star2 key= 16309056357281310174
+semi = 7227.21178341 au
+ecc = 0.490703892756
+inclination = 128.333909127 deg
+true anomaly = -78.3205249391 deg
+argument of periapsis = 114.859251468 deg
+ascending node = 109.055312283 deg
+
+
+Star1 key = 7409136660429387917   Star2 key= 14738893361124808374
+semi = 4044.62378166 au
+ecc = 0.879181221718
+inclination = 164.630099066 deg
+true anomaly = 131.932955848 deg
+argument of periapsis = 46.3291795525 deg
+ascending node = -62.1536117576 deg
+
+
+Star1 key = 7409136660429387917   Star2 key= 8765374811518647721
+semi = 2414.45537381 au
+ecc = 0.216896485716
+inclination = -39.1278776413 deg
+true anomaly = 68.681289507 deg
+argument of periapsis = 134.593196308 deg
+ascending node = 135.056825941 deg
+
+
+Star1 key = 7409136660429387917   Star2 key= 14222349603950576969
+semi = 664.534475396 au
+ecc = 0.989780575733
+inclination = -178.858270232 deg
+true anomaly = 146.548062087 deg
+argument of periapsis = 74.6116548532 deg
+ascending node = 147.735377577 deg
+
+
+Star1 key = 13743664694936665522   Star2 key= 13677380383698356120
+semi = 6008.31137615 au
+ecc = 0.962943329822
+inclination = -169.129418734 deg
+true anomaly = -46.9099304597 deg
+argument of periapsis = 154.466274185 deg
+ascending node = -100.842779278 deg
+
+
+Star1 key = 15017379049436936877   Star2 key= 6318493178188863399
+semi = 3917.2763327 au
+ecc = 0.561830693343
+inclination = 175.522223136 deg
+true anomaly = 151.042773147 deg
+argument of periapsis = 116.83595708 deg
+ascending node = 93.3410651129 deg
+
+
+Star1 key = 15017379049436936877   Star2 key= 10132845226697668942
+semi = 8391.21720721 au
+ecc = 0.217321850268
+inclination = 27.9301576603 deg
+true anomaly = 48.6851852037 deg
+argument of periapsis = 50.4695222771 deg
+ascending node = -0.341692406892 deg
+
+
+Star1 key = 15017379049436936877   Star2 key= 6154568815670295094
+semi = 7786.65366053 au
+ecc = 0.889716959613
+inclination = 172.620811141 deg
+true anomaly = -72.3180359189 deg
+argument of periapsis = 147.654078226 deg
+ascending node = -43.4940597061 deg
+
+
+Star1 key = 15017379049436936877   Star2 key= 6587681691958478071
+semi = 6332.6041156 au
+ecc = 0.76285899152
+inclination = 168.607589665 deg
+true anomaly = 72.2874090819 deg
+argument of periapsis = 103.68053765 deg
+ascending node = 53.9657378639 deg
+
+
+Star1 key = 8852089070912590229   Star2 key= 2231456078298301675
+semi = 7886.24402577 au
+ecc = 0.793517881446
+inclination = -172.619824983 deg
+true anomaly = 55.2031842377 deg
+argument of periapsis = 82.0638142825 deg
+ascending node = 154.559984066 deg
+
+
+Star1 key = 8765374811518647721   Star2 key= 2099700369700723181
+semi = 8690.29915453 au
+ecc = 0.989021633979
+inclination = -174.641731556 deg
+true anomaly = -149.211604419 deg
+argument of periapsis = 114.564444258 deg
+ascending node = 118.867143989 deg
+
+
+Star1 key = 8765374811518647721   Star2 key= 8865766607315934820
+semi = 7014.7050625 au
+ecc = 0.465405318821
+inclination = -159.497798013 deg
+true anomaly = 33.9539606422 deg
+argument of periapsis = 84.9517634247 deg
+ascending node = -91.7829689487 deg
+
+
+Star1 key = 12154212233801047767   Star2 key= 1863886809587340140
+semi = 4177.03056625 au
+ecc = 0.999342325273
+inclination = -179.838822932 deg
+true anomaly = 57.8731869836 deg
+argument of periapsis = 62.7656276538 deg
+ascending node = -74.7046646294 deg
+
+
+Star1 key = 1902539341991720077   Star2 key= 14051850194939678321
+semi = 8331.0232806 au
+ecc = 0.50938724728
+inclination = 137.835242653 deg
+true anomaly = -143.730459917 deg
+argument of periapsis = 102.276551253 deg
+ascending node = -18.1688414053 deg
+
+
+Star1 key = 3744600750613083536   Star2 key= 17921892465095484387
+semi = 1631.15526531 au
+ecc = 0.589415438264
+inclination = -159.152719166 deg
+true anomaly = 53.8741391649 deg
+argument of periapsis = 146.850018532 deg
+ascending node = -167.394456341 deg
+
+
+Star1 key = 3744600750613083536   Star2 key= 3437057319059074327
+semi = 8226.47831372 au
+ecc = 0.262859704896
+inclination = 113.442721817 deg
+true anomaly = 162.132336641 deg
+argument of periapsis = 71.9750347763 deg
+ascending node = 78.8498998432 deg
+
+
+Star1 key = 10132845226697668942   Star2 key= 6154568815670295094
+semi = 9998.3272502 au
+ecc = 0.751684010678
+inclination = -164.285033159 deg
+true anomaly = -63.0025789271 deg
+argument of periapsis = 11.112228943 deg
+ascending node = 90.4590063477 deg
+
+
+Star1 key = 6154568815670295094   Star2 key= 5316324477207283193
+semi = 3007.95315948 au
+ecc = 0.647337674557
+inclination = -165.642288235 deg
+true anomaly = 8.28121822694 deg
+argument of periapsis = 91.0821802968 deg
+ascending node = 69.1699502049 deg
+
+
+Star1 key = 5968369101216426571   Star2 key= 3025026133390703782
+semi = 9633.5182962 au
+ecc = 0.82347770342
+inclination = 165.107514524 deg
+true anomaly = 11.0139050245 deg
+argument of periapsis = 47.164696941 deg
+ascending node = -179.329238002 deg
+
+
+Star1 key = 5968369101216426571   Star2 key= 11098553421045488219
+semi = 8638.18928707 au
+ecc = 0.552019692614
+inclination = 62.4067974721 deg
+true anomaly = 142.055725734 deg
+argument of periapsis = 104.61033493 deg
+ascending node = 150.048037262 deg
+
+
+Star1 key = 5467027383379950520   Star2 key= 11809335700353930951
+semi = 9380.95143908 au
+ecc = 0.360318926079
+inclination = -38.302910563 deg
+true anomaly = -117.873148494 deg
+argument of periapsis = 74.2720920134 deg
+ascending node = 126.472589994 deg
+
+
+Star1 key = 1665961446140118645   Star2 key= 601692079004652872
+semi = 8229.39176256 au
+ecc = 0.839047688368
+inclination = -161.907452983 deg
+true anomaly = -173.869781582 deg
+argument of periapsis = 132.744064235 deg
+ascending node = 51.6353769029 deg
+
+
+Star1 key = 1665961446140118645   Star2 key= 11458759860028993166
+semi = 9803.15254348 au
+ecc = 0.904361938184
+inclination = 168.730829471 deg
+true anomaly = -31.7663832424 deg
+argument of periapsis = 64.3347073323 deg
+ascending node = 98.7199728912 deg
+
+
+Star1 key = 4522238726831216123   Star2 key= 12475512695863405142
+semi = 2816.91816094 au
+ecc = 0.571845520245
+inclination = 176.028034464 deg
+true anomaly = 137.61064841 deg
+argument of periapsis = 121.587697208 deg
+ascending node = -87.5447917961 deg
+
+
+Star1 key = 16577291853491420373   Star2 key= 7497951824273984743
+semi = 5642.69435564 au
+ecc = 0.763925942972
+inclination = -157.690862603 deg
+true anomaly = 175.941444193 deg
+argument of periapsis = 99.8403519585 deg
+ascending node = -40.7403601681 deg
+
+
+Star1 key = 9138363323102254386   Star2 key= 15216382019253784077
+semi = 439.614260407 au
+ecc = 0.893590201197
+inclination = -159.387921431 deg
+true anomaly = -158.762016921 deg
+argument of periapsis = 68.9851899128 deg
+ascending node = -143.445711659 deg
+
+
+Star1 key = 5726869216370156622   Star2 key= 9135058108360855672
+semi = 8028.97440158 au
+ecc = 0.938297438543
+inclination = -177.142374048 deg
+true anomaly = 48.361457371 deg
+argument of periapsis = 160.422035115 deg
+ascending node = 154.609472306 deg
+
+
+Star1 key = 3417718677913165878   Star2 key= 2224470375539600706
+semi = 8057.45792073 au
+ecc = 0.818330734153
+inclination = -173.920587009 deg
+true anomaly = 93.7612784722 deg
+argument of periapsis = 145.035103988 deg
+ascending node = 1.75195969345 deg
+
+
+Star1 key = 8031521244424229851   Star2 key= 9467638601903952456
+semi = 6890.14769712 au
+ecc = 0.955703913998
+inclination = 158.093841723 deg
+true anomaly = 75.117745439 deg
+argument of periapsis = 102.192519356 deg
+ascending node = 178.585462985 deg
+
+
+Star1 key = 14723671835162202975   Star2 key= 407307784923188367
+semi = 9982.48434412 au
+ecc = 0.970678343474
+inclination = 168.567126661 deg
+true anomaly = -78.0225833894 deg
+argument of periapsis = 35.9765736285 deg
+ascending node = -124.515265173 deg
+
+
+Star1 key = 14051850194939678321   Star2 key= 10182878659269273586
+semi = 5414.40285585 au
+ecc = 0.694645893486
+inclination = 173.78470943 deg
+true anomaly = 21.3366786743 deg
+argument of periapsis = 113.723298812 deg
+ascending node = 164.931694144 deg
+
+
+Star1 key = 16778283484487291740   Star2 key= 2744785944849132075
+semi = 6968.00343165 au
+ecc = 0.920447403807
+inclination = 175.192883131 deg
+true anomaly = 145.531725025 deg
+argument of periapsis = 73.4602012591 deg
+ascending node = 116.168106742 deg
+
+
+Star1 key = 601692079004652872   Star2 key= 13668373188989449755
+semi = 9175.8093464 au
+ecc = 0.853574642207
+inclination = -85.6900270243 deg
+true anomaly = 136.695936213 deg
+argument of periapsis = 134.392816919 deg
+ascending node = -171.738624337 deg
+
+
+Star1 key = 601692079004652872   Star2 key= 6451514527828803617
+semi = 9030.87768354 au
+ecc = 0.39208351476
+inclination = 75.295327351 deg
+true anomaly = -31.4417901587 deg
+argument of periapsis = 33.2831973894 deg
+ascending node = 173.412678154 deg
+
+
+Star1 key = 601692079004652872   Star2 key= 4524618131823504390
+semi = 4803.46492427 au
+ecc = 0.9553417346
+inclination = -177.033569846 deg
+true anomaly = -98.162136962 deg
+argument of periapsis = 74.030196194 deg
+ascending node = -169.808902578 deg
+
+
+Star1 key = 7497951824273984743   Star2 key= 12517955374117063965
+semi = 2980.9875819 au
+ecc = 0.615988501266
+inclination = -157.901295895 deg
+true anomaly = 128.728029599 deg
+argument of periapsis = 75.6845333179 deg
+ascending node = 4.58302813889 deg
+
+
+Star1 key = 7497951824273984743   Star2 key= 254501596203041512
+semi = 7767.33383055 au
+ecc = 0.826915532067
+inclination = 172.908084353 deg
+true anomaly = 139.628790853 deg
+argument of periapsis = 104.275004329 deg
+ascending node = -56.4578428111 deg
+
+
+Star1 key = 2644587901215004488   Star2 key= 603640028881157783
+semi = 7901.65431171 au
+ecc = 0.454301917572
+inclination = -156.061856345 deg
+true anomaly = -101.983551167 deg
+argument of periapsis = 127.855600762 deg
+ascending node = 148.994392709 deg
+
+
+Star1 key = 407307784923188367   Star2 key= 18441212568762829763
+semi = 2126.46765364 au
+ecc = 0.767612728068
+inclination = 170.139302504 deg
+true anomaly = -81.1767269576 deg
+argument of periapsis = 109.977111409 deg
+ascending node = -138.444147784 deg
+
+
+Star1 key = 4473948188128256667   Star2 key= 15047822986477698472
+semi = 6817.25096618 au
+ecc = 0.419511916901
+inclination = 166.395519555 deg
+true anomaly = -33.701033302 deg
+argument of periapsis = 91.6185297653 deg
+ascending node = 127.453548936 deg
+
+
+Star1 key = 17638921235281574337   Star2 key= 6451514527828803617
+semi = 9324.93852066 au
+ecc = 0.720270134297
+inclination = 161.030942585 deg
+true anomaly = -95.9034065315 deg
+argument of periapsis = 169.62397066 deg
+ascending node = -112.136570839 deg
+
+
+Star1 key = 11533402066299640452   Star2 key= 9399906576118539551
+semi = 8541.65405423 au
+ecc = 0.915658577652
+inclination = 167.917286928 deg
+true anomaly = 130.381642403 deg
+argument of periapsis = 71.8713542506 deg
+ascending node = 50.9546462883 deg
+
+
+Star1 key = 9708086492514482936   Star2 key= 12034281291512861528
+semi = 5285.17435878 au
+ecc = 0.517164556254
+inclination = -119.489442665 deg
+true anomaly = -50.3194277209 deg
+argument of periapsis = 135.761198065 deg
+ascending node = 69.1388147836 deg
+
+
+Star1 key = 7453060115454863733   Star2 key= 13630328109132063441
+semi = 9468.32962278 au
+ecc = 0.66356264733
+inclination = -151.812053197 deg
+true anomaly = 121.033865924 deg
+argument of periapsis = 125.790958705 deg
+ascending node = 178.018848587 deg
+
+
+Star1 key = 4299425937657256935   Star2 key= 13630328109132063441
+semi = 6153.49832146 au
+ecc = 0.468269648713
+inclination = 131.065671353 deg
+true anomaly = -66.0288419887 deg
+argument of periapsis = 74.0065188537 deg
+ascending node = -150.859082488 deg
+
+
+Star1 key = 4299425937657256935   Star2 key= 1405297980435165818
+semi = 1173.71958692 au
+ecc = 0.502693240128
+inclination = 170.756729584 deg
+true anomaly = -13.7308894971 deg
+argument of periapsis = 97.4245607074 deg
+ascending node = -146.14585821 deg
+
+
+Star1 key = 9401670308605941740   Star2 key= 17907388252580261611
+semi = 4238.99905455 au
+ecc = 0.839370476193
+inclination = -176.18908409 deg
+true anomaly = 6.5156508257 deg
+argument of periapsis = 119.33448356 deg
+ascending node = -9.47626347722 deg
+
+
+Star1 key = 15227281554500389232   Star2 key= 17210066141445588898
+semi = 1211.08494071 au
+ecc = 0.549653639621
+inclination = 162.075170155 deg
+true anomaly = 100.750827176 deg
+argument of periapsis = 165.60586364 deg
+ascending node = 22.6392233812 deg
+
+
+Star1 key = 9399906576118539551   Star2 key= 1103884564761607510
+semi = 8965.93529175 au
+ecc = 0.590060524515
+inclination = 178.750468359 deg
+true anomaly = -157.8048631 deg
+argument of periapsis = 114.132917833 deg
+ascending node = -80.5777480194 deg
+
+
+Star1 key = 17210066141445588898   Star2 key= 15315794739044352544
+semi = 609.191254908 au
+ecc = 0.825876437898
+inclination = 177.04572721 deg
+true anomaly = -107.485631896 deg
+argument of periapsis = 48.9885475048 deg
+ascending node = 60.5407846187 deg
+
+
+Star1 key = 17210066141445588898   Star2 key= 5582951060840747672
+semi = 1553.2559698 au
+ecc = 0.525816309581
+inclination = -161.951323546 deg
+true anomaly = 48.3239703478 deg
+argument of periapsis = 58.5962953896 deg
+ascending node = 129.059552263 deg
+
+
+Star1 key = 17210066141445588898   Star2 key= 15664344080395307670
+semi = 4139.84360899 au
+ecc = 0.942405365968
+inclination = -164.405061751 deg
+true anomaly = -21.3661296187 deg
+argument of periapsis = 81.8273511356 deg
+ascending node = -10.5051545171 deg
+
+
+Star1 key = 17210066141445588898   Star2 key= 10704148290409120736
+semi = 8389.45744844 au
+ecc = 0.843411108457
+inclination = 169.061325985 deg
+true anomaly = 107.800197458 deg
+argument of periapsis = 47.4090683817 deg
+ascending node = -24.0227136944 deg
+
+
+Star1 key = 17210066141445588898   Star2 key= 7900545517697268492
+semi = 4262.20977818 au
+ecc = 0.844149894377
+inclination = -162.132734769 deg
+true anomaly = -122.587317259 deg
+argument of periapsis = 113.130445106 deg
+ascending node = -7.26830852653 deg
+
+
+Star1 key = 15315794739044352544   Star2 key= 11377475932744852288
+semi = 9298.89544089 au
+ecc = 0.543571104602
+inclination = -148.129805994 deg
+true anomaly = -179.358409193 deg
+argument of periapsis = 30.5770439044 deg
+ascending node = 143.273799657 deg
+
+
+Star1 key = 2598211234758843516   Star2 key= 12956300842567026052
+semi = 8647.99960927 au
+ecc = 0.594635486172
+inclination = 164.150200487 deg
+true anomaly = 97.0162630686 deg
+argument of periapsis = 99.5953582947 deg
+ascending node = 5.5032648715 deg
+
+
+Star1 key = 12398957171084514004   Star2 key= 12956300842567026052
+semi = 4265.65040315 au
+ecc = 0.929272316455
+inclination = -172.538937055 deg
+true anomaly = 114.316152161 deg
+argument of periapsis = 89.9187328065 deg
+ascending node = -54.3697814467 deg
+
+
+Star1 key = 12398957171084514004   Star2 key= 254501596203041512
+semi = 6822.83766431 au
+ecc = 0.98403786325
+inclination = -167.190696916 deg
+true anomaly = 40.0297983244 deg
+argument of periapsis = 35.731176203 deg
+ascending node = -43.8651435604 deg
+
+
+Star1 key = 6131176143751462383   Star2 key= 254501596203041512
+semi = 7023.27287438 au
+ecc = 0.394904272586
+inclination = -18.0185990872 deg
+true anomaly = -33.6516851339 deg
+argument of periapsis = 148.782658168 deg
+ascending node = 65.0264839052 deg
+
+
+Star1 key = 18031177302297877470   Star2 key= 15953900095529172117
+semi = 9577.91305637 au
+ecc = 0.865282878116
+inclination = -143.270981344 deg
+true anomaly = 29.2201454597 deg
+argument of periapsis = 152.442953087 deg
+ascending node = -43.4945065304 deg
+
+
+Star1 key = 1741316929741953201   Star2 key= 18220885009329996203
+semi = 3072.37243104 au
+ecc = 0.787171252502
+inclination = -176.488814859 deg
+true anomaly = 18.5576980727 deg
+argument of periapsis = 24.8760937666 deg
+ascending node = -14.4282970331 deg
+
+
+Star1 key = 12956300842567026052   Star2 key= 254501596203041512
+semi = 9932.09819611 au
+ecc = 0.795002478478
+inclination = -135.681476802 deg
+true anomaly = 164.855943073 deg
+argument of periapsis = 112.768866056 deg
+ascending node = 169.510165896 deg
+
+
+Star1 key = 12956300842567026052   Star2 key= 2864324328542278871
+semi = 8866.98295926 au
+ecc = 0.523388353722
+inclination = -177.914450053 deg
+true anomaly = 59.2463352584 deg
+argument of periapsis = 106.663751009 deg
+ascending node = -65.1396525849 deg
+
+
+Star1 key = 9708743946337345179   Star2 key= 18220885009329996203
+semi = 4934.20801079 au
+ecc = 0.588118910618
+inclination = -131.674625347 deg
+true anomaly = -18.7575678981 deg
+argument of periapsis = 46.1160290269 deg
+ascending node = 43.0041652985 deg
+
+
+Star1 key = 2819144762076455038   Star2 key= 1440699210617804886
+semi = 4382.8104227 au
+ecc = 0.968705421662
+inclination = 175.363673793 deg
+true anomaly = -162.721804757 deg
+argument of periapsis = 150.099202651 deg
+ascending node = -156.520052928 deg
+
+
+Star1 key = 2819144762076455038   Star2 key= 15667010358361522840
+semi = 7242.6049674 au
+ecc = 0.963533254814
+inclination = 179.071760818 deg
+true anomaly = 96.251743574 deg
+argument of periapsis = 10.3702485175 deg
+ascending node = -129.123089246 deg
+
+
+Star1 key = 2819144762076455038   Star2 key= 7197023940273638225
+semi = 9439.94816026 au
+ecc = 0.791930140948
+inclination = 165.658723954 deg
+true anomaly = -155.210389633 deg
+argument of periapsis = 98.7474948411 deg
+ascending node = -178.170477226 deg
+
+
+Star1 key = 6661805761990636381   Star2 key= 9544174489371026178
+semi = 4168.92206326 au
+ecc = 0.70033549196
+inclination = -170.550662274 deg
+true anomaly = -64.7973598415 deg
+argument of periapsis = 139.108666116 deg
+ascending node = 79.6590107366 deg
+
+
+Star1 key = 3424183838382750913   Star2 key= 11377475932744852288
+semi = 7148.17255015 au
+ecc = 0.904793330646
+inclination = 170.446565755 deg
+true anomaly = -46.203727269 deg
+argument of periapsis = 74.1897806431 deg
+ascending node = 93.8442049954 deg
+
+
+Star1 key = 1440699210617804886   Star2 key= 15667010358361522840
+semi = 5503.2204373 au
+ecc = 0.978321938753
+inclination = -178.802426469 deg
+true anomaly = 17.6272942565 deg
+argument of periapsis = 102.607689844 deg
+ascending node = -62.7710569367 deg
+
+
+Star1 key = 1440699210617804886   Star2 key= 7197023940273638225
+semi = 4469.30663691 au
+ecc = 0.783844213046
+inclination = -171.684541847 deg
+true anomaly = -174.265456861 deg
+argument of periapsis = 95.5393697582 deg
+ascending node = 168.791743081 deg
+
+
+Star1 key = 17671497093934378359   Star2 key= 5695180181763464928
+semi = 7647.0138546 au
+ecc = 0.425459264409
+inclination = 58.6599446216 deg
+true anomaly = 178.613557569 deg
+argument of periapsis = 36.1093065754 deg
+ascending node = -119.589419819 deg
+
+
+Star1 key = 10182878659269273586   Star2 key= 13446253148120362093
+semi = 8435.88397434 au
+ecc = 0.853973334015
+inclination = 160.96557725 deg
+true anomaly = 177.60024329 deg
+argument of periapsis = 42.4047143407 deg
+ascending node = -94.8768693719 deg
+
+
+Star1 key = 10182878659269273586   Star2 key= 5150998695490066096
+semi = 9294.42785849 au
+ecc = 0.258516939993
+inclination = 114.610679766 deg
+true anomaly = 133.70874477 deg
+argument of periapsis = 111.528375547 deg
+ascending node = 156.203173919 deg
+
+
+Star1 key = 16098416033659790511   Star2 key= 9135058108360855672
+semi = 1089.10672206 au
+ecc = 0.102122403014
+inclination = -162.931708297 deg
+true anomaly = -83.2191132046 deg
+argument of periapsis = 137.308932641 deg
+ascending node = -67.0000124496 deg
+
+
+Star1 key = 16546723741414114368   Star2 key= 15493573570741449464
+semi = 3967.2667954 au
+ecc = 0.830535068586
+inclination = 150.067841528 deg
+true anomaly = 45.0198350011 deg
+argument of periapsis = 84.5054344682 deg
+ascending node = -78.6655470234 deg
+
+
+Star1 key = 2083587645840065464   Star2 key= 18220885009329996203
+semi = 6067.34639091 au
+ecc = 0.729177864036
+inclination = -179.106369749 deg
+true anomaly = -71.6576365646 deg
+argument of periapsis = 87.90213183 deg
+ascending node = 135.264017441 deg
+
+
+Star1 key = 4704313242883532541   Star2 key= 18220885009329996203
+semi = 1123.276851 au
+ecc = 0.760767320251
+inclination = -166.36676165 deg
+true anomaly = -109.134462743 deg
+argument of periapsis = 144.372082464 deg
+ascending node = -161.939084322 deg
+
+
+Star1 key = 3983934768269087236   Star2 key= 15493573570741449464
+semi = 5506.10051648 au
+ecc = 0.873116855876
+inclination = 161.51173704 deg
+true anomaly = -179.665196384 deg
+argument of periapsis = 19.3512097636 deg
+ascending node = -175.429120672 deg
+
+
+Star1 key = 3983934768269087236   Star2 key= 15667010358361522840
+semi = 9873.5297683 au
+ecc = 0.851147473208
+inclination = -158.919079752 deg
+true anomaly = 55.7047019262 deg
+argument of periapsis = 71.1107927598 deg
+ascending node = -4.197564014 deg
+
+
+Star1 key = 334057756814021199   Star2 key= 11377475932744852288
+semi = 4906.9733983 au
+ecc = 0.722759816528
+inclination = -178.025010783 deg
+true anomaly = -77.4669688896 deg
+argument of periapsis = 79.0621136373 deg
+ascending node = -176.165265005 deg
+
+
+Star1 key = 4831119939271996750   Star2 key= 17554586782979015445
+semi = 1533.87868136 au
+ecc = 0.843416302373
+inclination = 173.659902696 deg
+true anomaly = -162.180041657 deg
+argument of periapsis = 122.182345059 deg
+ascending node = 171.06269176 deg
+
+
+Star1 key = 17071615586059914139   Star2 key= 17340877921327145345
+semi = 4464.59361571 au
+ecc = 0.681422707452
+inclination = -150.248989716 deg
+true anomaly = 136.126434761 deg
+argument of periapsis = 49.0729474731 deg
+ascending node = 122.48268586 deg
+
+
+Star1 key = 12332333402836577709   Star2 key= 5797450813059169879
+semi = 5166.26801182 au
+ecc = 0.883577837997
+inclination = 174.714246707 deg
+true anomaly = -65.6349754351 deg
+argument of periapsis = 104.534687705 deg
+ascending node = -74.5176020262 deg
+
+
+Star1 key = 5797450813059169879   Star2 key= 254501596203041512
+semi = 604.638165451 au
+ecc = 0.65739568125
+inclination = 156.097826121 deg
+true anomaly = -0.789338510051 deg
+argument of periapsis = 124.441582938 deg
+ascending node = -176.402540693 deg
+
+
+Star1 key = 15467584777153178748   Star2 key= 5120400547464923137
+semi = 6706.96092889 au
+ecc = 0.872675066658
+inclination = -164.891997789 deg
+true anomaly = 59.926493428 deg
+argument of periapsis = 81.9629014062 deg
+ascending node = -72.3399312474 deg
+
+
+Star1 key = 13125814610548897124   Star2 key= 9135058108360855672
+semi = 2387.64855846 au
+ecc = 0.0917263131248
+inclination = -105.919023338 deg
+true anomaly = 28.7593585117 deg
+argument of periapsis = 159.23402097 deg
+ascending node = 91.1773472441 deg
+
+
+Star1 key = 13125814610548897124   Star2 key= 18220885009329996203
+semi = 9124.71735814 au
+ecc = 0.933363781323
+inclination = 144.466963312 deg
+true anomaly = 7.99211671416 deg
+argument of periapsis = 132.494183246 deg
+ascending node = 175.917252885 deg
+
+
+Star1 key = 13125814610548897124   Star2 key= 338884829884548257
+semi = 9539.74487295 au
+ecc = 0.708996310317
+inclination = -166.879432814 deg
+true anomaly = 55.0442682546 deg
+argument of periapsis = 143.834542989 deg
+ascending node = 47.5976156175 deg
+
+
+Star1 key = 12980581965570613666   Star2 key= 18220885009329996203
+semi = 9194.75326924 au
+ecc = 0.545037954987
+inclination = -160.188648771 deg
+true anomaly = 134.29087703 deg
+argument of periapsis = 114.296701875 deg
+ascending node = 27.6432936497 deg
+
+
+Star1 key = 12980581965570613666   Star2 key= 17085630370037628177
+semi = 6509.86353436 au
+ecc = 0.827183837543
+inclination = 170.386528203 deg
+true anomaly = -97.3988679592 deg
+argument of periapsis = 85.4778315456 deg
+ascending node = -91.3039050972 deg
+
+
+Star1 key = 14868006097949182244   Star2 key= 18220885009329996203
+semi = 8719.40671842 au
+ecc = 0.938150728789
+inclination = -167.999714903 deg
+true anomaly = 80.9898121737 deg
+argument of periapsis = 84.5013480879 deg
+ascending node = -44.4048345442 deg
+
+
+Star1 key = 13111871843322836677   Star2 key= 18220885009329996203
+semi = 2347.45771814 au
+ecc = 0.904444577433
+inclination = -170.279699233 deg
+true anomaly = 88.6039157612 deg
+argument of periapsis = 80.2300840382 deg
+ascending node = 47.6914691196 deg
+
+
+Star1 key = 13111871843322836677   Star2 key= 12475512695863405142
+semi = 9486.44610876 au
+ecc = 0.548126455786
+inclination = -177.662644707 deg
+true anomaly = -9.85868255004 deg
+argument of periapsis = 106.541017599 deg
+ascending node = -9.0592149964 deg
+
+
+Star1 key = 4497455614297067287   Star2 key= 12475512695863405142
+semi = 6419.5973515 au
+ecc = 0.671551799772
+inclination = 160.691466606 deg
+true anomaly = -88.6294563907 deg
+argument of periapsis = 58.8292707539 deg
+ascending node = 132.266823921 deg
+
+
+Star1 key = 12116937486422568775   Star2 key= 13646933920010927989
+semi = 2397.37196329 au
+ecc = 0.729206289353
+inclination = -163.846940597 deg
+true anomaly = 16.8979275497 deg
+argument of periapsis = 89.2972687495 deg
+ascending node = 171.969453782 deg
+
+
+Star1 key = 907371789100362123   Star2 key= 254501596203041512
+semi = 7952.08918929 au
+ecc = 0.500130132615
+inclination = 146.319397095 deg
+true anomaly = 50.7973228835 deg
+argument of periapsis = 89.5863861401 deg
+ascending node = 151.368553046 deg
+
+
+Star1 key = 12517955374117063965   Star2 key= 254501596203041512
+semi = 6173.065211 au
+ecc = 0.958346401574
+inclination = 173.274749143 deg
+true anomaly = 138.598894948 deg
+argument of periapsis = 95.117364591 deg
+ascending node = -66.6750163139 deg
+
+
+Star1 key = 254501596203041512   Star2 key= 1472855577216539929
+semi = 7233.1737823 au
+ecc = 0.667970073196
+inclination = 170.187838742 deg
+true anomaly = 173.125936267 deg
+argument of periapsis = 110.343902864 deg
+ascending node = 136.605263815 deg
+
+
+Star1 key = 254501596203041512   Star2 key= 2367224655959117907
+semi = 9474.27222341 au
+ecc = 0.743695501517
+inclination = 161.051279412 deg
+true anomaly = 90.8960894947 deg
+argument of periapsis = 102.275670056 deg
+ascending node = -160.84849242 deg
+
+
+Star1 key = 254501596203041512   Star2 key= 16996704205484765856
+semi = 9875.30887917 au
+ecc = 0.980117902687
+inclination = 179.73166853 deg
+true anomaly = 142.154087889 deg
+argument of periapsis = 92.4193741337 deg
+ascending node = -9.8536171053 deg
+
+
+Star1 key = 4967687601296658787   Star2 key= 5669652013859921231
+semi = 3718.14771669 au
+ecc = 0.50607638202
+inclination = 143.23767625 deg
+true anomaly = 25.4359599231 deg
+argument of periapsis = 125.532276419 deg
+ascending node = -72.5914227161 deg
+
+
+Star1 key = 11415352056548969864   Star2 key= 18220885009329996203
+semi = 3818.05219032 au
+ecc = 0.321537627417
+inclination = 163.823080536 deg
+true anomaly = -98.3843913127 deg
+argument of periapsis = 121.074444969 deg
+ascending node = -35.7871787314 deg
+
+
+Star1 key = 1190791219843226975   Star2 key= 9135058108360855672
+semi = 6003.32181909 au
+ecc = 0.437224925502
+inclination = 110.938979411 deg
+true anomaly = -124.295660329 deg
+argument of periapsis = 148.619456036 deg
+ascending node = 8.55633735304 deg
+
+
+Star1 key = 9135058108360855672   Star2 key= 9167406897193437812
+semi = 9407.56585785 au
+ecc = 0.852064821627
+inclination = 157.591453023 deg
+true anomaly = -74.4961465357 deg
+argument of periapsis = 155.779732232 deg
+ascending node = 61.4396521457 deg
+
+
+Star1 key = 9135058108360855672   Star2 key= 9669996076423896973
+semi = 4007.21569508 au
+ecc = 0.862700307465
+inclination = 174.489727934 deg
+true anomaly = -111.397305708 deg
+argument of periapsis = 59.7351536449 deg
+ascending node = -87.9910779438 deg
+
+
+Star1 key = 9135058108360855672   Star2 key= 8245978588326819658
+semi = 3246.39204697 au
+ecc = 0.937071444336
+inclination = 169.025057763 deg
+true anomaly = -115.25641384 deg
+argument of periapsis = 34.3513885642 deg
+ascending node = -127.895916497 deg
+
+
+Star1 key = 9135058108360855672   Star2 key= 13917149177857839476
+semi = 6981.20314468 au
+ecc = 0.796847950741
+inclination = 158.086611502 deg
+true anomaly = -117.88337103 deg
+argument of periapsis = 146.783762362 deg
+ascending node = 69.3006600758 deg
+
+
+Star1 key = 7337436222104850425   Star2 key= 9167406897193437812
+semi = 7083.00928735 au
+ecc = 0.509590892249
+inclination = 120.048992727 deg
+true anomaly = 108.976664323 deg
+argument of periapsis = 66.2119396156 deg
+ascending node = -144.939065372 deg
+
+
+Star1 key = 7337436222104850425   Star2 key= 8245978588326819658
+semi = 5615.80653068 au
+ecc = 0.973391676333
+inclination = 179.623573925 deg
+true anomaly = 125.668274777 deg
+argument of periapsis = 56.7586519452 deg
+ascending node = -172.306584386 deg
+
+
+Star1 key = 13917149177857839476   Star2 key= 18220885009329996203
+semi = 7037.8653486 au
+ecc = 0.779299673064
+inclination = 120.716910105 deg
+true anomaly = 119.435005627 deg
+argument of periapsis = 13.7982619916 deg
+ascending node = 18.7749274866 deg
+
+
+Star1 key = 18220885009329996203   Star2 key= 15448793052467487546
+semi = 8796.22739309 au
+ecc = 0.553968149751
+inclination = 48.6901059027 deg
+true anomaly = 84.1517477298 deg
+argument of periapsis = 128.049023989 deg
+ascending node = -7.2663093702 deg
+
+
+Star1 key = 2488088993033446379   Star2 key= 11809335700353930951
+semi = 5757.22343792 au
+ecc = 0.185894347386
+inclination = -179.288670313 deg
+true anomaly = -61.2861850715 deg
+argument of periapsis = 67.5295649102 deg
+ascending node = 25.2092296029 deg
+
+
+Star1 key = 6059560115574800784   Star2 key= 11809335700353930951
+semi = 1316.33719915 au
+ecc = 0.602300654463
+inclination = -151.777313661 deg
+true anomaly = -48.1982025304 deg
+argument of periapsis = 47.0172710765 deg
+ascending node = -106.411675044 deg
+
+
+Star1 key = 6059560115574800784   Star2 key= 338884829884548257
+semi = 7295.88454135 au
+ecc = 0.798998842722
+inclination = -174.946752172 deg
+true anomaly = 11.5567351583 deg
+argument of periapsis = 88.8860446834 deg
+ascending node = 51.9242487094 deg
+
+
+Star1 key = 3001151717627123160   Star2 key= 1111392218290850060
+semi = 9714.67662401 au
+ecc = 0.941155561275
+inclination = -176.362931465 deg
+true anomaly = -38.6824694852 deg
+argument of periapsis = 18.6405730286 deg
+ascending node = -92.078131853 deg
+
+
+Star1 key = 7103926320582976193   Star2 key= 6587681691958478071
+semi = 6429.25863437 au
+ecc = 0.805461646644
+inclination = -137.626273995 deg
+true anomaly = 147.709600271 deg
+argument of periapsis = 106.074389753 deg
+ascending node = -34.0627851721 deg
+
+
+Star1 key = 15493573570741449464   Star2 key= 338884829884548257
+semi = 9136.11329291 au
+ecc = 0.82856677728
+inclination = 141.709561742 deg
+true anomaly = 106.262099067 deg
+argument of periapsis = 89.2698381487 deg
+ascending node = 62.9317751141 deg
+
+
+Star1 key = 1289900183045493744   Star2 key= 16821826151127446519
+semi = 9076.17288636 au
+ecc = 0.688691500575
+inclination = -105.2891729 deg
+true anomaly = -21.5416564143 deg
+argument of periapsis = 31.0127649415 deg
+ascending node = 105.154316107 deg
+
+
+Star1 key = 1289900183045493744   Star2 key= 15667010358361522840
+semi = 4519.90833976 au
+ecc = 0.685966933953
+inclination = -171.727841481 deg
+true anomaly = -129.801627471 deg
+argument of periapsis = 136.761451477 deg
+ascending node = -91.5501871366 deg
+
+
+Star1 key = 1289900183045493744   Star2 key= 14522943589639417092
+semi = 4466.10930673 au
+ecc = 0.996813644423
+inclination = -178.844943783 deg
+true anomaly = 66.0820508037 deg
+argument of periapsis = 104.644970057 deg
+ascending node = 18.8666396476 deg
+
+
+Star1 key = 16821826151127446519   Star2 key= 15667010358361522840
+semi = 6125.73550716 au
+ecc = 0.92070733317
+inclination = -179.110338277 deg
+true anomaly = -135.177973377 deg
+argument of periapsis = 53.4331573391 deg
+ascending node = 157.212645231 deg
+
+
+Star1 key = 11928846838860476991   Star2 key= 338884829884548257
+semi = 5317.75760542 au
+ecc = 0.551109013338
+inclination = -153.376461037 deg
+true anomaly = -27.0189473298 deg
+argument of periapsis = 114.625808273 deg
+ascending node = 141.642428478 deg
+
+
+Star1 key = 11928846838860476991   Star2 key= 14464126157611544516
+semi = 1617.9629592 au
+ecc = 0.735531442665
+inclination = 134.658565408 deg
+true anomaly = 179.50383333 deg
+argument of periapsis = 139.341498974 deg
+ascending node = -153.110551182 deg
+
+
+Star1 key = 3178052406508893851   Star2 key= 4235047968973494572
+semi = 9217.20186916 au
+ecc = 0.616223997816
+inclination = 172.190542134 deg
+true anomaly = 123.482184155 deg
+argument of periapsis = 86.1567539671 deg
+ascending node = -101.53853187 deg
+
+
+Star1 key = 15667010358361522840   Star2 key= 338884829884548257
+semi = 8445.46376269 au
+ecc = 0.275661642432
+inclination = -70.9486410644 deg
+true anomaly = -141.330545248 deg
+argument of periapsis = 83.3942667738 deg
+ascending node = -23.4049274964 deg
+
+
+Star1 key = 15667010358361522840   Star2 key= 17729105745968760237
+semi = 8331.48430756 au
+ecc = 0.56804159217
+inclination = -19.9251329118 deg
+true anomaly = 159.397834608 deg
+argument of periapsis = 75.4472544511 deg
+ascending node = -50.5363783188 deg
+
+
+Star1 key = 15667010358361522840   Star2 key= 7197023940273638225
+semi = 5166.07538439 au
+ecc = 0.927083524131
+inclination = 179.848076749 deg
+true anomaly = -147.894134068 deg
+argument of periapsis = 94.7394809677 deg
+ascending node = -109.862194103 deg
+
+
+Star1 key = 5122047275745289889   Star2 key= 338884829884548257
+semi = 6572.56671568 au
+ecc = 0.377398836361
+inclination = -150.860114319 deg
+true anomaly = 7.93610932394 deg
+argument of periapsis = 60.6924929966 deg
+ascending node = 63.652953435 deg
+
+
+Star1 key = 5122047275745289889   Star2 key= 14464126157611544516
+semi = 6346.56005934 au
+ecc = 0.928300682974
+inclination = -168.07399829 deg
+true anomaly = 132.82391958 deg
+argument of periapsis = 69.9113838718 deg
+ascending node = -137.893936693 deg
+
+
+Star1 key = 6418164558484383853   Star2 key= 14464126157611544516
+semi = 9246.30321946 au
+ecc = 0.682319647671
+inclination = 172.017547796 deg
+true anomaly = -24.8335784025 deg
+argument of periapsis = 106.469126654 deg
+ascending node = 38.9921245634 deg
+
+
+Star1 key = 14750181358865682963   Star2 key= 13467045660449968039
+semi = 886.818455989 au
+ecc = 0.732054843238
+inclination = -130.829530572 deg
+true anomaly = -67.0278948798 deg
+argument of periapsis = 96.4630574777 deg
+ascending node = -79.1557005063 deg
+
+
+Star1 key = 338884829884548257   Star2 key= 15048432786728093502
+semi = 4102.32786714 au
+ecc = 0.514836054018
+inclination = -143.143857141 deg
+true anomaly = -27.1980226566 deg
+argument of periapsis = 42.0735942665 deg
+ascending node = -83.9848902017 deg
+
+
+Star1 key = 338884829884548257   Star2 key= 17729105745968760237
+semi = 2317.33879059 au
+ecc = 0.928757611599
+inclination = -176.083183291 deg
+true anomaly = 117.743455139 deg
+argument of periapsis = 23.7068778495 deg
+ascending node = 52.2749711609 deg
+
+
+Star1 key = 338884829884548257   Star2 key= 16032254456783224851
+semi = 3270.64500366 au
+ecc = 0.338283366143
+inclination = 169.36774876 deg
+true anomaly = 14.708029951 deg
+argument of periapsis = 77.2537703473 deg
+ascending node = -156.987662665 deg
+
+
+Star1 key = 338884829884548257   Star2 key= 17453644910709335650
+semi = 5374.07016681 au
+ecc = 0.639576959148
+inclination = 155.45163216 deg
+true anomaly = 56.9718808637 deg
+argument of periapsis = 63.6948257691 deg
+ascending node = -121.816871109 deg
+
+
+Star1 key = 338884829884548257   Star2 key= 4034242014104330151
+semi = 5444.53470389 au
+ecc = 0.638918272536
+inclination = 161.050631513 deg
+true anomaly = 79.5770342112 deg
+argument of periapsis = 45.6227266747 deg
+ascending node = 156.512045013 deg
+
+
+Star1 key = 338884829884548257   Star2 key= 738378878435172649
+semi = 2767.13753444 au
+ecc = 0.953409539608
+inclination = -162.870882545 deg
+true anomaly = -162.977016502 deg
+argument of periapsis = 158.977071995 deg
+ascending node = -117.713092391 deg
+
+
+Star1 key = 338884829884548257   Star2 key= 14464126157611544516
+semi = 5119.70268574 au
+ecc = 0.401012461121
+inclination = 175.192879307 deg
+true anomaly = 176.719574255 deg
+argument of periapsis = 49.4030421566 deg
+ascending node = 157.814642098 deg
+
+
+Star1 key = 338884829884548257   Star2 key= 825893525246142949
+semi = 4690.72648753 au
+ecc = 0.887993299062
+inclination = -173.342930756 deg
+true anomaly = 65.991652955 deg
+argument of periapsis = 104.090804469 deg
+ascending node = 68.4512609971 deg
+
+
+Star1 key = 338884829884548257   Star2 key= 17655929350810073139
+semi = 8433.61187964 au
+ecc = 0.47367537386
+inclination = -134.324178006 deg
+true anomaly = -87.3717023837 deg
+argument of periapsis = 37.6430362037 deg
+ascending node = 135.799195203 deg
+
+
+Star1 key = 4478192009835049292   Star2 key= 12161003576444482382
+semi = 7007.30826106 au
+ecc = 0.920395311765
+inclination = 170.673740501 deg
+true anomaly = -114.880329109 deg
+argument of periapsis = 67.9913445664 deg
+ascending node = 58.5316055903 deg
+
+
+Star1 key = 4519969599045667011   Star2 key= 8514200534057697006
+semi = 2645.14670827 au
+ecc = 0.754083809159
+inclination = 178.696501699 deg
+true anomaly = 16.8955508186 deg
+argument of periapsis = 106.878673132 deg
+ascending node = -41.8492899815 deg
+
+
+Star1 key = 4519969599045667011   Star2 key= 15234933920340839716
+semi = 9081.91094954 au
+ecc = 0.802158501243
+inclination = 173.29594549 deg
+true anomaly = 53.8810101084 deg
+argument of periapsis = 84.9098075121 deg
+ascending node = -169.859652999 deg
+
+
+Star1 key = 17897639585060510790   Star2 key= 8624383601372326893
+semi = 9284.026569 au
+ecc = 0.952469412181
+inclination = 167.508582572 deg
+true anomaly = 134.685586128 deg
+argument of periapsis = 12.9612238119 deg
+ascending node = 105.44249921 deg
+
+
+Star1 key = 12475512695863405142   Star2 key= 15863203001388765322
+semi = 8864.28057649 au
+ecc = 0.352203365973
+inclination = -86.8097360381 deg
+true anomaly = -16.2178930588 deg
+argument of periapsis = 61.7804148055 deg
+ascending node = 15.7968974943 deg
+
+
+Star1 key = 15336026188561128060   Star2 key= 15863203001388765322
+semi = 8587.2768104 au
+ecc = 0.758871818074
+inclination = 164.832142775 deg
+true anomaly = -92.3352189541 deg
+argument of periapsis = 97.9334098961 deg
+ascending node = -115.909601778 deg
+
+
+Star1 key = 542949215816962632   Star2 key= 15863203001388765322
+semi = 8614.35526226 au
+ecc = 0.61591452431
+inclination = 128.822004709 deg
+true anomaly = -30.9013110536 deg
+argument of periapsis = 81.5257857029 deg
+ascending node = 36.1295500127 deg
+
+
+Star1 key = 12161003576444482382   Star2 key= 10053618195689087645
+semi = 2099.03789752 au
+ecc = 0.75882918164
+inclination = -177.097719495 deg
+true anomaly = -76.3932709875 deg
+argument of periapsis = 152.63885909 deg
+ascending node = -134.854240727 deg
+
+
+Star1 key = 3453374012624463364   Star2 key= 4235047968973494572
+semi = 5121.60996525 au
+ecc = 0.600203535574
+inclination = 167.421071216 deg
+true anomaly = 163.323226288 deg
+argument of periapsis = 114.57601282 deg
+ascending node = 108.005978702 deg
+
+
+Star1 key = 18130533571907559182   Star2 key= 7675019875860270797
+semi = 7858.62915962 au
+ecc = 0.351954350068
+inclination = -150.720371812 deg
+true anomaly = -88.9473830656 deg
+argument of periapsis = 137.719045671 deg
+ascending node = -150.328207585 deg
+
+
+Star1 key = 5175277235926667579   Star2 key= 16420258796538175170
+semi = 5009.40267707 au
+ecc = 0.690404979827
+inclination = -144.881554496 deg
+true anomaly = 167.029160335 deg
+argument of periapsis = 67.1520544308 deg
+ascending node = 40.4688009648 deg
+
+
+Star1 key = 10741351419711584897   Star2 key= 4235047968973494572
+semi = 9239.35186858 au
+ecc = 0.939316607524
+inclination = 138.904613873 deg
+true anomaly = 77.1776513267 deg
+argument of periapsis = 111.075992367 deg
+ascending node = -117.421920696 deg
+
+
+Star1 key = 10741351419711584897   Star2 key= 5816097661052091564
+semi = 5082.99987129 au
+ecc = 0.702797192023
+inclination = -170.952031134 deg
+true anomaly = 56.2386890197 deg
+argument of periapsis = 40.0462048229 deg
+ascending node = -158.129900126 deg
+
+
+Star1 key = 505261636935030340   Star2 key= 11441823043255695999
+semi = 2843.26205747 au
+ecc = 0.202822486501
+inclination = 160.632802035 deg
+true anomaly = 4.36064894499 deg
+argument of periapsis = 84.5449098769 deg
+ascending node = -71.9681388798 deg
+
+
+Star1 key = 13231296796110317656   Star2 key= 4235047968973494572
+semi = 3660.67544895 au
+ecc = 0.887601846509
+inclination = -164.229161959 deg
+true anomaly = -57.9334202549 deg
+argument of periapsis = 75.8947828235 deg
+ascending node = -136.405180844 deg
+
+
+Star1 key = 4235047968973494572   Star2 key= 17387470621593363847
+semi = 6219.24929141 au
+ecc = 0.780689822174
+inclination = -166.490036993 deg
+true anomaly = -133.235918421 deg
+argument of periapsis = 124.348306099 deg
+ascending node = -165.873882792 deg
+
+
+Star1 key = 4235047968973494572   Star2 key= 16745902833218803238
+semi = 6842.23960725 au
+ecc = 0.980936764721
+inclination = 170.390471544 deg
+true anomaly = -89.1133438415 deg
+argument of periapsis = 30.8876594569 deg
+ascending node = 108.854672943 deg
+
+
+Star1 key = 16955372327188958142   Star2 key= 16543426053426339678
+semi = 4606.33811886 au
+ecc = 0.760153329157
+inclination = -125.389446262 deg
+true anomaly = -87.6412782833 deg
+argument of periapsis = 110.683938421 deg
+ascending node = 44.8771674731 deg
+
+
+Star1 key = 4465214582885300845   Star2 key= 17001623290204560249
+semi = 8827.5963044 au
+ecc = 0.52992063826
+inclination = -41.6604082086 deg
+true anomaly = -98.1392727985 deg
+argument of periapsis = 38.1674740958 deg
+ascending node = -140.67853296 deg
+
+
+Star1 key = 12046339653821858489   Star2 key= 16482227129515670429
+semi = 9090.98057823 au
+ecc = 0.570616227327
+inclination = 18.584360196 deg
+true anomaly = -138.296222808 deg
+argument of periapsis = 44.3111792875 deg
+ascending node = 41.5123233794 deg
+
+
+Star1 key = 12046339653821858489   Star2 key= 1366693084665816653
+semi = 9917.07986978 au
+ecc = 0.325611936785
+inclination = -32.1927193406 deg
+true anomaly = -25.0724359302 deg
+argument of periapsis = 94.5496139003 deg
+ascending node = 18.8233733136 deg
+
+
+Star1 key = 9682619141395103340   Star2 key= 3510970848546607871
+semi = 7574.35954355 au
+ecc = 0.354468199327
+inclination = -140.000504107 deg
+true anomaly = -63.3558886423 deg
+argument of periapsis = 174.355240065 deg
+ascending node = 133.106240355 deg
+
+
+Star1 key = 5827808395752490454   Star2 key= 2664214833242576782
+semi = 5325.41775293 au
+ecc = 0.677525308925
+inclination = 142.170467878 deg
+true anomaly = 167.142736653 deg
+argument of periapsis = 96.8186153745 deg
+ascending node = -109.515837929 deg
+
+
+Star1 key = 10046750963941675531   Star2 key= 9338099795935568455
+semi = 9803.14111744 au
+ecc = 0.662535994977
+inclination = 142.275492561 deg
+true anomaly = -178.292161331 deg
+argument of periapsis = 82.407661761 deg
+ascending node = -52.5587602391 deg
+
+
+Star1 key = 10531476678542424520   Star2 key= 462051667104763869
+semi = 5568.700279 au
+ecc = 0.810441209109
+inclination = -161.563811151 deg
+true anomaly = 1.10681747859 deg
+argument of periapsis = 103.743666107 deg
+ascending node = -10.2693381027 deg
+
+
+Star1 key = 17768219988973376185   Star2 key= 2386343517104907476
+semi = 2940.25947585 au
+ecc = 0.806816425408
+inclination = -172.306016333 deg
+true anomaly = -135.936591061 deg
+argument of periapsis = 98.981221519 deg
+ascending node = 42.9677952487 deg
+
+
+Star1 key = 17768219988973376185   Star2 key= 10543864527885591348
+semi = 4823.56965804 au
+ecc = 0.940296400018
+inclination = 179.741686491 deg
+true anomaly = -59.00652592 deg
+argument of periapsis = 95.3993669411 deg
+ascending node = 60.6767195142 deg
+
+
+Star1 key = 4810445153705570752   Star2 key= 17097381153116152310
+semi = 1577.12173079 au
+ecc = 0.224609022093
+inclination = -57.2482743541 deg
+true anomaly = -137.290948242 deg
+argument of periapsis = 154.661255494 deg
+ascending node = -68.7898217987 deg
+
+
+Star1 key = 4282945639677862109   Star2 key= 14597216694313531439
+semi = 6496.82986323 au
+ecc = 0.577800989681
+inclination = 163.375279593 deg
+true anomaly = -148.128970773 deg
+argument of periapsis = 67.7269455808 deg
+ascending node = 176.944520061 deg
+
+
+Star1 key = 13123420090836956533   Star2 key= 10543327335392627401
+semi = 5703.06947415 au
+ecc = 0.228600019973
+inclination = -90.1754563599 deg
+true anomaly = 42.0031350993 deg
+argument of periapsis = 44.5220474262 deg
+ascending node = -109.720252945 deg
+
+
+Star1 key = 2982401978338534134   Star2 key= 16356836218744788210
+semi = 6763.63123196 au
+ecc = 0.293700865666
+inclination = 84.9014140583 deg
+true anomaly = 19.2335811883 deg
+argument of periapsis = 69.1386301512 deg
+ascending node = -79.0574177619 deg
+
+
+Star1 key = 2982401978338534134   Star2 key= 4123305800357771756
+semi = 4868.24271177 au
+ecc = 0.609272956743
+inclination = 140.846756689 deg
+true anomaly = 125.120092861 deg
+argument of periapsis = 150.609164024 deg
+ascending node = 92.5847106923 deg
+
+
+Star1 key = 16356836218744788210   Star2 key= 4123305800357771756
+semi = 7088.32043563 au
+ecc = 0.923394447776
+inclination = 168.559908211 deg
+true anomaly = 118.154781728 deg
+argument of periapsis = 128.027088527 deg
+ascending node = 136.027815005 deg
+
+
+Star1 key = 6573805140386516674   Star2 key= 7858979848850910991
+semi = 2635.50397993 au
+ecc = 0.876792186453
+inclination = 156.413116836 deg
+true anomaly = 122.624258488 deg
+argument of periapsis = 125.795646871 deg
+ascending node = 173.744876489 deg
+
+
+Star1 key = 15975591652118713665   Star2 key= 6515337115462299859
+semi = 8456.67907952 au
+ecc = 0.9512118865
+inclination = 169.458286834 deg
+true anomaly = 7.83366357879 deg
+argument of periapsis = 124.276776025 deg
+ascending node = 170.505472994 deg
+
+
+Star1 key = 4123305800357771756   Star2 key= 12016801149322165968
+semi = 3666.685898 au
+ecc = 0.185358550818
+inclination = 64.3235755331 deg
+true anomaly = -169.047386755 deg
+argument of periapsis = 61.9121134177 deg
+ascending node = 98.4325822813 deg
+
+
+Star1 key = 3073874539196281368   Star2 key= 6239990561574352664
+semi = 8730.45065952 au
+ecc = 0.902061259234
+inclination = 178.551075581 deg
+true anomaly = -145.746653357 deg
+argument of periapsis = 22.4298393654 deg
+ascending node = 68.0580132641 deg
+
+
+Star1 key = 16627392181883480857   Star2 key= 8869266010864693021
+semi = 7250.75302732 au
+ecc = 0.163579166759
+inclination = -133.661316864 deg
+true anomaly = -28.284216572 deg
+argument of periapsis = 44.0133973116 deg
+ascending node = 120.30643264 deg
+
+
+Star1 key = 16627392181883480857   Star2 key= 1244666692647474609
+semi = 3682.01357502 au
+ecc = 0.246901363298
+inclination = -169.12580864 deg
+true anomaly = -47.3549585132 deg
+argument of periapsis = 79.8321996343 deg
+ascending node = -52.1860687371 deg
+
+
+Star1 key = 15090885050178213887   Star2 key= 4609613408530378639
+semi = 8893.28907314 au
+ecc = 0.910708864149
+inclination = 177.463300365 deg
+true anomaly = 35.4993640558 deg
+argument of periapsis = 47.227915196 deg
+ascending node = -145.428062423 deg
+
+
+Star1 key = 782769193766582653   Star2 key= 11797950871450152400
+semi = 7480.93350464 au
+ecc = 0.953859914151
+inclination = 176.020325448 deg
+true anomaly = -32.5914571332 deg
+argument of periapsis = 54.9110409116 deg
+ascending node = 133.171682086 deg
+
+
+Star1 key = 2802408194841119322   Star2 key= 9423065658847374490
+semi = 6317.0998261 au
+ecc = 0.82343297577
+inclination = -74.7324412387 deg
+true anomaly = 159.461891581 deg
+argument of periapsis = 134.112756182 deg
+ascending node = 164.5591281 deg
+
+
+Star1 key = 14967973735299668527   Star2 key= 11797950871450152400
+semi = 8175.92751206 au
+ecc = 0.375610434856
+inclination = -158.89447265 deg
+true anomaly = -41.5253551442 deg
+argument of periapsis = 86.3633568144 deg
+ascending node = 75.6150719977 deg
+
+
+Star1 key = 16487831008270850266   Star2 key= 14778203902108007231
+semi = 9636.85764846 au
+ecc = 0.577327540051
+inclination = 129.151867099 deg
+true anomaly = -140.672950978 deg
+argument of periapsis = 134.278711032 deg
+ascending node = -13.8769055409 deg
+
+
+Star1 key = 13586551410529714365   Star2 key= 9070794764457915644
+semi = 3680.02633107 au
+ecc = 0.385958692046
+inclination = 35.2563883361 deg
+true anomaly = 157.164007079 deg
+argument of periapsis = 79.2830038509 deg
+ascending node = -50.077403125 deg
+
+
+Star1 key = 15510657018687932997   Star2 key= 6003026377309027291
+semi = 9413.25338739 au
+ecc = 0.450664335501
+inclination = -168.740493447 deg
+true anomaly = -117.494194557 deg
+argument of periapsis = 89.4986216826 deg
+ascending node = 170.925241882 deg
+
+
+Star1 key = 10052457862116624043   Star2 key= 7107742947045637164
+semi = 1479.46802822 au
+ecc = 0.892987688878
+inclination = 171.182372137 deg
+true anomaly = -143.666191902 deg
+argument of periapsis = 121.212540756 deg
+ascending node = 159.14958365 deg
+
+
+Star1 key = 10917096896858612270   Star2 key= 8852315001318849084
+semi = 6146.55138773 au
+ecc = 0.253820703881
+inclination = 176.837354203 deg
+true anomaly = -43.9664075418 deg
+argument of periapsis = 21.8736329297 deg
+ascending node = -133.961901385 deg
+
+
+Star1 key = 13455017529579891366   Star2 key= 16656704364385033573
+semi = 5755.83708841 au
+ecc = 0.926126830867
+inclination = -173.665485466 deg
+true anomaly = -60.2320158423 deg
+argument of periapsis = 109.17717142 deg
+ascending node = -72.7228880811 deg
+
+
+Star1 key = 9629225167040442775   Star2 key= 18416637096953571362
+semi = 6321.68315042 au
+ecc = 0.937406131268
+inclination = -173.140778052 deg
+true anomaly = -21.9424880175 deg
+argument of periapsis = 69.8003037818 deg
+ascending node = 33.6190056976 deg
+
+
+Star1 key = 2299330349412711910   Star2 key= 949099656479114268
+semi = 9226.26971496 au
+ecc = 0.483762359704
+inclination = -41.2799862822 deg
+true anomaly = 175.901081052 deg
+argument of periapsis = 144.482731126 deg
+ascending node = 141.520604448 deg
+
+
+Star1 key = 17162557835081308676   Star2 key= 14650819238061654031
+semi = 4581.87198143 au
+ecc = 0.917126277948
+inclination = -163.630244939 deg
+true anomaly = -158.133007675 deg
+argument of periapsis = 154.900946431 deg
+ascending node = 106.371802051 deg
+
+
+Star1 key = 11793972274380970923   Star2 key= 2636359729309992813
+semi = 9682.37597989 au
+ecc = 0.561600781775
+inclination = 147.731767878 deg
+true anomaly = -6.08538091471 deg
+argument of periapsis = 112.645170493 deg
+ascending node = -51.4081974064 deg
+
+
+Star1 key = 15588492040564719710   Star2 key= 14225036555736428869
+semi = 7608.18638731 au
+ecc = 0.893472207586
+inclination = 175.987227043 deg
+true anomaly = -173.412169905 deg
+argument of periapsis = 149.271621396 deg
+ascending node = 11.3483669538 deg
+
+
+Star1 key = 6022336243603203943   Star2 key= 10067088618279047736
+semi = 4133.12145213 au
+ecc = 0.393127161794
+inclination = -104.941813502 deg
+true anomaly = 34.2422873206 deg
+argument of periapsis = 101.733209148 deg
+ascending node = 88.7305917467 deg
+
+
+Star1 key = 6022336243603203943   Star2 key= 233989069795405008
+semi = 9426.75504584 au
+ecc = 0.922434679231
+inclination = -162.327837356 deg
+true anomaly = 175.661651369 deg
+argument of periapsis = 47.1469933389 deg
+ascending node = 66.0328591427 deg
+
+
+Star1 key = 6022336243603203943   Star2 key= 11105557385541138549
+semi = 8023.52720474 au
+ecc = 0.29024820469
+inclination = 76.8478047144 deg
+true anomaly = 56.0244126703 deg
+argument of periapsis = 48.6686260855 deg
+ascending node = -70.3919961221 deg
+
+
+Star1 key = 12641228304403424600   Star2 key= 12763898780437828554
+semi = 5755.87461775 au
+ecc = 0.243073906511
+inclination = 79.1609274295 deg
+true anomaly = 9.34208567096 deg
+argument of periapsis = 104.916135179 deg
+ascending node = 31.9970993239 deg
+
+
+Star1 key = 14039803927434865208   Star2 key= 9298879145350005451
+semi = 8620.24785984 au
+ecc = 0.194042219454
+inclination = 160.072946314 deg
+true anomaly = 78.8236608364 deg
+argument of periapsis = 123.024224822 deg
+ascending node = -16.0434993202 deg
+
+
+Star1 key = 5803362353917412432   Star2 key= 9298879145350005451
+semi = 9288.59759437 au
+ecc = 0.325829767643
+inclination = 18.5390063288 deg
+true anomaly = 157.253247986 deg
+argument of periapsis = 47.4465323983 deg
+ascending node = 33.4217656857 deg
+
+
+Star1 key = 688314829143563840   Star2 key= 8513277346203493253
+semi = 2809.02887571 au
+ecc = 0.977916078521
+inclination = 179.884566372 deg
+true anomaly = -151.975417849 deg
+argument of periapsis = 67.1840164917 deg
+ascending node = -52.0193482525 deg
+
+
+Star1 key = 688314829143563840   Star2 key= 13309376179571640279
+semi = 4771.15411996 au
+ecc = 0.597940238626
+inclination = 153.162607402 deg
+true anomaly = 86.0129568192 deg
+argument of periapsis = 41.9585085052 deg
+ascending node = 102.543405277 deg
+
+
+Star1 key = 10788809232644970560   Star2 key= 780029717046690546
+semi = 5478.13803386 au
+ecc = 0.647280946541
+inclination = 81.4575499836 deg
+true anomaly = 23.7419589321 deg
+argument of periapsis = 119.758840674 deg
+ascending node = -108.658726232 deg
+
+
+Star1 key = 12081958031052854724   Star2 key= 5449267657522686316
+semi = 2788.7383121 au
+ecc = 0.512795261276
+inclination = -178.016376639 deg
+true anomaly = 130.990446972 deg
+argument of periapsis = 152.233135863 deg
+ascending node = -112.492243244 deg
+
+
+Star1 key = 12081958031052854724   Star2 key= 11360548085153988996
+semi = 4914.52145895 au
+ecc = 0.975716358259
+inclination = -173.301232798 deg
+true anomaly = -42.7687796674 deg
+argument of periapsis = 52.5333122163 deg
+ascending node = -113.300411169 deg
+
+
+Star1 key = 2363496701018287436   Star2 key= 233989069795405008
+semi = 3722.32620503 au
+ecc = 0.488007758663
+inclination = 120.102412521 deg
+true anomaly = 36.9380804048 deg
+argument of periapsis = 91.8599738247 deg
+ascending node = 37.1681138138 deg
+
+
+Star1 key = 5449267657522686316   Star2 key= 11360548085153988996
+semi = 7887.03141611 au
+ecc = 0.381717233552
+inclination = -154.726043258 deg
+true anomaly = -55.3148400043 deg
+argument of periapsis = 104.011394728 deg
+ascending node = -121.010575985 deg
+
+
+Star1 key = 233989069795405008   Star2 key= 11105557385541138549
+semi = 5391.83873609 au
+ecc = 0.987763357211
+inclination = -171.958368719 deg
+true anomaly = -138.18216416 deg
+argument of periapsis = 156.375504631 deg
+ascending node = -56.416074538 deg
+
+
+Star1 key = 233989069795405008   Star2 key= 1060060594072119410
+semi = 8048.97380078 au
+ecc = 0.674918638925
+inclination = -67.8534572274 deg
+true anomaly = -136.372353519 deg
+argument of periapsis = 25.284571445 deg
+ascending node = 114.054136198 deg
+
+
+Star1 key = 233989069795405008   Star2 key= 6701845474007453828
+semi = 1968.09189257 au
+ecc = 0.391428473428
+inclination = 102.721760756 deg
+true anomaly = 138.071109524 deg
+argument of periapsis = 89.7601971861 deg
+ascending node = -4.65509032369 deg
+
+
+Star1 key = 233989069795405008   Star2 key= 5597659233592632130
+semi = 740.298915641 au
+ecc = 0.589399188377
+inclination = 137.437770336 deg
+true anomaly = -51.6630606908 deg
+argument of periapsis = 138.664351266 deg
+ascending node = 124.999478866 deg
+
+
+Star1 key = 16543426053426339678   Star2 key= 6189152345583383554
+semi = 1301.12803243 au
+ecc = 0.0981774087645
+inclination = -24.1357829152 deg
+true anomaly = -46.7496220958 deg
+argument of periapsis = 91.9104685014 deg
+ascending node = 68.7007638798 deg
+
+
+Star1 key = 4488232739986626224   Star2 key= 1747513342567690251
+semi = 8073.98087559 au
+ecc = 0.393247227652
+inclination = 93.8856755925 deg
+true anomaly = -136.88056891 deg
+argument of periapsis = 25.1401310492 deg
+ascending node = 77.9320322641 deg
+
+
+Star1 key = 13097261571021234305   Star2 key= 17550397509703220328
+semi = 4308.26449375 au
+ecc = 0.674680768596
+inclination = -175.880309978 deg
+true anomaly = -85.7558849713 deg
+argument of periapsis = 93.3312573169 deg
+ascending node = 31.7903877151 deg
+
+
+Star1 key = 11640199140300763005   Star2 key= 6701845474007453828
+semi = 4793.82307897 au
+ecc = 0.97561824133
+inclination = 178.204461158 deg
+true anomaly = -162.536929285 deg
+argument of periapsis = 38.1329667549 deg
+ascending node = 101.486689972 deg
+
+
+Star1 key = 6189152345583383554   Star2 key= 18325023928703451587
+semi = 2514.01852488 au
+ecc = 0.59635615632
+inclination = 178.371973414 deg
+true anomaly = -2.78252860408 deg
+argument of periapsis = 43.1981368532 deg
+ascending node = 155.660301032 deg
+
+
+Star1 key = 4318803389458910585   Star2 key= 4444672479077344921
+semi = 5719.08597615 au
+ecc = 0.850699074795
+inclination = -170.862105241 deg
+true anomaly = 51.3813193727 deg
+argument of periapsis = 131.015846751 deg
+ascending node = 119.839388142 deg
+
+
+Star1 key = 8720116471852972851   Star2 key= 5993730524314221693
+semi = 7545.06617687 au
+ecc = 0.837144202534
+inclination = -164.403315718 deg
+true anomaly = -55.3841739261 deg
+argument of periapsis = 144.18404163 deg
+ascending node = -109.690938252 deg
+
+
+Star1 key = 7834010333463783231   Star2 key= 12845660558516339702
+semi = 7077.96622092 au
+ecc = 0.75300811983
+inclination = -150.122046916 deg
+true anomaly = -138.604494932 deg
+argument of periapsis = 82.248130119 deg
+ascending node = -174.951596314 deg
+
+
+Star1 key = 10838412097578816576   Star2 key= 11377475932744852288
+semi = 2046.02454098 au
+ecc = 0.475138568783
+inclination = -173.734448275 deg
+true anomaly = -169.88039144 deg
+argument of periapsis = 139.565224844 deg
+ascending node = 81.2784988959 deg
+
+
+Star1 key = 15514620721322012664   Star2 key= 11377475932744852288
+semi = 5952.42454673 au
+ecc = 0.729052698708
+inclination = -156.022774024 deg
+true anomaly = -153.322778259 deg
+argument of periapsis = 33.8642621377 deg
+ascending node = 66.2043357611 deg
+
+
+Star1 key = 13866153110758809824   Star2 key= 11377475932744852288
+semi = 9266.32151982 au
+ecc = 0.51611951836
+inclination = 166.4187451 deg
+true anomaly = 163.639404915 deg
+argument of periapsis = 26.6114264848 deg
+ascending node = 112.63572541 deg
+
+
+Star1 key = 1395959230680748237   Star2 key= 4611906412684925148
+semi = 9594.78044509 au
+ecc = 0.787314754626
+inclination = -131.925806764 deg
+true anomaly = -179.584197557 deg
+argument of periapsis = 100.206052349 deg
+ascending node = -45.2087939495 deg
+
+
+Star1 key = 783636440475706567   Star2 key= 8513277346203493253
+semi = 1744.08213969 au
+ecc = 0.510206302193
+inclination = 175.453807462 deg
+true anomaly = -61.3406234046 deg
+argument of periapsis = 38.2030632306 deg
+ascending node = 15.6182232261 deg
+
+
+Star1 key = 16262795996018918778   Star2 key= 11377475932744852288
+semi = 6162.11044545 au
+ecc = 0.480121691236
+inclination = -127.753890499 deg
+true anomaly = 84.7172392539 deg
+argument of periapsis = 98.9850489433 deg
+ascending node = -8.40763720888 deg
+
+
+Star1 key = 8090365449047465470   Star2 key= 4611906412684925148
+semi = 8530.18945407 au
+ecc = 0.754937564671
+inclination = -151.509074749 deg
+true anomaly = -84.9346340098 deg
+argument of periapsis = 122.403871173 deg
+ascending node = -94.6648096775 deg
+
+
+Star1 key = 8513277346203493253   Star2 key= 13309376179571640279
+semi = 3398.54171627 au
+ecc = 0.98675874563
+inclination = 177.524278947 deg
+true anomaly = 104.463646104 deg
+argument of periapsis = 92.4028445413 deg
+ascending node = 29.6467574759 deg
+
+
+Star1 key = 4735446203442165585   Star2 key= 14889227730560998111
+semi = 6179.05696814 au
+ecc = 0.916943072058
+inclination = -158.453681159 deg
+true anomaly = -106.497993131 deg
+argument of periapsis = 80.2030054147 deg
+ascending node = -88.2932154936 deg
+
+
+Star1 key = 2014359777389286124   Star2 key= 14889227730560998111
+semi = 7687.2690948 au
+ecc = 0.974913016403
+inclination = -178.640482577 deg
+true anomaly = -17.1151094915 deg
+argument of periapsis = 127.889596455 deg
+ascending node = 146.808154297 deg
+
+
+Star1 key = 7661410493364618486   Star2 key= 14889227730560998111
+semi = 5724.14103931 au
+ecc = 0.975315441235
+inclination = -173.073499081 deg
+true anomaly = -130.406354894 deg
+argument of periapsis = 90.1997867764 deg
+ascending node = 36.8474948295 deg
+
+
+Star1 key = 7661410493364618486   Star2 key= 14330537296203164399
+semi = 5026.63602503 au
+ecc = 0.478068736281
+inclination = 141.772015954 deg
+true anomaly = -155.315955874 deg
+argument of periapsis = 83.6618737412 deg
+ascending node = -89.5878883479 deg
+
+
+Star1 key = 5001987503819510367   Star2 key= 11458759860028993166
+semi = 5342.410967 au
+ecc = 0.954462351333
+inclination = -173.366372553 deg
+true anomaly = 175.067991052 deg
+argument of periapsis = 77.9936302486 deg
+ascending node = -72.7470492488 deg
+
+
+Star1 key = 5001987503819510367   Star2 key= 8525729309963799075
+semi = 5380.03001073 au
+ecc = 0.469099992975
+inclination = -140.24321114 deg
+true anomaly = 134.788855356 deg
+argument of periapsis = 77.4130798683 deg
+ascending node = -31.4332872632 deg
+
+
+Star1 key = 17758301614179921383   Star2 key= 11458759860028993166
+semi = 2189.94498345 au
+ecc = 0.343066566163
+inclination = -162.785841254 deg
+true anomaly = -82.5903333009 deg
+argument of periapsis = 60.7971500152 deg
+ascending node = -50.6885218285 deg
+
+
+Star1 key = 3412501051898249903   Star2 key= 11458759860028993166
+semi = 7484.25932634 au
+ecc = 0.881697684378
+inclination = -165.155364817 deg
+true anomaly = 83.539656605 deg
+argument of periapsis = 50.3024978542 deg
+ascending node = -172.459197307 deg
+
+
+Star1 key = 3412501051898249903   Star2 key= 4797544728837801561
+semi = 3934.70213509 au
+ecc = 0.949763108508
+inclination = 176.029732619 deg
+true anomaly = -164.383020346 deg
+argument of periapsis = 51.7971711552 deg
+ascending node = 82.5649546797 deg
+
+
+Star1 key = 11458759860028993166   Star2 key= 8525729309963799075
+semi = 4602.72343918 au
+ecc = 0.489931748607
+inclination = -147.070231439 deg
+true anomaly = 138.594650545 deg
+argument of periapsis = 92.5100932389 deg
+ascending node = 61.8882781776 deg
+
+
+Star1 key = 11458759860028993166   Star2 key= 4797544728837801561
+semi = 8487.86538151 au
+ecc = 0.372516931712
+inclination = -137.766287428 deg
+true anomaly = -125.820595142 deg
+argument of periapsis = 76.3809802948 deg
+ascending node = -106.799264436 deg
+
+
+Star1 key = 7083814505168721044   Star2 key= 14889227730560998111
+semi = 8652.93279141 au
+ecc = 0.774651336137
+inclination = 153.140894455 deg
+true anomaly = -9.13679210112 deg
+argument of periapsis = 82.1946129206 deg
+ascending node = 88.7650027438 deg
+
+
+Star1 key = 7919586258736367231   Star2 key= 3578297242987977412
+semi = 8159.52660215 au
+ecc = 0.968375420307
+inclination = -168.488113965 deg
+true anomaly = -158.84703042 deg
+argument of periapsis = 94.8252342198 deg
+ascending node = 87.0071415746 deg
+
+
+Star1 key = 12862874346857037462   Star2 key= 13166514422086067596
+semi = 41.8286927176 au
+ecc = 0.966236467013
+inclination = -177.854292157 deg
+true anomaly = 14.0850637756 deg
+argument of periapsis = 101.189373312 deg
+ascending node = 41.7836157478 deg
+
+
+Star1 key = 14889227730560998111   Star2 key= 2361005002194762568
+semi = 1829.7660577 au
+ecc = 0.825786283642
+inclination = -179.94596829 deg
+true anomaly = 150.345057848 deg
+argument of periapsis = 65.5980450708 deg
+ascending node = 21.6088971451 deg
+
+
+Star1 key = 14889227730560998111   Star2 key= 14383370471795522861
+semi = 6347.01217972 au
+ecc = 0.872394868027
+inclination = 176.166111761 deg
+true anomaly = -92.8184332872 deg
+argument of periapsis = 11.1414168614 deg
+ascending node = -36.1602011751 deg
+
+
+Star1 key = 14889227730560998111   Star2 key= 6930123409209095189
+semi = 5475.04100422 au
+ecc = 0.844878685253
+inclination = 176.578947664 deg
+true anomaly = -31.8210238827 deg
+argument of periapsis = 117.107267111 deg
+ascending node = -40.8385186526 deg
+
+
+Star1 key = 14889227730560998111   Star2 key= 6507539349023215702
+semi = 3132.50154383 au
+ecc = 0.122169471981
+inclination = 140.940816212 deg
+true anomaly = -45.1206871903 deg
+argument of periapsis = 48.6281672881 deg
+ascending node = -103.96290409 deg
+
+
+Star1 key = 14889227730560998111   Star2 key= 8567517070685620240
+semi = 6109.63133511 au
+ecc = 0.280356767851
+inclination = 151.367675545 deg
+true anomaly = 152.224322485 deg
+argument of periapsis = 72.3681503135 deg
+ascending node = 4.90629625811 deg
+
+
+Star1 key = 14889227730560998111   Star2 key= 7301553063797989793
+semi = 9832.61164657 au
+ecc = 0.729832452324
+inclination = -154.813337688 deg
+true anomaly = 6.01863335195 deg
+argument of periapsis = 34.6856934545 deg
+ascending node = 106.011695555 deg
+
+
+Star1 key = 15664344080395307670   Star2 key= 1789438466285463508
+semi = 9283.68285949 au
+ecc = 0.731466591661
+inclination = 166.946699633 deg
+true anomaly = -40.432921281 deg
+argument of periapsis = 137.516870373 deg
+ascending node = 53.3288938634 deg
+
+
+Star1 key = 7640918130614669003   Star2 key= 9564756211972215228
+semi = 8570.45641626 au
+ecc = 0.642662938632
+inclination = -161.947925671 deg
+true anomaly = 27.8878857529 deg
+argument of periapsis = 126.896311703 deg
+ascending node = -13.1949477774 deg
+
+
+Star1 key = 10079443021790179435   Star2 key= 3875317920557026928
+semi = 5932.68527509 au
+ecc = 0.726545085536
+inclination = 146.60119286 deg
+true anomaly = 100.904724353 deg
+argument of periapsis = 27.1314682879 deg
+ascending node = -109.259595697 deg
+
+
+Star1 key = 17959297377039826308   Star2 key= 9171686700317676793
+semi = 9219.04576731 au
+ecc = 0.493711012312
+inclination = 173.228840508 deg
+true anomaly = -51.1902421948 deg
+argument of periapsis = 118.831471125 deg
+ascending node = 66.4702230653 deg
+
+
+Star1 key = 3875317920557026928   Star2 key= 17922786659056920601
+semi = 9803.58151276 au
+ecc = 0.766114372665
+inclination = 107.894293551 deg
+true anomaly = -111.930117378 deg
+argument of periapsis = 93.2328200216 deg
+ascending node = 115.706441076 deg
+
+
+Star1 key = 18445177130615026880   Star2 key= 4228769620370705316
+semi = 7102.93709897 au
+ecc = 0.3493239283
+inclination = 115.538054425 deg
+true anomaly = -23.5241791199 deg
+argument of periapsis = 151.742702672 deg
+ascending node = 14.1632487874 deg
+
+
+Star1 key = 1577403520196001490   Star2 key= 14920204986126613607
+semi = 5054.79090611 au
+ecc = 0.44624142626
+inclination = 97.375782127 deg
+true anomaly = 106.92604082 deg
+argument of periapsis = 51.388202411 deg
+ascending node = 11.6110673683 deg
+
+
+Star1 key = 1343755731805456997   Star2 key= 14605293284028998996
+semi = 7532.61002983 au
+ecc = 0.492234922035
+inclination = 165.148098644 deg
+true anomaly = 141.259344513 deg
+argument of periapsis = 6.06820603113 deg
+ascending node = 137.501128965 deg
+
+
+Star1 key = 14605293284028998996   Star2 key= 6233431193747404759
+semi = 1604.36978699 au
+ecc = 0.383505380818
+inclination = -175.662650162 deg
+true anomaly = -115.434215127 deg
+argument of periapsis = 75.3509372986 deg
+ascending node = -99.5056891487 deg
+
+
+Star1 key = 13468039989891462259   Star2 key= 7782767360716367410
+semi = 3745.58374556 au
+ecc = 0.878095861708
+inclination = 176.094298016 deg
+true anomaly = 65.7620223473 deg
+argument of periapsis = 88.8146938185 deg
+ascending node = 168.595420523 deg
+
+
+Star1 key = 8601414713006374899   Star2 key= 14931212187064128009
+semi = 8455.02673952 au
+ecc = 0.389667111076
+inclination = 158.87144672 deg
+true anomaly = 163.571090683 deg
+argument of periapsis = 80.9342777335 deg
+ascending node = 11.0825855824 deg
+
+
+Star1 key = 12911466923376899183   Star2 key= 14682634506027864730
+semi = 2847.09690095 au
+ecc = 0.705915310285
+inclination = -140.13071387 deg
+true anomaly = -87.7060270588 deg
+argument of periapsis = 84.0220682751 deg
+ascending node = -123.767725148 deg
+
+
+Star1 key = 12911466923376899183   Star2 key= 3869403339674077723
+semi = 6196.32466067 au
+ecc = 0.206463417355
+inclination = -30.7667791796 deg
+true anomaly = 113.561363855 deg
+argument of periapsis = 93.8606086393 deg
+ascending node = -162.770153188 deg
+
+
+Star1 key = 14587600055888708159   Star2 key= 4046397515684370104
+semi = 6182.23825644 au
+ecc = 0.878577414736
+inclination = -170.425039635 deg
+true anomaly = -115.772280008 deg
+argument of periapsis = 74.3126816298 deg
+ascending node = 11.0701406203 deg
+
+
+Star1 key = 1511970863351806619   Star2 key= 10089594437622264722
+semi = 6908.6584356 au
+ecc = 0.407089512202
+inclination = 51.3324624516 deg
+true anomaly = 54.3044620519 deg
+argument of periapsis = 73.1785051121 deg
+ascending node = 16.6063782162 deg
+
+
+Star1 key = 1511970863351806619   Star2 key= 15557450381127950882
+semi = 5443.23287423 au
+ecc = 0.401997022354
+inclination = -90.2826177708 deg
+true anomaly = -163.714954739 deg
+argument of periapsis = 73.0123614066 deg
+ascending node = 15.5026796718 deg
+
+
+Star1 key = 14538453844929660554   Star2 key= 10089594437622264722
+semi = 5641.57672175 au
+ecc = 0.60660365966
+inclination = -143.087929501 deg
+true anomaly = 115.857840314 deg
+argument of periapsis = 74.928756542 deg
+ascending node = -54.8968238632 deg
+
+
+Star1 key = 14682634506027864730   Star2 key= 3585218986086123747
+semi = 3818.21852433 au
+ecc = 0.397050376306
+inclination = 4.44852507628 deg
+true anomaly = 25.8245075179 deg
+argument of periapsis = 112.394932097 deg
+ascending node = 3.81664901336 deg
+
+
+Star1 key = 14682634506027864730   Star2 key= 3869403339674077723
+semi = 5087.81718669 au
+ecc = 0.570721236538
+inclination = 97.2492766644 deg
+true anomaly = -49.8047485813 deg
+argument of periapsis = 80.9361073394 deg
+ascending node = -154.282130174 deg
+
+
+Star1 key = 10188845436787588688   Star2 key= 10089594437622264722
+semi = 3482.41560272 au
+ecc = 0.793519582885
+inclination = 178.056836446 deg
+true anomaly = 103.313637334 deg
+argument of periapsis = 38.0626221924 deg
+ascending node = 130.590534688 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 16507275935257106286
+semi = 5029.08390543 au
+ecc = 0.898490145323
+inclination = -174.032790554 deg
+true anomaly = 79.7721336952 deg
+argument of periapsis = 78.0852112084 deg
+ascending node = -43.3188362884 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 13945421038923447776
+semi = 2507.76207108 au
+ecc = 0.67652703155
+inclination = -173.61733518 deg
+true anomaly = -165.112362713 deg
+argument of periapsis = 111.937781379 deg
+ascending node = 146.575219287 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 14998522184618762130
+semi = 7166.63817776 au
+ecc = 0.175656060578
+inclination = -106.150237485 deg
+true anomaly = 123.467936772 deg
+argument of periapsis = 156.902041555 deg
+ascending node = 131.9020135 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 1672943485641765583
+semi = 2671.13948584 au
+ecc = 0.638636070767
+inclination = -162.574659703 deg
+true anomaly = -142.621287136 deg
+argument of periapsis = 81.9278535041 deg
+ascending node = -175.891515157 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 5579964631859206543
+semi = 3899.12468682 au
+ecc = 0.707938699522
+inclination = 177.407384923 deg
+true anomaly = -115.347084606 deg
+argument of periapsis = 127.322062764 deg
+ascending node = 137.952469247 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 7301553063797989793
+semi = 9201.23936503 au
+ecc = 0.636875877892
+inclination = -158.376153022 deg
+true anomaly = -140.435895524 deg
+argument of periapsis = 145.21147612 deg
+ascending node = -177.613311633 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 15557450381127950882
+semi = 21.221291958 au
+ecc = 0.996740825936
+inclination = 179.933052151 deg
+true anomaly = 72.043444041 deg
+argument of periapsis = 127.617308667 deg
+ascending node = -17.4825723795 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 9934372051082416718
+semi = 2200.50287971 au
+ecc = 0.208158463954
+inclination = -172.82481935 deg
+true anomaly = 53.0642186811 deg
+argument of periapsis = 101.222802245 deg
+ascending node = -8.12075915301 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 3946361915851913984
+semi = 9113.43542793 au
+ecc = 0.832462903709
+inclination = 179.711422918 deg
+true anomaly = 1.8690061213 deg
+argument of periapsis = 99.3091548556 deg
+ascending node = -81.9372445236 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 16187383617098047098
+semi = 7791.90050126 au
+ecc = 0.838615698011
+inclination = 175.782682007 deg
+true anomaly = 91.8366287785 deg
+argument of periapsis = 84.4212012188 deg
+ascending node = 12.9867334614 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 17612203928107733487
+semi = 4366.6864533 au
+ecc = 0.975374774875
+inclination = 178.08899372 deg
+true anomaly = -170.97714895 deg
+argument of periapsis = 153.479914408 deg
+ascending node = 57.0646873787 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 13901217327439113461
+semi = 3501.63769948 au
+ecc = 0.772325361153
+inclination = 152.011769075 deg
+true anomaly = -18.9365542911 deg
+argument of periapsis = 38.6648252579 deg
+ascending node = 133.614349373 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 8169675694572296208
+semi = 8318.29922576 au
+ecc = 0.451187154313
+inclination = -133.398697684 deg
+true anomaly = -118.341163063 deg
+argument of periapsis = 131.961628972 deg
+ascending node = 165.848862626 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 14641790425838841781
+semi = 2162.83108767 au
+ecc = 0.931623214638
+inclination = 173.060699705 deg
+true anomaly = -172.85555131 deg
+argument of periapsis = 32.9913981333 deg
+ascending node = -40.2340234857 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 6807898072233122860
+semi = 3488.66865295 au
+ecc = 0.692161364467
+inclination = 172.346787707 deg
+true anomaly = -158.224966226 deg
+argument of periapsis = 35.401396759 deg
+ascending node = -103.260139243 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 11026598499252165423
+semi = 5503.35773679 au
+ecc = 0.885422647346
+inclination = 177.21091279 deg
+true anomaly = 166.791557391 deg
+argument of periapsis = 43.3474764394 deg
+ascending node = -36.9974675007 deg
+
+
+Star1 key = 10089594437622264722   Star2 key= 13734706654893088980
+semi = 9727.13156993 au
+ecc = 0.666719545665
+inclination = 176.419124791 deg
+true anomaly = 35.4778208725 deg
+argument of periapsis = 60.8643903747 deg
+ascending node = 99.3950701243 deg
+
+
+Star1 key = 1672943485641765583   Star2 key= 15557450381127950882
+semi = 2848.57355644 au
+ecc = 0.766452475799
+inclination = 158.208228219 deg
+true anomaly = 76.6811659874 deg
+argument of periapsis = 82.7460099545 deg
+ascending node = -174.145111883 deg
+
+
+Star1 key = 15557450381127950882   Star2 key= 9934372051082416718
+semi = 1561.6802312 au
+ecc = 0.682007516918
+inclination = -176.642428815 deg
+true anomaly = 55.3615419686 deg
+argument of periapsis = 95.2714278693 deg
+ascending node = -17.3972990128 deg
+
+
+Star1 key = 15557450381127950882   Star2 key= 9990811987478776548
+semi = 9243.39094217 au
+ecc = 0.939897888727
+inclination = -172.77312431 deg
+true anomaly = -148.350919837 deg
+argument of periapsis = 51.4298867615 deg
+ascending node = 78.9072557318 deg
+
+
+Star1 key = 15557450381127950882   Star2 key= 14641790425838841781
+semi = 3010.49839338 au
+ecc = 0.272282190375
+inclination = 173.295285031 deg
+true anomaly = -172.65329961 deg
+argument of periapsis = 113.29518135 deg
+ascending node = -40.0731064001 deg
+
+
+Star1 key = 15557450381127950882   Star2 key= 6300790868671963358
+semi = 6066.00173446 au
+ecc = 0.981357786002
+inclination = 168.872520987 deg
+true anomaly = 161.065564956 deg
+argument of periapsis = 13.6697776759 deg
+ascending node = 1.65771881417 deg
+
+
+Star1 key = 15557450381127950882   Star2 key= 14175925301312314612
+semi = 7984.59499449 au
+ecc = 0.359179404787
+inclination = 126.64324826 deg
+true anomaly = 165.695180861 deg
+argument of periapsis = 56.3553255882 deg
+ascending node = -8.13415869276 deg
+
+
+Star1 key = 1334667994812421448   Star2 key= 9934372051082416718
+semi = 5891.76740854 au
+ecc = 0.922109481783
+inclination = -178.938440622 deg
+true anomaly = -15.3815921335 deg
+argument of periapsis = 128.041236112 deg
+ascending node = 105.72394069 deg
+
+
+Star1 key = 9934372051082416718   Star2 key= 6300790868671963358
+semi = 4490.70068822 au
+ecc = 0.71839048076
+inclination = 171.906656262 deg
+true anomaly = -160.292119021 deg
+argument of periapsis = 93.6070785292 deg
+ascending node = -26.6379841422 deg
+
+
+Star1 key = 9934372051082416718   Star2 key= 14175925301312314612
+semi = 6327.03373722 au
+ecc = 0.869776535735
+inclination = -159.082115599 deg
+true anomaly = 124.903044713 deg
+argument of periapsis = 96.0317467156 deg
+ascending node = -58.9128065282 deg
+
+
+Star1 key = 3302580378667458993   Star2 key= 14719974346073961291
+semi = 5777.68296321 au
+ecc = 0.72457363916
+inclination = 125.688676503 deg
+true anomaly = -128.229315479 deg
+argument of periapsis = 18.739933478 deg
+ascending node = 178.217487333 deg
+
+
+Star1 key = 8490330203988228087   Star2 key= 8171111615532635604
+semi = 27.2504401027 au
+ecc = 0.989674978546
+inclination = 178.744996513 deg
+true anomaly = 127.14291268 deg
+argument of periapsis = 42.7920782119 deg
+ascending node = 123.645839454 deg
+
+
+Star1 key = 3951393863002867517   Star2 key= 11682602894275828736
+semi = 6534.49959618 au
+ecc = 0.470600623946
+inclination = -122.277936082 deg
+true anomaly = 66.6841486679 deg
+argument of periapsis = 157.378943969 deg
+ascending node = -104.249498205 deg
+
+
+Star1 key = 5639002358881439510   Star2 key= 17506978634749601537
+semi = 4404.80008678 au
+ecc = 0.815415283897
+inclination = 164.602613369 deg
+true anomaly = -155.80522494 deg
+argument of periapsis = 154.236631893 deg
+ascending node = 122.106648014 deg
+
+
+Star1 key = 12684119792677579607   Star2 key= 7584172023986627414
+semi = 3580.71511301 au
+ecc = 0.634997888549
+inclination = -106.533018018 deg
+true anomaly = 163.497257047 deg
+argument of periapsis = 143.691134256 deg
+ascending node = -104.926587108 deg
+
+
+Star1 key = 519350660254334852   Star2 key= 2221761740701710228
+semi = 365.503361542 au
+ecc = 0.594695014338
+inclination = -148.66592233 deg
+true anomaly = -116.99497709 deg
+argument of periapsis = 26.5283106604 deg
+ascending node = 179.243197448 deg
+
+
+Star1 key = 519350660254334852   Star2 key= 1111392218290850060
+semi = 7011.64497337 au
+ecc = 0.965919262979
+inclination = -168.519661966 deg
+true anomaly = -151.096703402 deg
+argument of periapsis = 56.3598900998 deg
+ascending node = 155.07035215 deg
+
+
+Star1 key = 11705788419339943575   Star2 key= 15925815151543432183
+semi = 5982.86553672 au
+ecc = 0.874670735556
+inclination = 158.229415048 deg
+true anomaly = 68.1759985053 deg
+argument of periapsis = 83.3821281894 deg
+ascending node = 44.150999148 deg
+
+
+Star1 key = 1111392218290850060   Star2 key= 5275943030093808336
+semi = 5542.3366898 au
+ecc = 0.355676473599
+inclination = 168.590663352 deg
+true anomaly = -88.8918287464 deg
+argument of periapsis = 45.4164723253 deg
+ascending node = -30.1770531097 deg
+
+
+Star1 key = 4649587319152089353   Star2 key= 2744785944849132075
+semi = 4624.40599192 au
+ecc = 0.799823491509
+inclination = 146.047275863 deg
+true anomaly = 53.3135683169 deg
+argument of periapsis = 55.4869899878 deg
+ascending node = -2.29052421855 deg
+
+
+Star1 key = 9694847413987328714   Star2 key= 4609613408530378639
+semi = 5508.7770051 au
+ecc = 0.98152526875
+inclination = 177.487379893 deg
+true anomaly = -86.9193873331 deg
+argument of periapsis = 10.1624673046 deg
+ascending node = 72.9710289676 deg
+
+
+Star1 key = 7965515559569263461   Star2 key= 4733829393193677843
+semi = 4570.76760051 au
+ecc = 0.942206834229
+inclination = -170.683479545 deg
+true anomaly = -89.9887980107 deg
+argument of periapsis = 76.5233490169 deg
+ascending node = 122.247111708 deg
+
+
+Star1 key = 678368830014224856   Star2 key= 10455471383478009307
+semi = 9504.29180272 au
+ecc = 0.192736345422
+inclination = -149.415321989 deg
+true anomaly = 124.252607344 deg
+argument of periapsis = 96.7580947002 deg
+ascending node = -56.106166892 deg
+
+
+Star1 key = 913933644454740952   Star2 key= 13047289012974259680
+semi = 2511.44000148 au
+ecc = 0.330492745268
+inclination = 58.4785436243 deg
+true anomaly = -51.7605236109 deg
+argument of periapsis = 56.8265000397 deg
+ascending node = -144.873256252 deg
+
+
+Star1 key = 913933644454740952   Star2 key= 10495543950923493559
+semi = 2605.80647139 au
+ecc = 0.787067100946
+inclination = 130.258466576 deg
+true anomaly = -120.530389356 deg
+argument of periapsis = 108.661739568 deg
+ascending node = -144.986565132 deg
+
+
+Star1 key = 13047289012974259680   Star2 key= 10495543950923493559
+semi = 153.431471944 au
+ecc = 0.974499683619
+inclination = 176.979799799 deg
+true anomaly = -35.9833171009 deg
+argument of periapsis = 48.8228602552 deg
+ascending node = -4.9494053675 deg
+
+
+Star1 key = 6745281298057026813   Star2 key= 14091777630857631667
+semi = 8891.33818226 au
+ecc = 0.911618209341
+inclination = 179.966658369 deg
+true anomaly = -102.11027713 deg
+argument of periapsis = 63.5218818255 deg
+ascending node = -21.1484565112 deg
+
+
+Star1 key = 18408269716365967455   Star2 key= 5701804359317024502
+semi = 5713.32251517 au
+ecc = 0.919507384354
+inclination = -173.508666388 deg
+true anomaly = -113.463036063 deg
+argument of periapsis = 97.9526338453 deg
+ascending node = -136.10958502 deg
+
+
+Star1 key = 10455471383478009307   Star2 key= 16498825910080617191
+semi = 6744.24109263 au
+ecc = 0.850563117798
+inclination = 171.372165542 deg
+true anomaly = -139.700876889 deg
+argument of periapsis = 76.5339417483 deg
+ascending node = -17.6882539638 deg
+
+
+Star1 key = 16783166367407216193   Star2 key= 9564756211972215228
+semi = 7930.21467705 au
+ecc = 0.772826706594
+inclination = 153.842754783 deg
+true anomaly = -148.504685411 deg
+argument of periapsis = 118.256780621 deg
+ascending node = 48.2699179973 deg
+
+
+Star1 key = 8064801412728229178   Star2 key= 9564756211972215228
+semi = 8851.94204809 au
+ecc = 0.904995118906
+inclination = -173.352951072 deg
+true anomaly = 63.5625114529 deg
+argument of periapsis = 109.412104558 deg
+ascending node = -145.358067633 deg
+
+
+Star1 key = 1997385830089029519   Star2 key= 271618737659305756
+semi = 5558.21839078 au
+ecc = 0.690698591694
+inclination = 145.556576818 deg
+true anomaly = -174.492507481 deg
+argument of periapsis = 110.56099116 deg
+ascending node = -5.9636891309 deg
+
+
+Star1 key = 14842777687241760661   Star2 key= 4759261884188371727
+semi = 1561.69020254 au
+ecc = 0.405858829113
+inclination = 85.4879526323 deg
+true anomaly = -151.858925337 deg
+argument of periapsis = 75.0764186129 deg
+ascending node = -127.921167993 deg
+
+
+Star1 key = 2415067096155398491   Star2 key= 10221753318266879921
+semi = 5926.8352306 au
+ecc = 0.244168184095
+inclination = 39.3755196661 deg
+true anomaly = -3.09672602091 deg
+argument of periapsis = 107.148864051 deg
+ascending node = -175.143015592 deg
+
+
+Star1 key = 18155774136865135893   Star2 key= 12912807202623815288
+semi = 8870.66735906 au
+ecc = 0.844266056548
+inclination = 116.478750318 deg
+true anomaly = -116.823448614 deg
+argument of periapsis = 116.942278114 deg
+ascending node = -110.35397086 deg
+
+
+Star1 key = 10317109823671106570   Star2 key= 4995422036753388363
+semi = 8040.46102216 au
+ecc = 0.464832591493
+inclination = 91.9331724696 deg
+true anomaly = -173.48978691 deg
+argument of periapsis = 79.5639487589 deg
+ascending node = -142.183554807 deg
+
+
+Star1 key = 13991658542269829798   Star2 key= 8903294283833321201
+semi = 1728.00746828 au
+ecc = 0.800105511074
+inclination = -175.266795596 deg
+true anomaly = -145.049625089 deg
+argument of periapsis = 135.169170574 deg
+ascending node = 102.302860988 deg
+
+
+Star1 key = 2191415028973624251   Star2 key= 10569921827039040531
+semi = 4193.79960416 au
+ecc = 0.359361635561
+inclination = -130.12503617 deg
+true anomaly = -172.622501562 deg
+argument of periapsis = 103.500596124 deg
+ascending node = 34.4255310203 deg
+
+
+Star1 key = 7335576946665223385   Star2 key= 15826582964100172641
+semi = 7557.99625244 au
+ecc = 0.614794528856
+inclination = 158.427403038 deg
+true anomaly = -75.230441621 deg
+argument of periapsis = 58.4181380551 deg
+ascending node = 71.7514029108 deg
+
+
+Star1 key = 17297928007328601600   Star2 key= 8705871539111044051
+semi = 9996.46760988 au
+ecc = 0.91749571013
+inclination = -169.002440829 deg
+true anomaly = -137.972758437 deg
+argument of periapsis = 148.632040235 deg
+ascending node = -43.4773342206 deg
+
+
+Star1 key = 11305103104651349626   Star2 key= 4609613408530378639
+semi = 3841.09615644 au
+ecc = 0.633584582299
+inclination = 157.415919387 deg
+true anomaly = -108.976237761 deg
+argument of periapsis = 137.607059897 deg
+ascending node = -168.402832058 deg
+
+
+Star1 key = 14548699582437365624   Star2 key= 4609613408530378639
+semi = 6963.10143184 au
+ecc = 0.945619485118
+inclination = -173.729933775 deg
+true anomaly = 34.1252289782 deg
+argument of periapsis = 138.909545477 deg
+ascending node = -55.7560383003 deg
+
+
+Star1 key = 17012246847194889969   Star2 key= 595465553525370596
+semi = 2295.99126549 au
+ecc = 0.696787109113
+inclination = -166.015444635 deg
+true anomaly = -60.8225152956 deg
+argument of periapsis = 80.0264990562 deg
+ascending node = 3.50545720847 deg
+
+
+Star1 key = 17012246847194889969   Star2 key= 5994897411699180870
+semi = 7659.96037457 au
+ecc = 0.326128808239
+inclination = -76.5549405503 deg
+true anomaly = -173.487011948 deg
+argument of periapsis = 135.069582079 deg
+ascending node = 33.8436204204 deg
+
+
+Star1 key = 1863886809587340140   Star2 key= 2187789854494427716
+semi = 3146.01536683 au
+ecc = 0.858345015205
+inclination = 172.744483731 deg
+true anomaly = 60.3761186011 deg
+argument of periapsis = 40.2574446134 deg
+ascending node = 149.985502476 deg
+
+
+Star1 key = 2187789854494427716   Star2 key= 3437057319059074327
+semi = 3113.49212433 au
+ecc = 0.956939880757
+inclination = 154.237759132 deg
+true anomaly = 112.227569635 deg
+argument of periapsis = 46.1235221759 deg
+ascending node = -148.807204789 deg
+
+
+Star1 key = 13543995797965221386   Star2 key= 1627541883066777392
+semi = 7476.84162649 au
+ecc = 0.886400875688
+inclination = -174.189165474 deg
+true anomaly = 39.7111840754 deg
+argument of periapsis = 83.6420301765 deg
+ascending node = -18.6458569805 deg
+
+
+Star1 key = 13842129509915515949   Star2 key= 3010284577447517482
+semi = 5660.28992459 au
+ecc = 0.746200177472
+inclination = -157.622095012 deg
+true anomaly = 97.9292055931 deg
+argument of periapsis = 139.687362366 deg
+ascending node = 130.85786338 deg
+
+
+Star1 key = 6786092605625207345   Star2 key= 4420364807024223816
+semi = 3536.16560313 au
+ecc = 0.784510170349
+inclination = -176.533661209 deg
+true anomaly = 18.1073842506 deg
+argument of periapsis = 107.966520932 deg
+ascending node = -79.5816265145 deg
+
+
+Star1 key = 4420364807024223816   Star2 key= 16979078519859961768
+semi = 1452.743341 au
+ecc = 0.911218442021
+inclination = 174.452096626 deg
+true anomaly = -33.0291251051 deg
+argument of periapsis = 107.12634392 deg
+ascending node = -117.585105442 deg
+
+
+Star1 key = 16245980868912854377   Star2 key= 898520220321127436
+semi = 6440.91155441 au
+ecc = 0.451279485476
+inclination = -166.037229969 deg
+true anomaly = -61.0841830893 deg
+argument of periapsis = 86.3657752215 deg
+ascending node = 127.489008504 deg
+
