@@ -38,7 +38,6 @@ def run_code(sim_dir, tend, eta, code_dt,
   data_direc = os.path.join(sim_dir, "sim_data")
   if sim_dir.lower()=="examples/realistic_cluster/":
     star_evol=True
-    GRX_sim=False
 
     Nconfig = len(glob.glob(data_direc+"/*"))
     config_name = "Nrun"+str(Nconfig)
@@ -61,7 +60,6 @@ def run_code(sim_dir, tend, eta, code_dt,
   elif sim_dir.lower()=="examples/runaway_bh/":
     star_evol=False
     resume=False
-    GRX_sim=True
 
     configuration = glob.glob(data_direc+"/*")
     config = configuration[0]
@@ -114,7 +112,8 @@ def run_code(sim_dir, tend, eta, code_dt,
   hosts.syst_id = major_bodies.syst_id
   hosts.type = major_bodies.type
   hosts.sub_worker_radius = major_bodies.radius
-  hosts.radius = env_func.parent_radius(hosts.mass, dt)
+  hosts.radius = 0 | units.m
+  hosts[hosts.syst_id>0].radius = env_func.parent_radius(1000*hosts[hosts.syst_id>0].mass, dt)
 
   #Setting up children
   parents = HierarchicalParticles(hosts)
@@ -134,7 +133,7 @@ def run_code(sim_dir, tend, eta, code_dt,
                                         np.mean(parents.radius))
   nemesis = Nemesis(conv_par, conv_child, dt, code_dt, 
                     par_nworker, chd_nworker, dE_track, 
-                    star_evol, gal_field, GRX_sim)
+                    star_evol, gal_field)
   nemesis.timestep = dt
   nemesis.particles.add_particles(parents)
   nemesis.parents = parents.copy_to_memory()
@@ -174,15 +173,13 @@ def run_code(sim_dir, tend, eta, code_dt,
       print("Time: ", t.in_(units.yr), end=' ')
       write_set_to_file(allparts.savepoint(0|units.Myr), 
                         os.path.join(snapdir_path, "snap_"+str(dt_iter)), 
-                        'amuse', close_file=True, 
-                        overwrite_file=True)
+                        'amuse', close_file=True, overwrite_file=True)
 
     if (nemesis.save_snap):
       event_iter = np.concatenate((event_iter, dt_iter), axis=None)
       path = os.path.join(dir_changes, "parent_change_"+str(nemesis.event_time[-1]))
-      write_set_to_file(allparts.savepoint(0|units.Myr),
-                        path, 'amuse', close_file=True, 
-                        overwrite_file=True)
+      write_set_to_file(allparts.savepoint(0|units.Myr), path, 'amuse', 
+                        close_file=True, overwrite_file=True)
     dt_iter+=1
   
   Rvir_fin = nemesis.particles.virial_radius()

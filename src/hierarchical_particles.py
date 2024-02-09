@@ -14,7 +14,7 @@ class HierarchicalParticles(ParticlesOverlay):
     _parts = ParticlesOverlay.add_particles(self, parts)
     if hasattr(parts.collection_attributes,"subsystems"):
       for parent, sys in parts.collection_attributes.subsystems.items():
-        self.collection_attributes.subsystems[parent.as_particle_in_set(self)] = sys
+        self.collection_attributes.subsystems[parent.as_particle_in_set(self)]=sys
     return _parts
   
   def add_subsystem(self, sys, recenter=True):
@@ -24,20 +24,22 @@ class HierarchicalParticles(ParticlesOverlay):
     p = Particle()
     self.assign_parent_attributes(sys, p, relative=False, recenter=recenter)
     parent = self.add_particle(p)
-    self.collection_attributes.subsystems[parent] = sys
+    self.collection_attributes.subsystems[parent]=sys
     return parent
   
   def all(self):
     """Get copy of complete particle set"""
     parts = self.copy_to_memory()
-    print("parents")
+    print("#Par: ", len(parts))
+    a = 0
     for parent, sys in self.collection_attributes.subsystems.items():
+      a+=1
       parts.remove_particle(parent)
       subsys = parts.add_particles(sys)
       subsys.sub_worker_radius = subsys.radius
-      print(subsys.key, subsys.sub_worker_radius.in_(units.RSun))
       subsys.position+=parent.position
       subsys.velocity+=parent.velocity
+    print("#Chd: ", a)
     return parts
   
   def assign_parent_attributes(self, cset, parent, relative=True, recenter=True):

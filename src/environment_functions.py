@@ -28,7 +28,7 @@ class EnvironmentFunctions(object):
            mass:   Parent particle set 
            dt:     Simulation time-step
         """
-        return 0.25*(constants.G*mass*(dt)**2)**(1./3.)
+        return (constants.G*mass*(dt)**2)**(1./3.)
         
     def galactic_frame(self, pset, dx, dy, dz):
         """Shift particle set to the particle set
