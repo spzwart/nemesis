@@ -51,7 +51,7 @@ def run_code(sim_dir, cluster_limit, tend,
         os.makedirs(os.path.join(dir_path, path))
     dir_changes = os.path.join(dir_path, "system_changes")
   snapdir_path = os.path.join(dir_path, "simulation_snapshot")
-  particle_set = read_set_from_file(os.path.join(sim_dir, "initial_particles/init_particle_set"))[:20]
+  particle_set = read_set_from_file(os.path.join(sim_dir, "initial_particles/init_particle_set"))
   major_bodies = particle_set[particle_set.type=="STAR"]
   rmax = None
 
