@@ -354,7 +354,6 @@ class Nemesis(object):
       SN_parti.vz+=natal_kick_z
 
       self.event_key = np.concatenate((self.event_key, SN_parti.key), axis=None)
-      self.event_mass = np.concatenate((self.event_mass, SN_parti.mass), axis=None)
       self.event_time = np.concatenate((self.event_time, time), axis=None)
       self.event_type = np.concatenate((self.event_type, "SN Event"), axis=None)
 

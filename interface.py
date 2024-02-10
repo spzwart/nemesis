@@ -160,8 +160,7 @@ def run_code(sim_dir, cluster_limit, tend,
   Qfinal = -(nemesis.particles.kinetic_energy())/(nemesis.particles.potential_energy())
 
   path = os.path.join(dir_path, "event_data", "event_data_"+str(Nconfig)+".h5")
-  data_arr = pd.DataFrame([nemesis.event_time, nemesis.event_key, 
-                           nemesis.event_type, nemesis.event_mass])
+  data_arr = pd.DataFrame([nemesis.event_time, nemesis.event_key, nemesis.event_type])
   data_arr.to_hdf(path, key="df", mode="w")
   end_time = cpu_time.time()
   tot_time = end_time-start_time
