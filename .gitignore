@@ -163,4 +163,5 @@ cython_debug/
 examples/realistic_cluster/shuo_data_set
 examples/realistic_cluster/sim_data/*
 examples/realistic_cluster/initial_particles/data_files/*
-examples/runaway_bh/*sim_data/*
+examples/runaway_bh/*sim*/*
+plotters/*
