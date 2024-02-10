@@ -1,0 +1,22 @@
+GW Events
+Organised as follows: Total Events || Lisa Observables || muAres Observables
+
+SMBH-IMBH:
+Median: [2843.0, 0.0, 0.0]
+IQR:    [[736.0, 0.0, 0.0], [838.0, 0.0, 0.0]]
+
+SMBH-Star:
+Median: [4627.0, 0.0, 0.0]
+IQR:    [[1584.0, 0.0, 0.0], [1408.0, 0.0, 0.0]]
+
+IMBH-IMBH:
+Median: [0.0, 0.0, 0.0]
+IQR:    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+
+Star-Star:
+Median: [0.0, 0.0, 0.0]
+IQR:    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+
+IMBH-Star:
+Median: [0.0, 0.0, 0.0]
+IQR:    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]

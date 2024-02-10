@@ -1,0 +1,6 @@
+Median Ejection: 52.5
+IQR Ejection: 3.75, 3.75
+Median Drifter: 7.5
+IQR Drifter: 3.75, 3.75
+Median Merger: 1.0
+IQR Merger: 0.0, 0.0

@@ -1,0 +1,17 @@
+# ignore all C object files
+*.o
+
+# ignore any C files
+*.c
+
+# ignore pyc files
+*.pyc
+
+# ignore data files
+*.dat
+
+# other files by name
+new_curve
+LISA_sensitivity.txt
+.ipynb_checkpoints/
+.DS_Store

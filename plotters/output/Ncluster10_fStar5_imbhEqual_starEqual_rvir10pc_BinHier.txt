@@ -1,0 +1,46 @@
+All Bins: 
+SMBH-IMBH: 
+Median # 0.0 
+IQR [0.0,4.0] 
+
+SMBH-Star: 
+Median # 0.0 
+IQR [0.0,13.0] 
+
+Star-IMBH: 
+Median # 0.0 
+IQR [0.0,0.0] 
+
+Star-Star: 
+Median # 0.0 
+IQR [0.0,0.0] 
+
+IMBH-IMBH: 
+Median # 0.0 
+IQR [0.0,0.0] 
+
+Median Hard %: nan
+IQR [nan, nan]
+
+=====================
+Hardness Criteria: 
+SMBH-IMBH: 
+Median # 0.0 
+IQR [0.0,4.0] 
+
+SMBH-Star: 
+Median # 0.0 
+IQR [0.0,13.0] 
+
+Star-IMBH: 
+Median # 0.0 
+IQR [0.0,0.0] 
+
+Star-Star: 
+Median # 0.0 
+IQR [0.0,0.0] 
+
+IMBH-IMBH: 
+Median # 0.0 
+IQR [0.0,0.0] 
+

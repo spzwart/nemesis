@@ -1,4 +1,4 @@
-class CorrFromCompoundParti(object):
+class CorrectionFromCompoundParticle(object):
   def __init__(self, system, subsystems, worker_code_factory):
     self.system=system
     self.subsystems=subsystems
@@ -59,7 +59,7 @@ class CorrFromCompoundParti(object):
     return particles.phi
   
   
-class CorrForCompoundParti(object):  
+class CorrectionForCompoundParticle(object):  
   def __init__(self, system, parent, worker_code_factory):
     self.system = system
     self.parent = parent

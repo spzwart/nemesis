@@ -1,5 +1,4 @@
 import glob
-import natsort
 import numpy as np
 import os
 import pandas as pd
@@ -7,23 +6,25 @@ import time as cpu_time
 
 from amuse.lab import Particles, read_set_from_file, write_set_to_file
 from amuse.units import units, nbody_system
-from src.environment_functions import EnvironmentFunctions
+from src.environment_functions import galactic_frame, parent_radius
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
-def run_code(sim_dir, tend, eta, code_dt, 
-             par_nworker, chd_nworker, 
-             dE_track, gal_field):
+def run_code(sim_dir, cluster_limit, tend, 
+             eta, code_dt, par_nworker, chd_nworker, 
+             dE_track, gal_field, star_evol):
   """Function to run simulation.
-
      Inputs:
-     sim_dir:      Directory of particle set simulated
-     tend:         Simulation end time
-     eta:          Parent system simulation step-time
-     par_nworker:  Number of workers for parent code
-     chd_nworker:  Number of workers for children code
-     dE_track:     Flag turning on energy error tracker
-     gal_field:    Flag turning on galactic field or not
+     sim_dir:       Directory of particle set simulated
+     cluster_limit: Cluster size
+     tend:          Simulation end time
+     eta:           Parent system simulation step-time
+     code_dt:       Internal timestep parameter
+     par_nworker:   Number of workers for parent code
+     chd_nworker:   Number of workers for children code
+     dE_track:      Flag turning on energy error tracker
+     gal_field:     Flag turning on galactic field or not
+     star_evol:     Flag turning on stellar evolution
   """
 
   def smaller_nbody_power_of_two(dt, conv):
@@ -34,95 +35,59 @@ def run_code(sim_dir, tend, eta, code_dt,
 
   start_time = cpu_time.time()
   
-  #Making data files
+  #Creating output directories
   data_direc = os.path.join(sim_dir, "sim_data")
-  if sim_dir.lower()=="examples/realistic_cluster/":
-    star_evol=True
+  Nconfig = len(glob.glob(data_direc+"/*"))
+  config_name = "Nrun"+str(Nconfig)
+  dir_path = os.path.join(data_direc, config_name)
+  if os.path.exists(os.path.join(dir_path, "*")):
+    pass
+  else:
+    os.mkdir(dir_path+"/")
+    subdir = ["coll_orbital", "ejec_snapshots", "energy_data", "event_data",
+              "data_process", "initial_binaries", "lagrangian_data",
+              "simulation_stats", "simulation_snapshot", "system_changes"]
+    for path in subdir:
+        os.makedirs(os.path.join(dir_path, path))
+    dir_changes = os.path.join(dir_path, "system_changes")
+  snapdir_path = os.path.join(dir_path, "simulation_snapshot")
+  particle_set = read_set_from_file(os.path.join(sim_dir, "initial_particles/init_particle_set"))[:20]
+  major_bodies = particle_set[particle_set.type=="STAR"]
+  rmax = None
 
-    Nconfig = len(glob.glob(data_direc+"/*"))
-    config_name = "Nrun"+str(Nconfig)
-    dir_path = os.path.join(data_direc, config_name)
-    if os.path.exists(os.path.join(dir_path, "*")):
-      pass
-    else:
-      os.mkdir(dir_path+"/")
-      subdir = ["coll_orbital", "ejec_snapshots", "energy_data", "event_data",
-                "data_process", "initial_binaries", "lagrangian_data",
-                "simulation_stats", "simulation_snapshot", "system_changes"]
-      for path in subdir:
-          os.makedirs(os.path.join(dir_path, path))
-      dir_changes = os.path.join(dir_path, "system_changes")
-    snapdir_path = os.path.join(dir_path, "simulation_snapshot")
-    particle_set = read_set_from_file(os.path.join(sim_dir, "initial_particles/init_particle_set"))
-    major_bodies = particle_set[particle_set.type=="STAR"]
-    rmax = None
-
-  elif sim_dir.lower()=="examples/runaway_bh/":
-    star_evol=False
-    resume=False
-
-    configuration = glob.glob(data_direc+"/*")
-    config = configuration[0]
-    if not (resume):
-        init_psets = glob.glob(config+"/init_snapshot/*")
-        sorted_psets = natsort.natsorted((init_psets))
-        init_pset = sorted_psets[0]
-        resume_iter = 0 
-    else:
-        run_idx = 0
-        config_dir = (glob.glob(config+"/simulation_resume/*"))
-        sorted_config = natsort.natsorted(config_dir)
-        psets = sorted_config[run_idx]
-        init_psets = (glob.glob(psets+"/*"))
-        sorted_psets = natsort.natsorted(init_psets)
-        init_pset = sorted_psets[-1]
-    dir_count = len(glob.glob(config+"/simulation_stats/*"))
-    fname = "config_"+str(dir_count)
-    ejec_dir = os.path.join(config, "ejec_snapshots", fname)
-    ep_dir = os.path.join(config, "ejec_par_change", fname)
-    merge_dir = os.path.join(config, "child_merge", fname)
-    pchange_dir = os.path.join(config, "parent_change", fname)
-    snapdir_path = os.path.join(config, "simulation_snapshot", fname)
-
-    print("Simulating ", init_pset)
-    particle_set = read_set_from_file(init_pset)
-    major_bodies = particle_set
-    rmax = max(0.01|units.pc, (0.05|units.pc)*(np.log10(major_bodies.mass.max()/(4e6|units.MSun)))**0.75)
-
-  env_func = EnvironmentFunctions()
   if (gal_field):
-    particle_set = env_func.galactic_frame(particle_set, 
-                                     dx=8.3 | units.kpc, 
-                                     dy=0.0 | units.kpc, 
-                                     dz=17  | units.pc
-                                     )
+    particle_set = galactic_frame(particle_set, 
+                                  dx=8.3 | units.kpc, 
+                                  dy=0.0 | units.kpc, 
+                                  dz=17  | units.pc
+                                  )
   conv_par = nbody_system.nbody_to_si(
-                      np.sum(major_bodies.mass), 
-                      major_bodies.virial_radius()
-                      )
+                  np.sum(major_bodies.mass), 
+                  major_bodies.virial_radius()
+                  )
   dt = eta*tend
   dt = smaller_nbody_power_of_two(dt, conv_par)
   
   #Setting up parents
   Nsysts = len(major_bodies)
-  hosts = Particles(len(major_bodies))
-  hosts.mass = major_bodies.mass
-  hosts.velocity = major_bodies.velocity
-  hosts.position = major_bodies.position
-  hosts.syst_id = major_bodies.syst_id
-  hosts.type = major_bodies.type
-  hosts.sub_worker_radius = major_bodies.radius
-  hosts.radius = 0 | units.m
-  hosts[hosts.syst_id>0].radius = env_func.parent_radius(1000*hosts[hosts.syst_id>0].mass, dt)
+  parents = Particles(Nsysts)
+  parents.mass = major_bodies.mass
+  parents.velocity = major_bodies.velocity
+  parents.position = major_bodies.position
+  parents.syst_id = major_bodies.syst_id
+  parents.type = major_bodies.type
+  parents.sub_worker_radius = major_bodies.radius
+  parents.radius = 0 | units.m
+  initial_systems = parents[parents.syst_id>0]
+  initial_systems.radius = parent_radius(initial_systems.mass, dt)
 
   #Setting up children
-  parents = HierarchicalParticles(hosts)
+  parents = HierarchicalParticles(parents)
   Rvir_init = parents.virial_radius().in_(units.pc)
   Q_init = abs(parents.kinetic_energy()/parents.potential_energy())
-  initial_systems = hosts[hosts.syst_id>0]
   for id_ in np.unique(initial_systems.syst_id):
     children = particle_set[particle_set.syst_id==id_]
-    host = hosts[hosts.syst_id==id_][0]
+    host = parents[parents.syst_id==id_][0]
     parents.assign_subsystem(children, host)
   print("Number of children: ", max(particle_set.syst_id))
   print("Rvir: ", Rvir_init)
@@ -131,13 +96,13 @@ def run_code(sim_dir, tend, eta, code_dt,
   #Setting up system
   conv_child = nbody_system.nbody_to_si(np.mean(parents.mass), 
                                         np.mean(parents.radius))
-  nemesis = Nemesis(conv_par, conv_child, dt, code_dt, 
-                    par_nworker, chd_nworker, dE_track, 
-                    star_evol, gal_field)
+  nemesis = Nemesis(cluster_limit, conv_par, conv_child, 
+                    dt, code_dt, par_nworker, chd_nworker, 
+                    dE_track, star_evol, gal_field)
   nemesis.timestep = dt
   nemesis.particles.add_particles(parents)
   nemesis.parents = parents.copy_to_memory()
-  nemesis.radius = env_func.parent_radius(parents.mass, code_dt)
+  nemesis.radius = parent_radius(parents.mass, code_dt)
   nemesis.commit_particles(conv_child)
   nemesis.channel_makers()
   nemesis.rmax = rmax
@@ -145,7 +110,9 @@ def run_code(sim_dir, tend, eta, code_dt,
   if (dE_track):
     E0a = allparts.kinetic_energy()+allparts.potential_energy()
     if (gal_field):
-      E0a+=nemesis.grav_bridge.potential_energy+nemesis.grav_bridge.kinetic_energy
+      PE = nemesis.grav_bridge.potential_energy
+      KE = nemesis.grav_bridge.kinetic_energy
+      E0a+=(PE+KE)
 
   t = 0 | units.yr
   time = [0.]
@@ -153,42 +120,44 @@ def run_code(sim_dir, tend, eta, code_dt,
   event_iter = [ ]
   dt_iter = 0
   write_set_to_file(allparts.savepoint(0|units.Myr), 
-                    os.path.join(snapdir_path, "snap_"+str(dt_iter)), 
-                    'amuse', close_file=True, 
-                    overwrite_file=True)
+      os.path.join(snapdir_path, "snap_"+str(dt_iter)), 
+      'amuse', close_file=True, overwrite_file=True)
   while t < tend:
     print("T=", t.in_(units.Myr))
     t+=dt
     time.append(t.value_in(units.yr))
     nemesis.evolve_model(t)  
+
     if (dE_track):
       E1a = nemesis.energy_track()
       if (gal_field):
-        E1a+=nemesis.grav_bridge.potential_energy+nemesis.grav_bridge.kinetic_energy
+        PE = nemesis.grav_bridge.potential_energy
+        KE = nemesis.grav_bridge.kinetic_energy
+        E1a+=(PE+KE)
       E0a+=nemesis.dEa
       totalE.append(abs((E0a-E1a)/E0a))
       print("Energy error:     ", abs(E0a-E1a)/E0a)
-
-    if dt_iter%10==1:
-      print("Time: ", t.in_(units.yr), end=' ')
-      write_set_to_file(allparts.savepoint(0|units.Myr), 
-                        os.path.join(snapdir_path, "snap_"+str(dt_iter)), 
-                        'amuse', close_file=True, overwrite_file=True)
 
     if (nemesis.save_snap):
       event_iter = np.concatenate((event_iter, dt_iter), axis=None)
       path = os.path.join(dir_changes, "parent_change_"+str(nemesis.event_time[-1]))
       write_set_to_file(allparts.savepoint(0|units.Myr), path, 'amuse', 
                         close_file=True, overwrite_file=True)
+    if dt_iter%10==1:
+      print("Time: ", t.in_(units.yr), end=' ')
+      write_set_to_file(allparts.savepoint(0|units.Myr), 
+            os.path.join(snapdir_path, "snap_"+str(dt_iter)), 
+            'amuse', close_file=True, overwrite_file=True)
+          
     dt_iter+=1
-  
-  Rvir_fin = nemesis.particles.virial_radius()
-  Qfinal = -(nemesis.particles.kinetic_energy())/(nemesis.particles.potential_energy())
 
-  nemesis.parent_code.stop()
   nemesis.stellar_code.stop()  
+  nemesis.parent_code.stop()
   for parent, code in list(nemesis.subcodes.items()):
     code.stop()
+
+  Rvir_fin = nemesis.particles.virial_radius()
+  Qfinal = -(nemesis.particles.kinetic_energy())/(nemesis.particles.potential_energy())
 
   path = os.path.join(dir_path, "event_data", "event_data_"+str(Nconfig)+".h5")
   data_arr = pd.DataFrame([nemesis.event_time, nemesis.event_key, 
@@ -212,9 +181,8 @@ def run_code(sim_dir, tend, eta, code_dt,
           f.write('\n')
 
 if __name__=="__main__":
-  sim_dir="examples/realistic_cluster/"
-  #sim_dir ="examples/runaway_bh/"
-  run_code(sim_dir=sim_dir, tend=50 | units.Myr, 
-           eta=1e-4, code_dt=5e-2, par_nworker=1,
-           chd_nworker=1, gal_field=False, 
-           dE_track=False)
+  sim_dir="examples/realistic_cluster/"         #Configuration to run
+  run_code(sim_dir=sim_dir, cluster_limit=10|units.pc,
+           tend=50 | units.Myr, eta=1e-4, code_dt=5e-2, 
+           par_nworker=1, chd_nworker=1, gal_field=False, 
+           dE_track=False, star_evol=True)
