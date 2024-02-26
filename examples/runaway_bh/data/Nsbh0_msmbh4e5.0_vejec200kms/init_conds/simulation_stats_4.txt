@@ -1,0 +1,10 @@
+Initial Virial Radius: 1 parsec
+Total Number of Particles: 6003
+Total Number of SBH: 2
+SBH Initial Q:36.1123254746 Initial Rvir 1.58117258968 parsec
+Total Number of Stars: 6000
+Star Initial Q:0.506755090201 Initial Rvir 1.00213841269 parsec
+Total Number of Final Bound sbh: 0
+Total Number of Final Bound Star: 402
+Ejection Velocity: 200 kms
+SMBH Mass: 400000.0 MSun

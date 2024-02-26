@@ -1,0 +1,84 @@
+Tcoll: 0.0 yr
+Key1: [8746940230176995013]
+Key2: [6199743931344787160]
+M1: [1.0] MSun
+M2: [400000.0] MSun
+Semi-major axis: nan au
+Eccentricity: nan
+Inclination: nan deg
+Argument of Periapsis: nan deg
+Longitude of Asc. Node: 0.0 deg
+True Anomaly: 0.0 deg
+
+Tcoll: 0.0 yr
+Key1: [8746940230176995013]
+Key2: [11102403623499336065]
+M1: [1.0] MSun
+M2: [1.0] MSun
+Semi-major axis: nan au
+Eccentricity: nan
+Inclination: nan deg
+Argument of Periapsis: nan deg
+Longitude of Asc. Node: 0.0 deg
+True Anomaly: 0.0 deg
+
+Tcoll: 0.0 yr
+Key1: [6199743931344787160]
+Key2: [9352407095243444749]
+M1: [400000.0] MSun
+M2: [1.0] MSun
+Semi-major axis: nan au
+Eccentricity: nan
+Inclination: nan deg
+Argument of Periapsis: nan deg
+Longitude of Asc. Node: 0.0 deg
+True Anomaly: 0.0 deg
+
+Tcoll: 0.0 yr
+Key1: [6199743931344787160]
+Key2: [9352407095243444749]
+M1: [400000.0] MSun
+M2: [1.0] MSun
+Semi-major axis: nan au
+Eccentricity: nan
+Inclination: nan deg
+Argument of Periapsis: nan deg
+Longitude of Asc. Node: 0.0 deg
+True Anomaly: 0.0 deg
+
+Tcoll: 4.6981286592e-37 yr
+Key1: [6199743931344787160]
+Key2: [5455173591733680508]
+M1: [400000.0] MSun
+M2: [1.0] MSun
+Semi-major axis: 0.0 au
+Eccentricity: nan
+Inclination: nan deg
+Argument of Periapsis: nan deg
+Longitude of Asc. Node: 0.0 deg
+True Anomaly: 0.0 deg
+
+Tcoll: 0.0 yr
+Key1: [6199743931344787160]
+Key2: [13862838545166956722]
+M1: [400000.0] MSun
+M2: [1.0] MSun
+Semi-major axis: nan au
+Eccentricity: nan
+Inclination: nan deg
+Argument of Periapsis: nan deg
+Longitude of Asc. Node: 0.0 deg
+True Anomaly: 0.0 deg
+
+Tcoll: 0.0193760261803 yr
+Key1: [6199743931344787160]
+Key2: [13862838545166956722]
+M1: [400000.0] MSun
+M2: [1.0] MSun
+Semi-major axis: 0.0 au
+Eccentricity: nan
+Inclination: nan deg
+Argument of Periapsis: nan deg
+Longitude of Asc. Node: 0.0 deg
+True Anomaly: 0.0 deg
+

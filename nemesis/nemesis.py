@@ -2,8 +2,7 @@ import numpy
 import threading
 
 import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot
+import matplotlib.pyplot as plt
 
 from amuse.ext.solarsystem import new_solar_system
 from amuse.datamodel import Particle,Particles,ParticlesOverlay
@@ -21,10 +20,62 @@ from amuse.community.ph4.interface import ph4
 #from amuse.community.phiGRAPE.interface import PhiGRAPE
 from amuse.community.huayno.interface import Huayno
 from amuse.community.mi6.interface import MI6
+import matplotlib.ticker as mtick
 
 
 import logging
 #logging.basicConfig(level=logging.DEBUG)
+
+class plotter_setup(object):
+    def font_size(self):
+        axlabel_size = 16
+        tick_size = 14
+        return axlabel_size, tick_size
+
+    def tickers(self, ax, plot_type):
+        """
+        Setup figure layout
+        """
+        
+        axlabel_size, self.tick_size = self.font_size()
+
+        ax.yaxis.set_ticks_position('both')
+        ax.xaxis.set_ticks_position('both')
+        ax.xaxis.set_minor_locator(mtick.AutoMinorLocator())
+        ax.yaxis.set_minor_locator(mtick.AutoMinorLocator())
+        if plot_type == 'plot':
+            ax.tick_params(axis="y", which='both', direction="in", labelsize=self.tick_size)
+            ax.tick_params(axis="x", which='both', direction="in", labelsize=self.tick_size)
+        else:
+            ax.tick_params(axis="y", labelsize=self.tick_size)
+            ax.tick_params(axis="x", labelsize=self.tick_size)
+
+        return ax
+
+    def tickers_pop(self, ax, pop, int_str):
+        """
+        Function to setup axis for population plots
+        """
+
+        axlabel_size, self.tick_size = self.font_size()
+
+        ax.set_xlabel(r'$N_{\rm{IMBH}}$', fontsize=axlabel_size)
+        ax.yaxis.set_ticks_position('both')
+        ax.xaxis.set_ticks_position('both')
+        ax.yaxis.set_minor_locator(mtick.AutoMinorLocator())
+        ax.tick_params(axis="y", which='both', direction="in", 
+                       labelsize=self.tick_size)
+        ax.tick_params(axis="x", which='both', direction="in", 
+                       labelsize=self.tick_size)    
+        if int_str == 'Hermite':
+            xints = [i for i in range(1+int(max(pop))) if i%10 == 0 and i>5]
+            ax.set_xlim(5, 105)
+        else:
+            xints = [i for i in range(1+int(max(pop))) if i%5 == 0 and i>5 and i<45]
+            ax.set_xlim(5, 45)
+        ax.set_xticks(xints)
+
+        return ax
 
 def system_type(parts):
   if len(parts)==2:
@@ -465,23 +516,23 @@ def smaller_nbody_power_of_two(dt, conv):
   idt=numpy.floor(numpy.log2(nbdt))
   return conv.to_si( 2**idt | nbody_system.time)
 
-markerstyles=["+","p","o","x"]
+markerstyles=["o"]
 linestyles=["-",":","-.","--"]
-colors=["r","g","b","y","c"]
+colors=["black"]
 
 def randomparticles_w_ss(N=10,L=500| units.AU,dv=2.5 | units.kms):
   from amuse.ic.salpeter import new_salpeter_mass_distribution
 
-  conv=nbody_system.nbody_to_si(N*1.| units.MSun,1000.| units.AU)
+  conv=nbody_system.nbody_to_si(N*1.| units.MSun,1200.| units.AU)
   conv_sub=nbody_system.nbody_to_si(1.| units.MSun,50.| units.AU)
 
-  dt=smaller_nbody_power_of_two(2000. | units.day,conv)
+  dt=smaller_nbody_power_of_two(1. | units.yr,conv)
   print(dt.in_(units.day))
 
   def radius(sys,eta=0.002):
-    radius=((constants.G*sys.total_mass()*dt**2/eta)**(1./3.))
+    radius=2*((constants.G*sys.total_mass()*dt**2/eta)**(1./3.))
     if radius < 10 | units.AU:
-      radius=20. | units.AU
+      radius=30. | units.AU
     return radius  
 #  def radius(sys,eta=0.002):
 #    if len(sys)>1:
@@ -490,8 +541,6 @@ def randomparticles_w_ss(N=10,L=500| units.AU,dv=2.5 | units.kms):
 #      return r2**0.5
 #    else:
 #      return ((constants.G*sys.total_mass()*dt**2/eta)**(1./3.))
-
-  numpy.random.seed(7654304)
 
   masses=new_salpeter_mass_distribution(N,mass_min=0.3 | units.MSun,mass_max=10. |units.MSun)
   
@@ -512,6 +561,12 @@ def randomparticles_w_ss(N=10,L=500| units.AU,dv=2.5 | units.kms):
 
   ss=new_solar_system()[[0,5,6,7,8]]
   parts.assign_subsystem(ss,parts[0])
+
+  ss=new_solar_system()[[0,7,8]]
+  parts.assign_subsystem(ss,parts[1])
+
+  ss=new_solar_system()[[0,5,8]]
+  parts.assign_subsystem(ss,parts[2])
 
   def parent_worker():
     code=Hermite(conv)
@@ -537,7 +592,8 @@ def randomparticles_w_ss(N=10,L=500| units.AU,dv=2.5 | units.kms):
   def py_worker():
     code=CalculateFieldForParticles(gravity_constant = constants.G)
     return code
-      
+    
+  parts.type="star"
   nemesis=Nemesis( parent_worker, sub_worker, py_worker)
   nemesis.timestep=dt
   nemesis.radius=radius
@@ -545,7 +601,7 @@ def randomparticles_w_ss(N=10,L=500| units.AU,dv=2.5 | units.kms):
   nemesis.particles.add_particles(parts)
   nemesis.commit_particles()
 
-  tend=2000. | units.yr
+  tend=10000. | units.yr
   t=0|units.yr
   dtdiag=dt
   
@@ -569,8 +625,12 @@ def randomparticles_w_ss(N=10,L=500| units.AU,dv=2.5 | units.kms):
   xx=[x]
   y=(ss.y).value_in(units.AU)
   yy=[y]
+  mass=[ss.mass.value_in(units.MSun)]
   
   nstep=0
+  clean = plotter_setup()
+  plt.rcParams["font.family"] = "Times New Roman"
+  plt.rcParams["mathtext.fontset"] = "cm"
   while t< tend-dtdiag/2:
     t+=dtdiag
     nemesis.evolve_model(t)  
@@ -599,16 +659,19 @@ def randomparticles_w_ss(N=10,L=500| units.AU,dv=2.5 | units.kms):
     ycm=nemesis.particles.y.value_in(units.AU)
     r=(nemesis.particles.radius).value_in(units.AU)
     
+    mass.append(ss.mass.value_in(units.MSun))
     xx.append(x)
     yy.append(y)
     key=ss.key
 
-    f=pyplot.figure( figsize=(8,8))  
-    ax = f.gca()
+    fig, ax = plt.subplots(figsize=(6,6))
     circles=[]
-    for i in range(len(xx[0])):
-      pyplot.plot(xx[-1][i],yy[-1][i],colors[key[i]%numpy.uint64(len(colors))]+
-                                markerstyles[key[i]%numpy.uint64(len(markerstyles))],markersize=8,mew=2)
+    ax.scatter(ss[ss.mass>(1|units.MJupiter)].x.value_in(units.au),
+               ss[ss.mass>(1|units.MJupiter)].y.value_in(units.au),
+               color="black", s=20)
+    ax.scatter(ss[ss.mass<=(1|units.MJupiter)].x.value_in(units.au),
+               ss[ss.mass<=(1|units.MJupiter)].y.value_in(units.au),
+               color="red", s=5)
     for p in nemesis.particles:
 #      if nemesis.particles.collection_attributes.subsystems.has_key(p):
         c='k'
@@ -618,17 +681,17 @@ def randomparticles_w_ss(N=10,L=500| units.AU,dv=2.5 | units.kms):
         x=p.x.value_in(units.AU)
         y=p.y.value_in(units.AU)
         r=p.radius.value_in(units.AU)
-        circles.append( pyplot.Circle((x,y),r,color=c,lw=0.75,fill=False) )
+        circles.append( plt.Circle((x,y),r,color=c,lw=0.75,fill=False) )
     for c in circles:
       ax.add_artist(c)  
                                 
 #    pyplot.plot(xcm,ycm,'k+', markersize=4,mew=1)
-    pyplot.xlim(-600,600)
-    pyplot.ylim(-600,600)
-    pyplot.text(-400,-400,len(nemesis.particles),fontsize=18)
-    pyplot.savefig('xy%6.6i.png'%nstep)
-    f.clear()
-    pyplot.close(f)
+    ax.set_xlim(-720,720)
+    ax.set_ylim(-720,720)
+    ax.text(-720, 730, r"$t =$"+"{:.1f} years".format(t.value_in(units.yr)))
+    clean.tickers(ax, 'plot')
+    plt.savefig('snapshot_'+str(nstep)+'.png', dpi=300, bbox_inches='tight')
+    plt.close()
 
     nstep+=1
 
