@@ -1,9 +1,7 @@
 import numpy as np
-import os
 import threading
 import time as cpu_time
 
-from amuse.community.huayno.interface import Huayno
 from amuse.community.mercury.interface import Mercury
 from amuse.community.ph4.interface import ph4
 from amuse.community.seba.interface import SeBa
@@ -14,7 +12,6 @@ from amuse.datamodel import Particles
 from amuse.ext.basicgraph import UnionFind
 from amuse.ext.composition_methods import SPLIT_4TH_S_M4
 from amuse.ext.galactic_potentials import MWpotentialBovy2015
-from amuse.lab import write_set_to_file
 from amuse.units import units, constants
 
 from src.environment_functions import parent_radius
@@ -29,15 +26,14 @@ def potential_energy(system, get_potential):
 
 
 class Nemesis(object):
-  def __init__(self, cluster_limit, par_conv, chd_conv, dt, 
+  def __init__(self, par_conv, chd_conv, dt, 
                code_dt=0.01, par_nworker=1, chd_nworker=1,
                dE_track=False, star_evol=False, 
-               gal_field=False):
+               gal_field=False, PN_integ=False):
     """Class setting up the simulation, checking 
        for dissolution of systems and evolving system.
        
        Inputs:
-       cluster_limit: Cluster size
        par_conv:      Parent N-body converter
        chd_conv:      Children N-body converter
        dt:            Diagnostic time step
@@ -53,6 +49,7 @@ class Nemesis(object):
     self.par_nworker = par_nworker
     self.chd_nworker = chd_nworker
     self.star_evol = star_evol
+    self.PN_integ = PN_integ
     
     self.parent_code = self.parent_worker(par_conv)
     self.subsys_code = self.sub_worker
@@ -62,7 +59,7 @@ class Nemesis(object):
 
     self.dE_track = dE_track
     self.gal_field = gal_field
-    self.use_threading = True
+    self.use_threading = False
 
     self.chd_conv = chd_conv
     self.dt = dt
@@ -71,7 +68,6 @@ class Nemesis(object):
     self.event_time = [ ]
     self.event_type = [ ]
     
-    self.cluster_limit = cluster_limit
     self.particles = HierarchicalParticles(self.parent_code.particles)
     self.subcodes = dict()
     self.time_offsets = dict()
@@ -105,7 +101,10 @@ class Nemesis(object):
 
     if (self.star_evol):
       parti = self.particles.all()
-      self.stars = parti[parti.type=="STAR"]
+      self.stars = parti[parti.mass>=0.08|units.MSun]
+      self.stars-=self.stars[self.stars.type=="sbh"] 
+      self.stars-=self.stars[self.stars.type=="smbh"]
+      self.stars-=self.stars[self.stars.type=="imbh"]
       stellar_code = self.stellar_code
       stellar_code.particles.add_particle(self.stars)
 
@@ -140,29 +139,25 @@ class Nemesis(object):
       
   def sub_worker(self, cset, chd_conv):
       """Defining the local integrator based on system population"""
-      if len(cset)==2:
-         code = SmallN(chd_conv)
-         code.particles.add_particles(cset)
-         return code
+      masses = np.sort(cset.mass)
+      if len(cset)>1:
+        if masses[-1]/masses[-2]>100:
+          code = Mercury(chd_conv)
+          code.particles.add_particles(cset)
+          return code
 
-      no_stars = len(cset[cset.type=="STAR"])+len(cset[cset.type=="BINARY STAR"])
-      if no_stars==1:
-         code = Mercury(chd_conv)
-         code.particles.add_particles(cset)
-         return code
+      if len(cset)==2:
+        code = SmallN(chd_conv)
+        code.particles.add_particles(cset)
+        return code
 
       code = ph4(chd_conv)
-      #code.parameters.inttype_parameter=code.inttypes.SHARED4
       code.particles.add_particles(cset)
       return code 
 
   def grav_channel_copier(self):
-    self.global_code_to_parents.copy_attributes(["mass", "vx", "vy", "vz", "x", "y", "z"])
-    subsystems = self.particles.collection_attributes.subsystems
-    for parent, code in self.subcodes.items():
-       children = subsystems[parent]
-       channel = code.particles.new_channel_to(children)
-       channel.copy_attributes(["mass", "vx", "vy", "vz", "x", "y", "z"])
+    self.global_code_to_parents.copy_attributes([
+          "mass", "vx", "vy", "vz", "x", "y", "z"])
 
   def star_channel_copier(self):
     stars = self.stellar_code.particles
@@ -204,7 +199,6 @@ class Nemesis(object):
       t1 = cpu_time.time()
       print("Time taken for Splitting: ", t2-t1)
       if (self.star_evol):
-        time = self.stellar_code.model_time
         self.stellar_evolution(self.model_time+timestep/2.)
         self.star_channel_copier()
       self.grav_channel_copier()
@@ -367,7 +361,6 @@ class Nemesis(object):
 
   def stellar_evolution(self, dt):
     code = self.stellar_code
-
     SN_detection = code.stopping_conditions.supernova_detection
     SN_detection.enable()
     while code.model_time < dt*(1-1.e-12):

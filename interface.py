@@ -10,13 +10,13 @@ from src.environment_functions import galactic_frame, parent_radius
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
-def run_code(sim_dir, cluster_limit, tend, 
-             eta, code_dt, par_nworker, chd_nworker, 
-             dE_track, gal_field, star_evol):
+def run_code(sim_dir, tend, eta, code_dt, 
+             par_nworker, chd_nworker, 
+             dE_track, gal_field, star_evol,
+             PN_integ):
   """Function to run simulation.
      Inputs:
      sim_dir:       Directory of particle set simulated
-     cluster_limit: Cluster size
      tend:          Simulation end time
      eta:           Parent system simulation step-time
      code_dt:       Internal timestep parameter
@@ -25,6 +25,7 @@ def run_code(sim_dir, cluster_limit, tend,
      dE_track:      Flag turning on energy error tracker
      gal_field:     Flag turning on galactic field or not
      star_evol:     Flag turning on stellar evolution
+     PN_integ:      Flag turning on PN_integ integrator
   """
 
   def smaller_nbody_power_of_two(dt, conv):
@@ -51,8 +52,9 @@ def run_code(sim_dir, cluster_limit, tend,
         os.makedirs(os.path.join(dir_path, path))
     dir_changes = os.path.join(dir_path, "system_changes")
   snapdir_path = os.path.join(dir_path, "simulation_snapshot")
-  particle_set = read_set_from_file(os.path.join(sim_dir, "initial_particles/init_particle_set"))
-  major_bodies = particle_set[particle_set.type=="STAR"]
+  particle_set = read_set_from_file(os.path.join(sim_dir, 
+                      "initial_particles/init_particle_set"))[:5]
+  major_bodies = particle_set[particle_set.mass>0.01|units.MSun]
   rmax = None
 
   if (gal_field):
@@ -96,16 +98,16 @@ def run_code(sim_dir, cluster_limit, tend,
   #Setting up system
   conv_child = nbody_system.nbody_to_si(np.mean(parents.mass), 
                                         np.mean(parents.radius))
-  nemesis = Nemesis(cluster_limit, conv_par, conv_child, 
+  nemesis = Nemesis(conv_par, conv_child, 
                     dt, code_dt, par_nworker, chd_nworker, 
-                    dE_track, star_evol, gal_field)
+                    dE_track, star_evol, gal_field, PN_integ)
   nemesis.timestep = dt
   nemesis.particles.add_particles(parents)
   nemesis.parents = parents.copy_to_memory()
   nemesis.radius = parent_radius(parents.mass, code_dt)
   nemesis.commit_particles(conv_child)
   nemesis.channel_makers()
-  nemesis.rmax = rmax
+  
   allparts = nemesis.particles.all()
   if (dE_track):
     E0a = allparts.kinetic_energy()+allparts.potential_energy()
@@ -113,7 +115,7 @@ def run_code(sim_dir, cluster_limit, tend,
       PE = nemesis.grav_bridge.potential_energy
       KE = nemesis.grav_bridge.kinetic_energy
       E0a+=(PE+KE)
-
+      
   t = 0 | units.yr
   time = [0.]
   totalE = [0.]
@@ -145,6 +147,7 @@ def run_code(sim_dir, cluster_limit, tend,
                         close_file=True, overwrite_file=True)
     if dt_iter%10==1:
       print("Time: ", t.in_(units.yr), end=' ')
+      allparts = nemesis.particles.all()
       write_set_to_file(allparts.savepoint(0|units.Myr), 
             os.path.join(snapdir_path, "snap_"+str(dt_iter)), 
             'amuse', close_file=True, overwrite_file=True)
@@ -181,7 +184,8 @@ def run_code(sim_dir, cluster_limit, tend,
 
 if __name__=="__main__":
   sim_dir="examples/realistic_cluster/"         #Configuration to run
-  run_code(sim_dir=sim_dir, cluster_limit=10|units.pc,
+  #sim_dir="examples/S-Stars"
+  run_code(sim_dir=sim_dir,
            tend=50 | units.Myr, eta=1e-4, code_dt=5e-2, 
            par_nworker=1, chd_nworker=1, gal_field=False, 
-           dE_track=False, star_evol=True)
+           dE_track=False, star_evol=True, PN_integ=False)

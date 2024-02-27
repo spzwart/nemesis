@@ -1,6 +1,0 @@
-Median Ejection: 8.0
-IQR Ejection: 1.0, 1.0
-Median Drifter: 2.0
-IQR Drifter: 1.0, 1.0
-Median Merger: 0.0
-IQR Merger: 0.0, 0.0

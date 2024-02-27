@@ -1,8 +1,0 @@
-IMBH Median Ejection Velocity [kms/s]: 67.01550859914539
-IQR Ejection Velocity [kms/s]: 31.529035575265794, 21.269016101049843
-Star Median Ejection Velocity [kms/s]: 73.49162458598603
-IQR Ejection Velocity [kms/s]: 24.97769516762969, 34.86257408159629
-
-Ejection types (Stars || IMBH)
-Median # Events: [19.0, 3.0]
-IQR Events: [6.0, 1.0], [16.0, 2.0]
