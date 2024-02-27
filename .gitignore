@@ -160,8 +160,11 @@ cython_debug/
 #.idea/
 
 
-examples/realistic_cluster/shuo_data_set
+examples/realistic_cluster/initial_particles/shuo_data_set/*
 examples/realistic_cluster/sim_data/*
 examples/realistic_cluster/initial_particles/data_files/*
-examples/runaway_bh/data*/*sim*/*
+examples/realistic_cluster/z*
+examples/runaway_bh/data/*
+examples/runaway_bh/data_nosim/*
+examples/S-Stars/sim_data/*
 plotters/*
