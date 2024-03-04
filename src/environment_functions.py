@@ -25,7 +25,7 @@ def parent_radius(mass, dt):
        mass:   Parent particle set 
        dt:     Simulation time-step
     """
-    return (constants.G*mass*(dt)**2)**(1./3.)
+    return 3*(constants.G*mass*(dt)**2)**(1./3.)
 
 def tidal_radius(parent_set):
     """Tidal radius (Spitzer 1987 eqn 5.10)"""
