@@ -172,24 +172,26 @@ class Nemesis(object):
 
     if timestep is None:
       timestep = tend-self.model_time
-    
-    while self.model_time < (tend-timestep/2.):
+
+    evol_time = self.model_time
+    while evol_time < (tend-timestep/2.):
+      evol_time = self.model_time
       self.dEa = 0 | units.J
       self.save_snap = False
       t2 = cpu_time.time()
       if (self.star_evol):
-        self.stellar_evolution(self.model_time+timestep/2.)
+        self.stellar_evolution(evol_time+timestep/2.)
         self.star_channel_copier()
         t1 = cpu_time.time()
         print("Time taken for Star Evol. : ", t1-t2)
       self.corr_kick_children(timestep/2.)
       t2 = cpu_time.time()
       print("Time taken for Kicking: ", t2-t1)
-      self.drift_global(self.model_time+timestep, 
-                        self.model_time+timestep/2.)
+      self.drift_global(evol_time+timestep, 
+                        evol_time+timestep/2.)
       t1 = cpu_time.time()
       print("Time taken for Global", t1-t2)
-      self.drift_child(self.model_time+timestep)
+      self.drift_child(evol_time+timestep)
       t2 = cpu_time.time()
       print("Time taken for Local", t2-t1)
       self.corr_kick_children(timestep/2.)
@@ -199,7 +201,7 @@ class Nemesis(object):
       t1 = cpu_time.time()
       print("Time taken for Splitting: ", t2-t1)
       if (self.star_evol):
-        self.stellar_evolution(self.model_time+timestep/2.)
+        self.stellar_evolution(evol_time+timestep/2.)
         self.star_channel_copier()
       self.grav_channel_copier()
 

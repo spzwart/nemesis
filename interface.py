@@ -53,7 +53,7 @@ def run_code(sim_dir, tend, eta, code_dt,
     dir_changes = os.path.join(dir_path, "system_changes")
   snapdir_path = os.path.join(dir_path, "simulation_snapshot")
   particle_set = read_set_from_file(os.path.join(sim_dir, 
-                      "initial_particles/init_particle_set"))
+                      "initial_particles/init_particle_set"))[:20]
   major_bodies = particle_set[particle_set.mass>0.01|units.MSun]
 
   if (gal_field):
@@ -114,9 +114,6 @@ def run_code(sim_dir, tend, eta, code_dt,
       PE = nemesis.grav_bridge.potential_energy
       KE = nemesis.grav_bridge.kinetic_energy
       E0a+=(PE+KE)
-
-  print(nemesis.particles.radius.in_(units.au), nemesis.particles.mass)
-  STOP
       
   t = 0 | units.yr
   time = [0.]
