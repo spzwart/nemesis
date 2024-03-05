@@ -15,7 +15,7 @@ from amuse.ext.galactic_potentials import MWpotentialBovy2015
 from amuse.units import units, constants
 
 from src.environment_functions import parent_radius
-from src.grav_correctors import CorrectionForCompoundParticle
+from src.grav_correctors import CorrectionFromCompoundParticle, CorrectionForCompoundParticle
 from src.hierarchical_particles import HierarchicalParticles
 
 
@@ -417,16 +417,26 @@ class Nemesis(object):
 
   def correction_kicks(self, particles, subsystems, dt):
     if subsystems and len(particles)>1:
+      corr_chd = CorrectionFromCompoundParticle(particles, subsystems, self.sys_kickers)
+      parts = particles.copy_to_memory()
+      ax,ay,az=corr_chd.get_gravity_at_point(parts.radius,parts.x,parts.y,parts.z)
+      parts.vx=parts.vx+dt*ax
+      parts.vy=parts.vy+dt*ay
+      parts.vz=parts.vz+dt*az
+      channel = parts.new_channel_to(particles)
+      channel.copy_attributes(["vx","vy","vz"])
+
       parent, system = zip(*subsystems.items())
-      corr_par = np.asarray([CorrectionForCompoundParticle(particles, par, self.sys_kickers) for par in parent])
-      for subsyst, corr in zip(system, corr_par):
+      corr_par = CorrectionForCompoundParticle(particles, None, self.sys_kickers)
+      for parent, subsyst in subsystems.items():
+        corr_par.parent = parent
         parts = subsyst.copy_to_memory()
-        gravity = corr.get_gravity_at_point(parts.radius, 
-                            parts.x, parts.y, parts.z
-                            )
-        parts.vx+=dt*gravity[0]
-        parts.vy+=dt*gravity[1]
-        parts.vz+=dt*gravity[2]
+        gravity = corr_par.get_gravity_at_point(parts.radius, 
+                                    parts.x, parts.y, parts.z
+                                    )
+        parts.vx=dt*gravity[0]
+        parts.vy=dt*gravity[1]
+        parts.vz=dt*gravity[2]
         channel = parts.new_channel_to(subsyst)
         channel.copy_attributes(["vx","vy","vz"])
 
