@@ -5,12 +5,11 @@ from amuse.units import units, constants
 
 
 def galactic_frame(parent_set, dx, dy, dz):
-    """Shift particle set to the particle set
+    """Shift particle set to galactic frame
        Inputs:
        parent_set: The particle set
        d(x/y/z):   Distance of cluster to center of MW-like galaxy
     """
-
     MWG = MWpotentialBovy2015()
     parent_set.position+=[dx.value_in(units.pc), 
                     dy.value_in(units.pc), 
@@ -20,7 +19,7 @@ def galactic_frame(parent_set, dx, dy, dz):
     return parent_set
 
 def parent_radius(mass, dt):
-    """Merging/dissolution radius of parent systems
+    """Merging radius of parent systems
        Inputs:
        mass:   Parent particle set 
        dt:     Simulation time-step

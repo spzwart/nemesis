@@ -1,4 +1,3 @@
-import os
 import numpy as np
 
 from amuse.ext.orbital_elements import generate_binaries

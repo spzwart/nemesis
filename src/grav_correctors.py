@@ -1,12 +1,12 @@
 class CorrectionFromCompoundParticle(object):
   def __init__(self, system, subsystems, worker_code_factory):
+    """Correct force vector exerted by parents on all 
+       other particles present by that of its children"""
     self.system=system
     self.subsystems=subsystems
     self.worker_code_factory=worker_code_factory
     
   def get_gravity_at_point(self, radius, x, y, z):
-    """Replaces force exerted by parent on stars by that of its children"""
-
     particles = self.system.copy_to_memory()
     acc_units = (particles.vx.unit**2/particles.x.unit)
     particles.ax = 0. | acc_units
@@ -18,6 +18,7 @@ class CorrectionFromCompoundParticle(object):
       code.particles.position+=parent.position
       code.particles.velocity+=parent.velocity
 
+      #Potential from children particles
       parts = particles-parent
       acc = code.get_gravity_at_point(0.*parts.radius,
                                   parts.x,parts.y,parts.z
@@ -26,10 +27,11 @@ class CorrectionFromCompoundParticle(object):
       parts.ay+=acc[1]
       parts.az+=acc[2]
       
+      #Potential from parent particle
       code = self.worker_code_factory()
       code.particles.add_particle(parent)
       acc = code.get_gravity_at_point(0.*parts.radius,
-                                 parts.x, parts.y, parts.z
+                                 parts.x,parts.y,parts.z
                                  )
       parts.ax-=acc[0]
       parts.ay-=acc[1]
@@ -45,11 +47,14 @@ class CorrectionFromCompoundParticle(object):
       code.particles.add_particles(sys.copy())
       code.particles.position+=parent.position
       code.particles.velocity+=parent.velocity
+
+      #Potential from children particles
       parts = particles-parent
       phi = code.get_potential_at_point(0.*parts.radius,
                 parts.x, parts.y, parts.z)
       parts.phi+=phi
       
+      #Potential from parent particle
       code = self.worker_code_factory()
       code.particles.add_particle(parent)
       phi = code.get_potential_at_point(0.*parts.radius,
@@ -61,6 +66,7 @@ class CorrectionFromCompoundParticle(object):
   
 class CorrectionForCompoundParticle(object):  
   def __init__(self, system, parent, worker_code_factory):
+    """Correct force vector exerted by global particles on childrens"""
     self.system = system
     self.parent = parent
     self.worker_code_factory = worker_code_factory
