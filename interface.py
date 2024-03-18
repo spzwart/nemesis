@@ -42,18 +42,20 @@ def run_code(sim_dir, tend, eta, code_dt,
         pass
     else:
         os.mkdir(dir_path+"/")
-        subdir = ["event_data", "data_process", 
-                  "simulation_stats", "simulation_snapshot", 
-                  "system_changes"
-                ]
+        subdir = ["event_data", "collision_snapshot", 
+                  "data_process", "simulation_stats", 
+                  "simulation_snapshot", "system_changes"
+                 ]
         for path in subdir:
             os.makedirs(os.path.join(dir_path, path))
-        dir_changes = os.path.join(dir_path, "system_changes")
+    coll_path = os.path.join(dir_path, "collision_snapshot")
+    syst_change_path = os.path.join(dir_path, "system_changes")
     snapdir_path = os.path.join(dir_path, "simulation_snapshot")
 
     # Organise particle set
     particle_set = read_set_from_file(os.path.join(sim_dir, 
-                                      "initial_particles/init_particle_set"))[:15]
+                                      "initial_particles/init_particle_set"))[:5]
+    particle_set.coll_events = 0
     major_bodies = particle_set[particle_set.mass > 0.01|units.MSun]
     if (gal_field):
       particle_set = galactic_frame(particle_set, 
@@ -101,6 +103,7 @@ def run_code(sim_dir, tend, eta, code_dt,
     nemesis.radius = parent_radius(parents.mass, code_dt)
     nemesis.commit_particles(conv_child)
     nemesis.channel_makers()
+    nemesis.coll_dir = coll_path
     
     allparts = nemesis.particles.all()
     if (dE_track):
@@ -131,7 +134,7 @@ def run_code(sim_dir, tend, eta, code_dt,
           print("Energy error:     ", abs(E0a-E1a)/E0a)
 
         if (nemesis.save_snap):
-          path = os.path.join(dir_changes, "par_chng_"+str(nemesis.event_time[-1]))
+          path = os.path.join(syst_change_path, "par_chng_"+str(nemesis.event_time[-1]))
           write_set_to_file(allparts.savepoint(0|units.Myr), path, 
                             'amuse', close_file=True, overwrite_file=True
                             )
@@ -182,7 +185,7 @@ if __name__=="__main__":
   sim_dir = "examples/realistic_cluster/"
   # sim_dir="examples/S-Stars"
   run_code(sim_dir=sim_dir,
-           tend=30 | units.Myr, eta=1e-4, code_dt=1e-2, 
+           tend=50 | units.Myr, eta=1e-4, code_dt=1e-2, 
            par_nworker=1, gal_field=False, dE_track=False, 
            star_evol=True,
            )

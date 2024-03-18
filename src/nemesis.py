@@ -1,8 +1,9 @@
 import numpy as np
+import os
 import threading
 import time as cpu_time
 
-from amuse.community.mercury.interface import Mercury
+from amuse.community.huayno.interface import Huayno
 from amuse.community.ph4.interface import ph4
 from amuse.community.seba.interface import SeBa
 from amuse.community.smalln.interface import SmallN
@@ -12,9 +13,11 @@ from amuse.datamodel import Particles
 from amuse.ext.basicgraph import UnionFind
 from amuse.ext.composition_methods import SPLIT_4TH_S_M4
 from amuse.ext.galactic_potentials import MWpotentialBovy2015
+from amuse.ext.orbital_elements import orbital_elements_from_binary
+from amuse.lab import write_set_to_file
 from amuse.units import units, constants
 
-from src.environment_functions import parent_radius
+from src.environment_functions import parent_radius, planet_radius, ZAMS_radius
 from src.grav_correctors import CorrectionFromCompoundParticle, CorrectionForCompoundParticle
 from src.hierarchical_particles import HierarchicalParticles
 
@@ -67,6 +70,7 @@ class Nemesis(object):
       self.subcodes = dict()
       self.time_offsets = dict()
       self.timestep = None
+      self.coll_dir = None
 
   def commit_particles(self, chd_conv):
       """Commit particle system"""
@@ -135,21 +139,10 @@ class Nemesis(object):
   def sub_worker(self, cset, chd_conv):
       """Defining the local integrator based on system population"""
 
-      masses = np.sort(cset.mass)
-      if len(cset) > 1:
-          if (masses[-1]/masses[-2]) > 100:
-              code = Mercury(chd_conv)
-              code.particles.add_particles(cset)
-              return code
-
-      if len(cset) == 2:
-          code = SmallN(chd_conv)
-          code.particles.add_particles(cset)
-          return code
-
-      code = ph4(chd_conv)
+      code = Huayno(chd_conv)
       code.particles.add_particles(cset)
-      return code 
+      code.set_integrator("SHARED4_COLLISIONS")
+      return code
 
   def grav_channel_copier(self):
       self.par_code_to_local.copy_attributes(["mass","vx","vy","vz","x","y","z"])
@@ -177,6 +170,7 @@ class Nemesis(object):
 
       evol_time = self.model_time
       while evol_time < (tend-timestep/2.):
+          print(self.particles.all().mass.in_(units.MSun), self.stellar_code.particles.mass.in_(units.MSun))
           evol_time = self.model_time
           self.dEa = 0 | units.J
           self.save_snap = False
@@ -205,6 +199,8 @@ class Nemesis(object):
           if (self.star_evol):
               self.stellar_evolution(evol_time+timestep/2.)
               self.star_channel_copier()
+          print(self.particles.all().mass.in_(units.MSun), self.stellar_code.particles.mass.in_(units.MSun))
+
       self.grav_channel_copier()
 
   def energy_track(self):
@@ -225,14 +221,18 @@ class Nemesis(object):
           if len(components) > 1:  # Checking for dissolution of system
               print("...Splitting subcode...")
               self.save_snap = True
+              parent_pos = parent.position
+              parent_vel = parent.velocity
+              
+              self.particles.remove_particle(parent)
               code = subcodes.pop(parent)  # Extract and remove dissolved system integrator
               offset = self.time_offsets.pop(code)
               
               keys = [ ]
               for c in components:
                   sys = c.copy_to_memory()
-                  sys.position += parent.position 
-                  sys.velocity += parent.velocity
+                  sys.position += parent_pos 
+                  sys.velocity += parent_vel
                   if len(sys)>1:  # If system > 1 make a subsystem
                       newcode = self.subsys_code(sys, self.chd_conv)
                       self.time_offsets[newcode] = (self.model_time - newcode.model_time)
@@ -327,16 +327,101 @@ class Nemesis(object):
       
       collsubset = Particles()
       collsyst = dict()
+      subsystems = self.particles.collection_attributes.subsystems
       for parti_ in coll_set:
           collsubset.add_particle(parti_)
           if parti_ in self.subcodes:
               code = self.subcodes[parti_]
               offset = self.time_offsets[code]
-              code.evolve_model(coll_time-offset)
+              while code.model_time < (coll_time-offset):
+                  code.evolve_model(coll_time-offset)
           if parti_ in subsystems:
               collsyst[parti_] = subsystems[parti_]
       self.grav_channel_copier()
       return collsubset, collsyst
+    
+  def handle_collision(self, children, enc_parti, tcoll, code):
+    """Merge two particles if the collision stopping condition is met
+       Inputs:
+       children:   The children particle set
+       enc_parti:  The particles in the collision
+       tcoll:      The time-stamp for which the particles collide at
+       code:       The integrator used
+    """
+
+    ### Save properties
+    self.grav_channel_copier()
+    allparts = self.particles.all()
+    colliding_a = allparts[allparts.key == enc_parti[0].key]
+    colliding_b = allparts[allparts.key == enc_parti[1].key]
+    
+    nmerge = np.sum(allparts.coll_events)+1
+    write_set_to_file(allparts.savepoint(0|units.Myr),
+        os.path.join(self.coll_dir, "merger"+str(nmerge)),
+        'amuse', close_file=True, overwrite_file=True
+        )
+    print("...Collision #{:} Detected...".format(nmerge))
+
+    bin_sys = Particles()
+    bin_sys.add_particle(colliding_a)
+    bin_sys.add_particle(colliding_b)
+    kepler_elements = orbital_elements_from_binary(bin_sys, G=constants.G)
+    sem = kepler_elements[2]
+    ecc = kepler_elements[3]
+    inc = kepler_elements[4]
+    arg_peri = kepler_elements[5]
+    asc_node = kepler_elements[6]
+    true_anm = kepler_elements[7]
+    lines = ["Tcoll: {}".format(tcoll.in_(units.yr)),
+             "Key1: {}".format(colliding_a.key),
+             "Key2: {}".format(colliding_b.key),
+             "M1: {}".format(colliding_a.mass.in_(units.MSun)),
+             "M2: {}".format(colliding_b.mass.in_(units.MSun)),
+             "Semi-major axis: {}".format(abs(sem).in_(units.au)),
+             "Eccentricity: {}".format(ecc),
+             "Inclination: {} deg".format(inc),
+             "Argument of Periapsis: {} deg".format(arg_peri),
+             "Longitude of Asc. Node: {} deg".format(asc_node),
+             "True Anomaly: {} deg\n".format(true_anm)
+            ]
+    with open(os.path.join(self.coll_dir, "merger"+str(nmerge)+'.txt'), 'a') as f:
+       for line_ in lines:
+            f.write(line_)
+            f.write('\n')
+
+    ### Create merger remnant
+    new_particle  = Particles(1)
+    momentum_a = enc_parti[0].mass*enc_parti[0].velocity.length()
+    momentum_b = enc_parti[1].mass*enc_parti[1].velocity.length()
+    if momentum_a>momentum_b:
+        new_particle.key_tracker = colliding_a.key
+    else: 
+        new_particle.key_tracker = colliding_b.key
+
+    new_particle.mass = enc_parti.total_mass()
+    new_particle.collision_time = tcoll
+    new_particle.position = enc_parti.center_of_mass()
+    new_particle.velocity = enc_parti.center_of_mass_velocity()
+    new_particle.coll_events = (colliding_a.coll_events+colliding_b.coll_events)+1
+    if "STAR" in colliding_a.type or "STAR" in colliding_b.type:
+        new_particle.type = "STAR"
+        new_particle.radius = ZAMS_radius(new_particle.mass)
+        self.stellar_code.particles.add_particle(new_particle)
+    else:
+        new_particle.type = "PLANET"
+        new_particle.radius = planet_radius(new_particle.mass)
+        self.stellar_code.particles.add_particle(new_particle)
+    code.particles.add_particles(new_particle)
+    code.particles.remove_particles(enc_parti)
+
+    new_particle.sub_worker_radius = new_particle.radius
+    children.add_particles(new_particle)
+    children.remove_particles(enc_parti)
+    
+    if colliding_a.type == "STAR":
+      self.stellar_code.particles.remove_particle(colliding_a)
+    if colliding_b.type == "STAR":
+      self.stellar_code.particles.remove_particle(colliding_b)
     
   def handle_supernova(self, SN_detect, bodies, time):
       """Function handling SN explosions
@@ -408,12 +493,12 @@ class Nemesis(object):
       """Evolve children system for dt."""
 
       threads = []
-      for sys_ in self.subcodes.values():
-          offset = self.time_offsets[sys_]
-          if offset>dt:
+      for sys in self.subcodes.values():
+          offset = self.time_offsets[sys]
+          if offset > dt:
               print("curious?")
-          threads.append(threading.Thread(target=sys_.evolve_model, 
-                                          args=(dt-offset,)))
+          threads.append(threading.Thread(target=sys.evolve_model, 
+                                          args=(dt - offset,)))
 
       if self.use_threading:
           for x in threads: x.start()
@@ -443,8 +528,7 @@ class Nemesis(object):
                                                     )
           self.kick_particles(particles, corr_chd, dt)
 
-          corr_par = CorrectionForCompoundParticle(particles, 
-                                                  None, 
+          corr_par = CorrectionForCompoundParticle(particles, None, 
                                                   self.sys_kickers
                                                   )
           for parent, subsyst in subsystems.items():
