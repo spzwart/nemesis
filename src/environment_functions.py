@@ -10,26 +10,20 @@ def galactic_frame(parent_set, dx, dy, dz):
        parent_set: The particle set
        d(x/y/z):   Distance of cluster to center of MW-like galaxy
     """
-    MWG = MWpotentialBovy2015()
-    parent_set.position+=[dx.value_in(units.pc), 
-                    dy.value_in(units.pc), 
-                    dz.value_in(units.pc)] | units.pc
-    parent_set.velocity+=[0,1,0]*MWG.circular_velocity(parent_set.position.lengths())
+
+    parent_set.position += [dx.value_in(units.pc), 
+                            dy.value_in(units.pc), 
+                            dz.value_in(units.pc)] | units.pc
+    parent_set.vy += MWG.circular_velocity(parent_set.position.lengths())
 
     return parent_set
 
 def parent_radius(mass, dt):
-    """Merging radius of parent systems
-       Inputs:
-       mass:   Parent particle set 
-       dt:     Simulation time-step
-    """
+    """Merging radius of parent systems"""
     return 3*(constants.G*mass*(dt)**2)**(1./3.)
 
 def tidal_radius(parent_set):
     """Tidal radius (Spitzer 1987 eqn 5.10)"""
-
-    MWG = MWpotentialBovy2015()
 
     cg_sys = Particles(2)
     cg_sys[0].position = parent_set.center_of_mass()
@@ -45,3 +39,5 @@ def tidal_radius(parent_set):
     coeff = ((3+ecc)**(-1)*(cg_sys[0].mass/cg_sys[1].mass))**(1/3)
     rtide = coeff*cg_sys[0].position.length()
     return rtide
+
+MWG = MWpotentialBovy2015()
