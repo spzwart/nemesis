@@ -22,6 +22,26 @@ def parent_radius(mass, dt):
     """Merging radius of parent systems"""
     return 3*(constants.G*mass*(dt)**2)**(1./3.)
 
+def planet_radius(mass):
+        """Define planet radius"""
+        mass_in_earth = mass.value_in(units.MEarth)
+        if mass < (7.8|units.MEarth):
+            radius = (1|units.REarth)*(mass_in_earth)**0.41
+            return radius
+        if mass < (125|units.MEarth):
+            radius = (0.55|units.REarth)*(mass_in_earth)**0.65
+            return radius
+        radius = (14.3|units.REarth)*(mass_in_earth)**(-0.02) 
+        return radius
+    
+def ZAMS_radius(mass):
+    """Define stellar radius at ZAMS"""
+
+    mass = mass.value_in(units.MSun)
+    mass_sq = (mass)**2
+    r_zams = mass**1.25*(0.1148+0.8604*mass_sq)/(0.04651+mass_sq)
+    return r_zams | units.RSun
+
 def tidal_radius(parent_set):
     """Tidal radius (Spitzer 1987 eqn 5.10)"""
 
