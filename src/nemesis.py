@@ -1,5 +1,7 @@
+import multiprocessing
 import numpy as np
 import os
+import queue
 import threading
 import time as cpu_time
 
@@ -265,58 +267,60 @@ class Nemesis(object):
       par = self.particles.copy_to_memory()
       subsystems = par.collection_attributes.subsystems
       print(coll_set)
-      collsubset, collsyst = self.evolve_coll_offset(coll_set, 
-                                                     subsystems, 
-                                                     coll_time
-                                                     )
+      collsubset, collsyst, merger_event = self.evolve_coll_offset(coll_set, 
+                                                                   subsystems, 
+                                                                   coll_time
+                                                                   )
+      
       self.correction_kicks(collsubset, collsyst, coll_time-corr_time)
       keys = [ ]
-      newparts = HierarchicalParticles(Particles())
-      for parti_ in coll_set:
-          parti_ = parti_.as_particle_in_set(self.particles)
-          print(parti_)
-          STOP
-          if parti_ in self.subcodes:  # Check if collider is a parent with children
-            code = self.subcodes.pop(parti_)
-            offset = self.time_offsets.pop(code)
-            parts = code.particles.copy_to_memory()
-            chd = self.particles.collection_attributes.subsystems[parti_]
-            
-            parts.position += parti_.position
-            parts.velocity += parti_.velocity
-            parts.syst_id = parti_.syst_id
-            parts.type = chd.type
-            newparts.add_particles(parts)
-
-            del code
-            keys = np.concatenate((keys, parts.key), axis=None)
-          else:  # Loop for two parent particle collisions
-            new_parti = newparts.add_particle(parti_)
-            new_parti.radius = parti_.sub_worker_radius
-            new_parti.syst_id = parti_.syst_id
-
-            keys = np.concatenate((keys, parti_.key), axis=None)
-
-          self.particles.remove_particle(parti_)
-          self.particles.synchronize_to(self.parent_code.particles)
-      
-      newcode = self.subsys_code(newparts, self.chd_conv)
-      self.time_offsets[newcode] = (self.model_time-newcode.model_time)
-      newparent = self.particles.add_subsystem(newparts)
-      self.subcodes[newparent] = newcode
-      
-      most_massive_idx = newparts.mass.argmax()
-      newparent.type = newparts[most_massive_idx].type
-
-      newparent.radius = parent_radius(np.sum(newparts.mass), self.dt)
-      if len(newparts[newparts.syst_id <= 0]) == len(newparts):
-        newparent.syst_id = -1
+      if (merger_event):
+          None
       else:
-        newparent.syst_id = max(newparts.syst_id)
+          newparts = HierarchicalParticles(Particles())
+          for parti_ in coll_set:
+              parti_ = parti_.as_particle_in_set(self.particles)
+              if parti_ in self.subcodes:  # Check if collider is a parent with children
+                code = self.subcodes.pop(parti_)
+                offset = self.time_offsets.pop(code)
+                parts = code.particles.copy_to_memory()
+                chd = self.particles.collection_attributes.subsystems[parti_]
+                
+                parts.position += parti_.position
+                parts.velocity += parti_.velocity
+                parts.syst_id = parti_.syst_id
+                parts.type = chd.type
+                newparts.add_particles(parts)
+                
+                del code
+                keys = np.concatenate((keys, parts.key), axis=None)
+                
+              else:  # Loop for two parent particle collisions
+                  new_parti = newparts.add_particle(parti_)
+                  new_parti.radius = parti_.sub_worker_radius
+                  new_parti.syst_id = parti_.syst_id
+                  keys = np.concatenate((keys, parti_.key), axis=None)
 
-      self.event_key = np.concatenate((self.event_key, keys), axis=None)
-      self.event_time = np.concatenate((self.event_time, self.model_time), axis=None)
-      self.event_type = np.concatenate((self.event_type, "Parent Merger"), axis=None)
+              self.particles.remove_particle(parti_)
+              self.particles.synchronize_to(self.parent_code.particles)
+      
+          newcode = self.subsys_code(newparts, self.chd_conv)
+          self.time_offsets[newcode] = (self.model_time-newcode.model_time)
+          newparent = self.particles.add_subsystem(newparts)
+          self.subcodes[newparent] = newcode
+      
+          most_massive_idx = newparts.mass.argmax()
+          newparent.type = newparts[most_massive_idx].type
+
+          newparent.radius = parent_radius(np.sum(newparts.mass), self.dt)
+          if len(newparts[newparts.syst_id <= 0]) == len(newparts):
+            newparent.syst_id = -1
+          else:
+            newparent.syst_id = max(newparts.syst_id)
+
+          self.event_key = np.concatenate((self.event_key, keys), axis=None)
+          self.event_time = np.concatenate((self.event_time, self.model_time), axis=None)
+          self.event_type = np.concatenate((self.event_type, "Parent Merger"), axis=None)
 
   def evolve_coll_offset(self, coll_set, subsystems, coll_time):
       """Function to evolve and/or resync the final moments of collision.
@@ -329,32 +333,33 @@ class Nemesis(object):
       collsubset = Particles()
       collsyst = dict()
       subsystems = self.particles.collection_attributes.subsystems
+      merger_event = False
       for parti_ in coll_set:
           collsubset.add_particle(parti_)
           if parti_ in self.subcodes:
               code = self.subcodes[parti_]
               offset = self.time_offsets[code]
-              #code.particles[-1].position = code.particles[0].position+(1000|units.m)
+              code.particles[-1].position = code.particles[0].position+(1000|units.m)
               stopping_condition = code.stopping_conditions.collision_detection
               stopping_condition.enable()
               while code.model_time < (coll_time-offset):
                   code.evolve_model(coll_time-offset)
                   if stopping_condition.is_set():
                       print("!!! COLLIDING CHILDREN !!!")
-                      for parent, code in self.subcodes.items():
-                        print(parent.key, len(code.particles), code.particles.vx)
+                      merger_event = True
                       coll_time = code.model_time
                       coll_sets = Particles(particles=[stopping_condition.particles(0), 
                                                        stopping_condition.particles(1)
                                                       ]
                                             )
+                      print("OLD KEYS", subsystems[parti_].key, list(coll_set)[0].key, list(coll_set)[1].key)
                       self.handle_collision(subsystems[parti_], parti_, 
                                             coll_sets, coll_time, code
                                             )
           if parti_ in subsystems:
               collsyst[parti_] = subsystems[parti_]
       self.grav_channel_copier()
-      return collsubset, collsyst
+      return collsubset, collsyst, merger_event
     
   def handle_collision(self, children, parent, enc_parti, tcoll, code):
     """Merge two particles if the collision stopping condition is met
@@ -453,8 +458,10 @@ class Nemesis(object):
             newcode.particles.add_particles(children)
             newparent = self.particles.add_subsytem(newcode.particles)
             self.subcodes[newparent] = newcode
+            print("NEW KEYS", children.key)
         else:
             newparent = self.particles.add_subsystem(children)
+            print("NEW KEYS", children.key)
         newparent.radius = parent_radius(np.sum(children.mass), self.dt)
     
     if colliding_a.type == "STAR":
@@ -518,7 +525,7 @@ class Nemesis(object):
       stopping_condition = codes[-1].stopping_conditions.collision_detection
       stopping_condition.enable()
       if codes[0].model_time < (1|units.day):
-        codes[0].particles[0].position = codes[0].particles[1].position + (1|units.au)
+        codes[0].particles[0].position = codes[0].particles[1].position + (100|units.au)
       while codes[0].model_time < dt*(1-1e-12):
           codes[0].evolve_model(dt)
           if stopping_condition.is_set():
