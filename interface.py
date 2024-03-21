@@ -54,7 +54,7 @@ def run_code(sim_dir, tend, eta, code_dt,
 
     # Organise particle set
     particle_set = read_set_from_file(os.path.join(sim_dir, 
-                                      "initial_particles/init_particle_set"))[:5]
+                                      "initial_particles/init_particle_set"))[:3]
     particle_set.coll_events = 0
     major_bodies = particle_set[particle_set.mass > 0.01|units.MSun]
     if (gal_field):
@@ -75,6 +75,7 @@ def run_code(sim_dir, tend, eta, code_dt,
     parents = major_bodies.copy()
     parents.sub_worker_radius = parents.radius
     parents.radius = parent_radius(parents.mass, dt)
+    parents[0].position = parents[1].position+0.25*parents[0].radius
     Rvir_init = parents.virial_radius().in_(units.pc)
     Q_init = abs(parents.kinetic_energy()/parents.potential_energy())
 
@@ -85,7 +86,7 @@ def run_code(sim_dir, tend, eta, code_dt,
         children = particle_set[particle_set.syst_id == id_]
         host = parents[parents.syst_id == id_][0]
         parents.assign_subsystem(children, host)
-    print("Number of children: ", max(particle_set.syst_id))
+    print("Number of children: ", len(np.unique(particle_set.syst_id))-1)
     print("Rvir: ", Rvir_init)
     print("Qvir: ", Q_init)
 

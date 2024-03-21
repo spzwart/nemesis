@@ -170,7 +170,6 @@ class Nemesis(object):
 
       evol_time = self.model_time
       while evol_time < (tend-timestep/2.):
-          print(self.particles.all().mass.in_(units.MSun), self.stellar_code.particles.mass.in_(units.MSun))
           evol_time = self.model_time
           self.dEa = 0 | units.J
           self.save_snap = False
@@ -199,7 +198,6 @@ class Nemesis(object):
           if (self.star_evol):
               self.stellar_evolution(evol_time+timestep/2.)
               self.star_channel_copier()
-          print(self.particles.all().mass.in_(units.MSun), self.stellar_code.particles.mass.in_(units.MSun))
 
       self.grav_channel_copier()
 
@@ -266,6 +264,7 @@ class Nemesis(object):
       self.save_snap = True
       par = self.particles.copy_to_memory()
       subsystems = par.collection_attributes.subsystems
+      print(coll_set)
       collsubset, collsyst = self.evolve_coll_offset(coll_set, 
                                                      subsystems, 
                                                      coll_time
@@ -275,6 +274,8 @@ class Nemesis(object):
       newparts = HierarchicalParticles(Particles())
       for parti_ in coll_set:
           parti_ = parti_.as_particle_in_set(self.particles)
+          print(parti_)
+          STOP
           if parti_ in self.subcodes:  # Check if collider is a parent with children
             code = self.subcodes.pop(parti_)
             offset = self.time_offsets.pop(code)
@@ -333,14 +334,29 @@ class Nemesis(object):
           if parti_ in self.subcodes:
               code = self.subcodes[parti_]
               offset = self.time_offsets[code]
+              #code.particles[-1].position = code.particles[0].position+(1000|units.m)
+              stopping_condition = code.stopping_conditions.collision_detection
+              stopping_condition.enable()
               while code.model_time < (coll_time-offset):
                   code.evolve_model(coll_time-offset)
+                  if stopping_condition.is_set():
+                      print("!!! COLLIDING CHILDREN !!!")
+                      for parent, code in self.subcodes.items():
+                        print(parent.key, len(code.particles), code.particles.vx)
+                      coll_time = code.model_time
+                      coll_sets = Particles(particles=[stopping_condition.particles(0), 
+                                                       stopping_condition.particles(1)
+                                                      ]
+                                            )
+                      self.handle_collision(subsystems[parti_], parti_, 
+                                            coll_sets, coll_time, code
+                                            )
           if parti_ in subsystems:
               collsyst[parti_] = subsystems[parti_]
       self.grav_channel_copier()
       return collsubset, collsyst
     
-  def handle_collision(self, children, enc_parti, tcoll, code):
+  def handle_collision(self, children, parent, enc_parti, tcoll, code):
     """Merge two particles if the collision stopping condition is met
        Inputs:
        children:   The children particle set
@@ -391,17 +407,21 @@ class Nemesis(object):
 
     ### Create merger remnant
     new_particle  = Particles(1)
-    momentum_a = enc_parti[0].mass*enc_parti[0].velocity.length()
-    momentum_b = enc_parti[1].mass*enc_parti[1].velocity.length()
+    momentum_a = colliding_a.mass*colliding_a.velocity.length()
+    momentum_b = colliding_b.mass*colliding_b.velocity.length()
     if momentum_a>momentum_b:
         new_particle.key_tracker = colliding_a.key
     else: 
         new_particle.key_tracker = colliding_b.key
 
-    new_particle.mass = enc_parti.total_mass()
+    temp_pset = Particles()
+    temp_pset.add_particle(colliding_a)
+    temp_pset.add_particle(colliding_b)
+    
+    new_particle.mass = temp_pset.total_mass()
     new_particle.collision_time = tcoll
-    new_particle.position = enc_parti.center_of_mass()
-    new_particle.velocity = enc_parti.center_of_mass_velocity()
+    new_particle.position = temp_pset.center_of_mass()
+    new_particle.velocity = temp_pset.center_of_mass_velocity()
     new_particle.coll_events = (colliding_a.coll_events+colliding_b.coll_events)+1
     if "STAR" in colliding_a.type or "STAR" in colliding_b.type:
         new_particle.type = "STAR"
@@ -411,17 +431,43 @@ class Nemesis(object):
         new_particle.type = "PLANET"
         new_particle.radius = planet_radius(new_particle.mass)
         self.stellar_code.particles.add_particle(new_particle)
-    code.particles.add_particles(new_particle)
-    code.particles.remove_particles(enc_parti)
 
     new_particle.sub_worker_radius = new_particle.radius
     children.add_particles(new_particle)
-    children.remove_particles(enc_parti)
+    children.remove_particles(colliding_a)
+    children.remove_particles(colliding_b)
+    
+    print(parent.key, colliding_a.key, "SWAG")
+    if colliding_a.key == parent.key \
+        or colliding_b.key == parent.key:
+        subsystems = self.particles.collection_attributes.subsystems
+        subsystem = subsystems.pop(parent)
+        subcode = self.subcodes.pop(parent)
+        del subsystem
+        del subcode
+        
+        self.particles.remove_particle(parent)
+        if len(children) > 1:
+            newcode = self.subcodes(children, self.chd_conv)
+            self.time_offsets[newcode] = (self.model_time - code.model_time)
+            newcode.particles.add_particles(children)
+            newparent = self.particles.add_subsytem(newcode.particles)
+            self.subcodes[newparent] = newcode
+        else:
+            newparent = self.particles.add_subsystem(children)
+        newparent.radius = parent_radius(np.sum(children.mass), self.dt)
     
     if colliding_a.type == "STAR":
       self.stellar_code.particles.remove_particle(colliding_a)
     if colliding_b.type == "STAR":
       self.stellar_code.particles.remove_particle(colliding_b)
+      
+    self.event_key = np.concatenate((self.event_key, 
+                                    [colliding_a.key, colliding_b.key]), 
+                                    axis=None)
+    self.event_time = np.concatenate((self.event_time, tcoll), axis=None)
+    self.event_type = np.concatenate((self.event_type, "Merger"), axis=None)
+      
     
   def handle_supernova(self, SN_detect, bodies, time):
       """Function handling SN explosions
@@ -471,6 +517,8 @@ class Nemesis(object):
     
       stopping_condition = codes[-1].stopping_conditions.collision_detection
       stopping_condition.enable()
+      if codes[0].model_time < (1|units.day):
+        codes[0].particles[0].position = codes[0].particles[1].position + (1|units.au)
       while codes[0].model_time < dt*(1-1e-12):
           codes[0].evolve_model(dt)
           if stopping_condition.is_set():
