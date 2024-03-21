@@ -266,7 +266,7 @@ class Nemesis(object):
       self.save_snap = True
       par = self.particles.copy_to_memory()
       subsystems = par.collection_attributes.subsystems
-      print(coll_set)
+      
       collsubset, collsyst, merger_event = self.evolve_coll_offset(coll_set, 
                                                                    subsystems, 
                                                                    coll_time
@@ -275,52 +275,53 @@ class Nemesis(object):
       self.correction_kicks(collsubset, collsyst, coll_time-corr_time)
       keys = [ ]
       if (merger_event):
-          None
+          coll_set = collsubset
+      
+      newparts = HierarchicalParticles(Particles())
+      for parti_ in coll_set:
+          if (merger_event):
+              print("cset", coll_set.key, "parti_:",parti_.key, self.particles.key)
+          if not (merger_event):
+            parti_ = parti_.as_particle_in_set(self.particles)
+          if parti_ in self.subcodes:  # Check if collider is a parent with children
+              code = self.subcodes.pop(parti_)
+              offset = self.time_offsets.pop(code)
+              parts = code.particles.copy_to_memory()
+              chd = self.particles.collection_attributes.subsystems[parti_]
+              
+              parts.position += parti_.position
+              parts.velocity += parti_.velocity
+              parts.syst_id = parti_.syst_id
+              parts.type = chd.type
+              newparts.add_particles(parts)
+                
+              del code
+              keys = np.concatenate((keys, parts.key), axis=None)
+              
+          else:  # Loop for two parent particle collisions
+              new_parti = newparts.add_particle(parti_)
+              new_parti.radius = parti_.sub_worker_radius
+              new_parti.syst_id = parti_.syst_id
+              keys = np.concatenate((keys, parti_.key), axis=None)
+              
+          self.particles.remove_particle(parti_)
+          self.particles.synchronize_to(self.parent_code.particles)
+      newcode = self.subsys_code(newparts, self.chd_conv)
+      self.time_offsets[newcode] = (self.model_time-newcode.model_time)
+      newparent = self.particles.add_subsystem(newparts)
+      self.subcodes[newparent] = newcode
+      
+      most_massive_idx = newparts.mass.argmax()
+      newparent.type = newparts[most_massive_idx].type
+      newparent.radius = parent_radius(np.sum(newparts.mass), self.dt)
+      if len(newparts[newparts.syst_id <= 0]) == len(newparts):
+          newparent.syst_id = -1
       else:
-          newparts = HierarchicalParticles(Particles())
-          for parti_ in coll_set:
-              parti_ = parti_.as_particle_in_set(self.particles)
-              if parti_ in self.subcodes:  # Check if collider is a parent with children
-                code = self.subcodes.pop(parti_)
-                offset = self.time_offsets.pop(code)
-                parts = code.particles.copy_to_memory()
-                chd = self.particles.collection_attributes.subsystems[parti_]
-                
-                parts.position += parti_.position
-                parts.velocity += parti_.velocity
-                parts.syst_id = parti_.syst_id
-                parts.type = chd.type
-                newparts.add_particles(parts)
-                
-                del code
-                keys = np.concatenate((keys, parts.key), axis=None)
-                
-              else:  # Loop for two parent particle collisions
-                  new_parti = newparts.add_particle(parti_)
-                  new_parti.radius = parti_.sub_worker_radius
-                  new_parti.syst_id = parti_.syst_id
-                  keys = np.concatenate((keys, parti_.key), axis=None)
-
-              self.particles.remove_particle(parti_)
-              self.particles.synchronize_to(self.parent_code.particles)
+          newparent.syst_id = max(newparts.syst_id)
       
-          newcode = self.subsys_code(newparts, self.chd_conv)
-          self.time_offsets[newcode] = (self.model_time-newcode.model_time)
-          newparent = self.particles.add_subsystem(newparts)
-          self.subcodes[newparent] = newcode
-      
-          most_massive_idx = newparts.mass.argmax()
-          newparent.type = newparts[most_massive_idx].type
-
-          newparent.radius = parent_radius(np.sum(newparts.mass), self.dt)
-          if len(newparts[newparts.syst_id <= 0]) == len(newparts):
-            newparent.syst_id = -1
-          else:
-            newparent.syst_id = max(newparts.syst_id)
-
-          self.event_key = np.concatenate((self.event_key, keys), axis=None)
-          self.event_time = np.concatenate((self.event_time, self.model_time), axis=None)
-          self.event_type = np.concatenate((self.event_type, "Parent Merger"), axis=None)
+      self.event_key = np.concatenate((self.event_key, keys), axis=None)
+      self.event_time = np.concatenate((self.event_time, self.model_time), axis=None)
+      self.event_type = np.concatenate((self.event_type, "Parent Merger"), axis=None)
 
   def evolve_coll_offset(self, coll_set, subsystems, coll_time):
       """Function to evolve and/or resync the final moments of collision.
@@ -345,19 +346,18 @@ class Nemesis(object):
               while code.model_time < (coll_time-offset):
                   code.evolve_model(coll_time-offset)
                   if stopping_condition.is_set():
-                      print("!!! COLLIDING CHILDREN !!!")
                       merger_event = True
                       coll_time = code.model_time
                       coll_sets = Particles(particles=[stopping_condition.particles(0), 
                                                        stopping_condition.particles(1)
                                                       ]
                                             )
-                      print("OLD KEYS", subsystems[parti_].key, list(coll_set)[0].key, list(coll_set)[1].key)
                       self.handle_collision(subsystems[parti_], parti_, 
                                             coll_sets, coll_time, code
                                             )
           if parti_ in subsystems:
               collsyst[parti_] = subsystems[parti_]
+          
       self.grav_channel_copier()
       return collsubset, collsyst, merger_event
     
@@ -369,7 +369,7 @@ class Nemesis(object):
        tcoll:      The time-stamp for which the particles collide at
        code:       The integrator used
     """
-
+    print("CHECK HERE", self.particles.key)
     ### Save properties
     self.grav_channel_copier()
     allparts = self.particles.all()
@@ -442,7 +442,6 @@ class Nemesis(object):
     children.remove_particles(colliding_a)
     children.remove_particles(colliding_b)
     
-    print(parent.key, colliding_a.key, "SWAG")
     if colliding_a.key == parent.key \
         or colliding_b.key == parent.key:
         subsystems = self.particles.collection_attributes.subsystems
@@ -458,10 +457,10 @@ class Nemesis(object):
             newcode.particles.add_particles(children)
             newparent = self.particles.add_subsytem(newcode.particles)
             self.subcodes[newparent] = newcode
-            print("NEW KEYS", children.key)
+            print("NEW CHILDREN KEYS", children.key, newparent.key)
         else:
             newparent = self.particles.add_subsystem(children)
-            print("NEW KEYS", children.key)
+            print("NEW ISOLATED KEY", children.key, newparent.key)
         newparent.radius = parent_radius(np.sum(children.mass), self.dt)
     
     if colliding_a.type == "STAR":
@@ -474,7 +473,6 @@ class Nemesis(object):
                                     axis=None)
     self.event_time = np.concatenate((self.event_time, tcoll), axis=None)
     self.event_type = np.concatenate((self.event_type, "Merger"), axis=None)
-      
     
   def handle_supernova(self, SN_detect, bodies, time):
       """Function handling SN explosions
@@ -536,8 +534,16 @@ class Nemesis(object):
               if (self.dE_track):
                   E0 = self.energy_track()
               t0 = cpu_time.time()
+              subsystems = self.particles.collection_attributes.subsystems
+              for k,p in subsystems.items():
+                  print("BEFORE", k.key, p.key)
               for cs in coll_sets:
                   self.parent_merger(coll_time, corr_time, cs)
+              
+              subsystems = self.particles.collection_attributes.subsystems
+              for k,p in subsystems.items():
+                  print("AFTER", k.key, p.key)
+              STOP
               t1 = cpu_time.time()
               print("Handle collision: ", t1-t0)
               if (self.dE_track):
@@ -546,20 +552,51 @@ class Nemesis(object):
 
   def drift_child(self, dt):
       """Evolve children system for dt."""
+      def evolve_code():
+          try:
+              parent = parent_queue.get(timeout=1)  # Timeout to prevent blocking indefinitely
+          except queue.Empty:
+              print("!!! Error: No children system !!!")
+          
+          code = self.subcodes[parent]
+          evol_time = dt - self.time_offsets[code]
+          stopping_condition = code.stopping_conditions.collision_detection
+          stopping_condition.enable()
+          if code.model_time <= (0|units.day):
+            code.particles[0].position = code.particles[-1].position + 0.5*code.particles[0].radius
+          print("CHECK HERE ERWAN", code.particles.key, subsystems[parent].key, parent.key)
+          while code.model_time < evol_time*(1-1e-12):
+              code.evolve_model(evol_time)
+              if stopping_condition.is_set():
+                  print("!!! COLLIDING CHILDREN !!!")   
+                  coll_time = code.model_time
+                  coll_sets = Particles(particles=[stopping_condition.particles(0), 
+                                                   stopping_condition.particles(1)
+                                                  ]
+                                       )
+                  self.handle_collision(subsystems[parent], parent, 
+                                        coll_sets, coll_time, code
+                                        )
+          parent_queue.task_done()
 
+      subsystems = self.particles.collection_attributes.subsystems
+      
+      parent_queue = queue.Queue()
+      for parent, sys_code in self.subcodes.items():
+          parent_queue.put(parent)
+      
       threads = []
-      for sys in self.subcodes.values():
-          offset = self.time_offsets[sys]
-          if offset > dt:
-              print("curious?")
-          threads.append(threading.Thread(target=sys.evolve_model, 
-                                          args=(dt - offset,)))
-
-      if self.use_threading:
-          for x in threads: x.start()
-          for x in threads: x.join()  # Run local integration scheme
-      else:
-          for x in threads: x.run()
+      ntasks = min(multiprocessing.cpu_count(), len(self.subcodes.values()))
+      for worker in range(ntasks):
+          th = threading.Thread(target=evolve_code)
+          th.daemon = True
+          th.start()
+          threads.append(th)
+      
+      for th in threads:
+          th.join()  # Wait for all threads to finish
+      STOP
+    
 
   def kick_particles(self, particles, corr_code, dt):
       parts = particles.copy_to_memory()

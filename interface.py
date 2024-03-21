@@ -54,7 +54,7 @@ def run_code(sim_dir, tend, eta, code_dt,
 
     # Organise particle set
     particle_set = read_set_from_file(os.path.join(sim_dir, 
-                                      "initial_particles/init_particle_set"))[:3]
+                                      "initial_particles/init_particle_set"))[:6]
     particle_set.coll_events = 0
     major_bodies = particle_set[particle_set.mass > 0.01|units.MSun]
     if (gal_field):
