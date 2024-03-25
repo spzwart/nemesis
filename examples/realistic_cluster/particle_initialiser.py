@@ -11,13 +11,13 @@ from amuse.units import units, constants
 
 def ZAMS_radius(mass):
     """Define stellar radius at ZAMS"""
-
     mass = mass.value_in(units.MSun)
     mass_sq = (mass)**2
     r_zams = mass**1.25*(0.1148+0.8604*mass_sq)/(0.04651+mass_sq)
     return r_zams | units.RSun
 
 def new_rotation_matrix_from_euler_angles(phi, theta, chi):
+    """Rotation matrix for planetary system orientation"""
     cosp = np.cos(phi)
     sinp = np.sin(phi)
     cost = np.cos(theta)
@@ -30,7 +30,6 @@ def new_rotation_matrix_from_euler_angles(phi, theta, chi):
 
 def rotate(position, velocity, phi, theta, psi):
     """Rotate planetary system"""
-
     Runit = position.unit
     Vunit = velocity.unit
     matrix = new_rotation_matrix_from_euler_angles(phi, theta, psi)
@@ -38,12 +37,8 @@ def rotate(position, velocity, phi, theta, psi):
             np.dot(matrix, velocity.value_in(Vunit)) | Vunit)
 
 def load_particles():
-    """Load particles. Creates a single-planet planetary system.
-      Cluster snapshot from Wilhem & Portegies Zwart (in works).
-      Planet snapshot from Huang & Portegies Zwart (in works).
-    """
-
-    # Load cluster data
+    """Load particles. Creates a single-planet planetary system."""
+    # Load cluster data (Wilhem & Portegies Zwart (in works))
     data_dir = os.path.join("examples", "realistic_cluster", 
                             "initial_particles", "data_files")
     cluster_data_files = os.path.join(data_dir, "cluster_data/*")
@@ -57,7 +52,7 @@ def load_particles():
     stars.type = "STAR"
     stars.syst_id = -1
 
-    # Load planet data
+    # Load planet data (Huang & Portegies Zwart (in works))
     planet_data_files = os.path.join(data_dir, "acc3_vis4_cluster/*_planet.npz")
     planet_data = natsorted(glob.glob(planet_data_files))
     planet_no = np.asarray([int(f_.split("_planet")[0][-6:]) for f_ in planet_data])

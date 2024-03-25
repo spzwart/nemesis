@@ -14,17 +14,16 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                    par_n_worker, dE_track, gal_field, 
                    star_evol):
     """Function to run simulation.
-       Inputs:
-       sim_dir:       Initial condition file directory path
-       tend:          Simulation end time
-       eta:           Parent system simulation step-time
-       code_dt:       Internal timestep parameter
-       par_n_worker:  Number of workers for parent code
-       dE_track:      Flag turning on energy error tracker
-       gal_field:     Flag turning on galactic field or not
-       star_evol:     Flag turning on stellar evolution
+    Inputs:
+    sim_dir:  Initial condition file directory path
+    tend:  Simulation end time
+    eta:  Parent system simulation step-time
+    code_dt:  Internal timestep parameter
+    par_n_worker:  Number of workers for parent code
+    dE_track:  Flag turning on energy error tracker
+    gal_field:  Flag turning on galactic field or not
+    star_evol:  Flag turning on stellar evolution
     """
-
     def smaller_nbody_power_of_two(dt, conv):
       """Function scaling dt relative to N-body units"""
       nbdt = conv.to_nbody(dt).value_in(nbody_system.time)

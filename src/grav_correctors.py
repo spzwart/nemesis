@@ -1,13 +1,23 @@
 class CorrectionFromCompoundParticle(object):
     def __init__(self, system, subsystems, worker_code_factory):
         """Correct force vector exerted by parents on all 
-          other particles present by that of its children"""
+        other particles present by that of its children.
+        Inputs:
+        system:  Parent particles to correct force of
+        subsystems:  Collection of subsystems present
+        worker_code_factory:  Calculate potential field
+        """
 
         self.system = system
         self.subsystems = subsystems
         self.worker_code_factory = worker_code_factory
     
     def get_gravity_at_point(self, radius, x, y, z):
+        """Compute difference in gravitational acceleration felt by parents
+        due to force exerted by parents hosting children, and their children.
+        
+        dF = \sum_j (\sum_i F_{i} - F_{j}) where j is parent and i is children of parent j
+        """
         particles = self.system.copy_to_memory()
         acc_units = (particles.vx.unit**2/particles.x.unit)
         particles.ax = 0. | acc_units
@@ -40,6 +50,9 @@ class CorrectionFromCompoundParticle(object):
         return particles.ax, particles.ay, particles.az
 
     def get_potential_at_point(self, radius, x, y, z):
+        """Compute difference in potential field felt by parents due 
+        to parents hosting children, and their children.
+        """
         particles = self.system.copy_to_memory()
         particles.phi = 0. | (particles.vx.unit**2)
         for parent, sys in list(self.subsystems.items()): 
@@ -73,6 +86,11 @@ class CorrectionForCompoundParticle(object):
         self.worker_code_factory = worker_code_factory
     
     def get_gravity_at_point(self,radius,x,y,z):
+        """Compute gravitational acceleration felt by children via 
+        all other parents present in the simulation.
+        
+        dF_j = F_{i} - F_{j} where i is parent and j is children of parent i
+        """
         parent = self.parent
         parts = self.system - parent
         instance = self.worker_code_factory()
@@ -91,6 +109,9 @@ class CorrectionForCompoundParticle(object):
         return (ax-_ax[0]), (ay-_ay[0]), (az-_az[0])
 
     def get_potential_at_point(self, radius, x, y, z):
+        """Compute gravitational potential of children due to 
+        all other parents present in the simulation.
+        """
         parent = self.parent
         parts = self.system - parent
         instance = self.worker_code_factory()

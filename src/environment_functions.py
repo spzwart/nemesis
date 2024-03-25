@@ -6,45 +6,44 @@ from amuse.units import units, constants
 
 def galactic_frame(parent_set, dx, dy, dz):
     """Shift particle set to galactic frame
-       Inputs:
-       parent_set: The particle set
-       d(x/y/z):   Distance of cluster to center of MW-like galaxy
+    Inputs:
+    parent_set:  The particle set
+    d(x/y/z):  Distance of cluster to center of MW-like galaxy
     """
 
     parent_set.position += [dx.value_in(units.pc), 
                             dy.value_in(units.pc), 
-                            dz.value_in(units.pc)] | units.pc
+                            dz.value_in(units.pc)
+                            ] | units.pc
     parent_set.vy += MWG.circular_velocity(parent_set.position.lengths())
 
     return parent_set
 
-def parent_radius(mass, dt):
+def parent_radius(system_mass, dt):
     """Merging radius of parent systems"""
-    return 3*(constants.G*mass*(dt)**2)**(1./3.)
+    return 3*(constants.G*system_mass*(dt)**2)**(1./3.)
 
-def planet_radius(mass):
+def planet_radius(planet_mass):
         """Define planet radius"""
-        mass_in_earth = mass.value_in(units.MEarth)
-        if mass < (7.8|units.MEarth):
+        mass_in_earth = planet_mass.value_in(units.MEarth)
+        if planet_mass < (7.8|units.MEarth):
             radius = (1|units.REarth)*(mass_in_earth)**0.41
             return radius
-        if mass < (125|units.MEarth):
+        if planet_mass < (125|units.MEarth):
             radius = (0.55|units.REarth)*(mass_in_earth)**0.65
             return radius
         radius = (14.3|units.REarth)*(mass_in_earth)**(-0.02) 
         return radius
     
-def ZAMS_radius(mass):
+def ZAMS_radius(star_mass):
     """Define stellar radius at ZAMS"""
-
-    mass = mass.value_in(units.MSun)
-    mass_sq = (mass)**2
-    r_zams = mass**1.25*(0.1148+0.8604*mass_sq)/(0.04651+mass_sq)
+    mass_in_sun = star_mass.value_in(units.MSun)
+    mass_sq = (mass_in_sun)**2
+    r_zams = mass_in_sun**1.25*(0.1148+0.8604*mass_sq)/(0.04651+mass_sq)
     return r_zams | units.RSun
 
 def tidal_radius(parent_set):
     """Tidal radius (Spitzer 1987 eqn 5.10)"""
-
     cg_sys = Particles(2)
     cg_sys[0].position = parent_set.center_of_mass()
     cg_sys[0].velocity = parent_set.center_of_mass_velocity()
@@ -56,7 +55,7 @@ def tidal_radius(parent_set):
 
     kepler_elements = orbital_elements_from_binary(cg_sys, G=constants.G)
     ecc = kepler_elements[3]
-    coeff = ((3+ecc)**(-1)*(cg_sys[0].mass/cg_sys[1].mass))**(1/3)
+    coeff = ((cg_sys[0].mass/cg_sys[1].mass)/(3+ecc))**(1/3)
     rtide = coeff*cg_sys[0].position.length()
     return rtide
 
