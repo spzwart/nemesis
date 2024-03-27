@@ -17,7 +17,7 @@ from amuse.ext.orbital_elements import orbital_elements_from_binary
 from amuse.lab import write_set_to_file
 from amuse.units import units, constants
 
-from src.environment_functions import parent_radius, planet_radius, ZAMS_radius
+from src.environment_functions import parent_radius, planet_radius, natal_kick_pdf, ZAMS_radius
 from src.grav_correctors import CorrectionFromCompoundParticle, CorrectionForCompoundParticle
 from src.hierarchical_particles import HierarchicalParticles
 
@@ -469,6 +469,7 @@ class Nemesis(object):
         SN_particle = SN_detect.particles(0)
         for ci in range(len(SN_particle)):
             SN_parti = Particles(particles=SN_particle)
+            natal_kick = natal_kick_pdf()
             natal_kick_x = SN_parti.natal_kick_x
             natal_kick_y = SN_parti.natal_kick_y
             natal_kick_z = SN_parti.natal_kick_z
