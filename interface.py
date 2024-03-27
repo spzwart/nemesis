@@ -10,6 +10,8 @@ from src.environment_functions import galactic_frame, parent_radius
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
+import matplotlib.pyplot as plt
+
 def run_simulation(sim_dir, tend, eta, code_dt, 
                    par_n_worker, dE_track, gal_field, 
                    star_evol):
@@ -25,10 +27,10 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     star_evol:  Flag turning on stellar evolution
     """
     def smaller_nbody_power_of_two(dt, conv):
-      """Function scaling dt relative to N-body units"""
-      nbdt = conv.to_nbody(dt).value_in(nbody_system.time)
-      idt = np.floor(np.log2(nbdt))
-      return conv.to_si(2**idt | nbody_system.time)
+        """Function scaling dt relative to N-body units"""
+        nbdt = conv.to_nbody(dt).value_in(nbody_system.time)
+        idt = np.floor(np.log2(nbdt))
+        return conv.to_si(2**idt | nbody_system.time)
 
     START_TIME = cpu_time.time()
     MIN_EVOL_MASS = 0.01 | units.MSun
@@ -59,11 +61,11 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     particle_set.coll_events = 0
     major_bodies = particle_set[particle_set.mass > MIN_EVOL_MASS]
     if (gal_field):
-      particle_set = galactic_frame(particle_set, 
-                                    dx=8.3 | units.kpc, 
-                                    dy=0.0 | units.kpc, 
-                                    dz=17  | units.pc
-                                    )
+        particle_set = galactic_frame(particle_set, 
+                                      dx=8.3 | units.kpc, 
+                                      dy=0.0 | units.kpc, 
+                                      dz=17  | units.pc
+                                      )
     conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), 
                                         major_bodies.virial_radius()
                                         )
@@ -111,9 +113,9 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     if (dE_track):
         E0_all = allparts.kinetic_energy()+allparts.potential_energy()
         if (gal_field):
-          PE = nemesis.grav_bridge.potential_energy
-          KE = nemesis.grav_bridge.kinetic_energy
-          E0_all += (PE+KE)
+            PE = nemesis.grav_bridge.potential_energy
+            KE = nemesis.grav_bridge.kinetic_energy
+            E0_all += (PE+KE)
         
     t = 0 | units.yr
     dt_iter = 0
@@ -128,21 +130,21 @@ def run_simulation(sim_dir, tend, eta, code_dt,
         nemesis.evolve_model(t)  
 
         if (dE_track):
-          E1_all = nemesis.energy_track()
-          if (gal_field):
-            PE = nemesis.grav_bridge.potential_energy
-            KE = nemesis.grav_bridge.kinetic_energy
-            E1_all += (PE+KE)
-          E0_all += nemesis.dEa
-          print("Energy error: ", abs(E0_all-E1_all)/E0_all)
+            E1_all = nemesis.energy_track()
+            if (gal_field):
+              PE = nemesis.grav_bridge.potential_energy
+              KE = nemesis.grav_bridge.kinetic_energy
+              E1_all += (PE+KE)
+            E0_all += nemesis.dEa
+            print("Energy error: ", abs(E0_all-E1_all)/E0_all)
 
         if (nemesis.save_snap):
-          path = os.path.join(syst_change_path, 
-                              "par_chng_"+str(len(nemesis.event_time))
+            path = os.path.join(syst_change_path, 
+                                "par_chng_"+str(len(nemesis.event_time))
+                                )
+            write_set_to_file(allparts.savepoint(0|units.Myr), path, 
+                              'amuse', close_file=True, overwrite_file=True
                               )
-          write_set_to_file(allparts.savepoint(0|units.Myr), path, 
-                            'amuse', close_file=True, overwrite_file=True
-                            )
         if (dt_iter % SNAP_PER_ITER) == 1:
           print("Time: ", t.in_(units.yr))
           allparts = nemesis.particles.all()

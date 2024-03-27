@@ -1,4 +1,3 @@
-import multiprocessing
 import numpy as np
 import os
 import queue
@@ -175,7 +174,9 @@ class Nemesis(object):
                 self.star_channel_copier()
                 t1 = cpu_time.time()
                 print("Time taken for Star Evol. : ", t1-t2)
-            self.correction_kicks(timestep/2.)
+            self.correction_kicks(self.particles, 
+                                  self.particles.collection_attributes.subsystems,
+                                  timestep/2.)
             t2 = cpu_time.time()
             print("Time taken for Kicking: ", t2-t1)
             self.drift_global(evol_time+timestep, 
@@ -185,7 +186,9 @@ class Nemesis(object):
             self.drift_child(evol_time+timestep)
             t2 = cpu_time.time()
             print("Time taken for Local", t2-t1)
-            self.correction_kicks(timestep/2.)
+            self.correction_kicks(self.particles, 
+                                  self.particles.collection_attributes.subsystems,
+                                  timestep/2.)
             t1 = cpu_time.time()
             print("Time taken for Kicking: ", t1-t2)
             self.split_subcodes()
@@ -193,7 +196,8 @@ class Nemesis(object):
             print("Time taken for Splitting: ", t2-t1)
             t2 = cpu_time.time()
             if (self.star_evol):
-                self.stellar_evolution(evol_time+timestep/2.)
+                stellar_time = self.stellar_code.model_time
+                self.stellar_evolution(stellar_time+timestep/2.)
                 self.star_channel_copier()
                 t1 = cpu_time.time()
                 print("Time taken for Star Evol. : ", t1-t2)
@@ -526,7 +530,7 @@ class Nemesis(object):
                 if (self.dE_track):
                     E1 = self.energy_track()
                     self.dEa += (E1-E0)
-
+                    
     def drift_child(self, dt):
         """Evolve children system for dt."""
         def evolve_code():
@@ -540,7 +544,6 @@ class Nemesis(object):
             evol_time = dt - self.time_offsets[code]
             stopping_condition = code.stopping_conditions.collision_detection
             stopping_condition.enable()
-              
             while code.model_time < evol_time*(1-1e-12):
                 code.evolve_model(evol_time)
                 if stopping_condition.is_set():
@@ -555,13 +558,13 @@ class Nemesis(object):
                                           coll_sets, coll_time, code
                                           )
             parent_queue.task_done()
+            
         parent_queue = queue.Queue()
         for parent, sys_code in self.subcodes.items():
             parent_queue.put(parent)
       
         threads = []
-        ntasks = min(multiprocessing.cpu_count(), len(self.subcodes.values())) #Can't call more CPU than available
-        for worker in range(ntasks):
+        for worker in range(len(self.subcodes.values())):
             th = threading.Thread(target=evolve_code)
             th.daemon = True
             th.start()
@@ -598,14 +601,12 @@ class Nemesis(object):
         channel = parts.new_channel_to(particles)
         channel.copy_attributes(["vx","vy","vz"])
 
-    def correction_kicks(self, dt):
+    def correction_kicks(self, particles, subsystems, dt):
         """Apply correcting kicks onto children and parent particles"""
         if (self.dE_track):
             E0 = self.energy_track()
             
-        subsystems = self.particles.collection_attributes.subsystems
-        self.correction_kicks(self.particles, subsystems, dt)
-        if subsystems is not None and len(self.particles) > 1:
+        if subsystems is not None and len(particles) > 1:
             corr_chd = CorrectionFromCompoundParticle(self.particles, 
                                                       subsystems, 
                                                       self.sys_kickers
