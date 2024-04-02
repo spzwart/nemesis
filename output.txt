@@ -1,0 +1,9 @@
+Rvir:  0.45228724606 parsec
+Qvir:  2855357.60562
+Time taken for Star Evol. :  0.021594524383544922
+Time taken for Kicking:  0.08631205558776855
+[6.60570997657e+29, 1.08748373714e+30, 1.18608490452e+30, 3.28976802677e+29, 6.80515846952e+29] kg
+Integrating until  0.00314486685844 Myr
+Before 0.0 Myr
+wrapped<wrapped<wrapped<wrapped<function: int get_position(int index_of_the_particle)
+output: double x, double y, double z, int __result>>>>

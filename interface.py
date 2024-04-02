@@ -57,14 +57,17 @@ def run_simulation(sim_dir, tend, eta, code_dt,
 
     # Organise particle set
     particle_set = read_set_from_file(os.path.join(sim_dir, 
-                                      "initial_particles/init_particle_set"))[:20]
+                                      "initial_particles/init_particle_set"))[:10]
     particle_set.coll_events = 0
     major_bodies = particle_set[particle_set.mass > MIN_EVOL_MASS]
     if (gal_field):
         particle_set = galactic_frame(particle_set, 
-                                      dx=8.3 | units.kpc, 
+                                      dx=-8.4 | units.kpc, 
                                       dy=0.0 | units.kpc, 
-                                      dz=17  | units.pc
+                                      dz=17  | units.pc,
+                                      dvx=11.352 | units.kms,
+                                      dvy=12.25 | units.kms,
+                                      dvz=7.41 | units.kms
                                       )
     conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), 
                                         major_bodies.virial_radius()
@@ -152,6 +155,13 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                             os.path.join(snapdir_path, "snap_"+str(dt_iter)), 
                             'amuse', close_file=True, overwrite_file=True
                             )
+        allparts = nemesis.particles.all()
+        plt.scatter(0,0)
+        plt.scatter(allparts.x.value_in(units.kpc), allparts.y.value_in(units.kpc))
+        plt.xlim(-10,10)
+        plt.ylim(-10,10)
+        plt.savefig("plot"+str(dt_iter)+".png", dpi=200)
+        plt.close()
       
     print("...Simulation Ended...")
     nemesis.stellar_code.stop()  
@@ -189,9 +199,11 @@ def run_simulation(sim_dir, tend, eta, code_dt,
             f.write('\n')
 
 if __name__=="__main__":
-    sim_dir = "examples/realistic_cluster/"
-    # sim_dir="examples/S-Stars"
-    run_simulation(sim_dir=sim_dir, tend=50 | units.Myr, eta=1e-4, 
-                   code_dt=1e-2, par_n_worker=1, gal_field=False, 
-                   dE_track=False, star_evol=True,
+    # sim_dir = "examples/realistic_cluster/"
+    # sim_dir = "examples/S-Stars"
+    sim_dir = "examples/ejecting_suns"
+    run_simulation(sim_dir=sim_dir, tend=50 | units.Myr, 
+                   eta=1e-4, code_dt=1e-2, par_n_worker=1, 
+                   gal_field=False, dE_track=False, 
+                   star_evol=True,
                    )

@@ -13,6 +13,6 @@ Unless in branch 'one_child_system', children identified as particles with attri
 
  Branch | Application | Examples 
 :---|:---:|---:
- refactor |  Planetary Systems | realistic_cluster 
+ refactor |  Planetary Systems | realistic_cluster, ejecting_suns 
  one_child_system |   Democratic AGN | runaway_bh 
  PN_global |  Hierarchical AGN | S-Stars 

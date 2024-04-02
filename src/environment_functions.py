@@ -7,19 +7,23 @@ from amuse.ext.orbital_elements import orbital_elements_from_binary
 from amuse.units import units, constants
 
 
-def galactic_frame(parent_set, dx, dy, dz):
+def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz):
     """Shift particle set to galactic frame
     Inputs:
     parent_set:  The particle set
     d(x/y/z):  Distance of cluster to center of MW-like galaxy
+    d(vx/vy/vz):  Velocity of cluster around galactic potential
     """
 
-    parent_set.position += [dx.value_in(units.pc), 
-                            dy.value_in(units.pc), 
-                            dz.value_in(units.pc)
-                            ] | units.pc
-    parent_set.vy += MWG.circular_velocity(parent_set.position.lengths())
-
+    parent_set.x += dx
+    parent_set.y += dy
+    parent_set.z += dz
+    distance = np.sqrt(dx**2+dy**2+dz**2)
+    dvy += MWG.circular_velocity(distance)
+    parent_set.vx += dvx
+    parent_set.vy += dvy
+    parent_set.vz += dvz
+    
     return parent_set
 
 def parent_radius(system_mass, dt):
@@ -37,7 +41,6 @@ def planet_radius(planet_mass):
             return radius
         radius = (14.3|units.REarth)*(mass_in_earth)**(-0.02) 
         return radius
-
 
 def natal_kick_pdf():
     """Extract natal kick of SN event"""
