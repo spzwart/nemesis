@@ -167,4 +167,5 @@ examples/realistic_cluster/z*
 examples/runaway_bh/data/*
 examples/runaway_bh/data_nosim/*
 examples/S-Stars/sim_data/*
+examples/ejecting_suns/sim_data/*
 plotters/*
