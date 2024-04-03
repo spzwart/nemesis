@@ -98,7 +98,7 @@ class Nemesis(object):
 
         if (self.star_evol):
             parti = self.particles.all()
-            self.stars = parti[parti.mass > (0.08 | units.MSun)]
+            self.stars = parti[parti.mass > self.min_mass_evol]
             stellar_code = self.stellar_code
             stellar_code.particles.add_particle(self.stars)
 
@@ -422,15 +422,15 @@ class Nemesis(object):
         children.add_particles(new_particle)
         children.remove_particles(colliding_a)
         children.remove_particles(colliding_b)
-    
+
         if colliding_a.key == parent.key \
             or colliding_b.key == parent.key:
             if len(children) > 1:
-                newcode = self.subcodes(children, self.child_conv)
+                newcode = self.subsys_code(children, self.child_conv)
                 self.time_offsets[newcode] = (self.model_time - code.model_time)
-                newcode.particles.add_particles(children)
-                newparent = self.particles.add_subsytem(newcode.particles)
+                newparent = self.particles.add_subsystem(children)
                 self.subcodes[newparent] = newcode
+                newcode.model_time += code.model_time
             else:
                 newparent = self.particles.add_subsystem(children)
         
@@ -438,7 +438,7 @@ class Nemesis(object):
             subsystems = self.particles.collection_attributes.subsystems
             subsystems[newparent] = subsystems.pop(parent)
             old_code = self.subcodes.pop(parent)
-            self.time_offsets[newparent] = self.time_offsets[old_code]
+            self.time_offsets[newparent] = self.model_time - old_code.model_time
             self.subcodes[newparent] = old_code
         
             self.particles.remove_particle(parent)
