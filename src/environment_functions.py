@@ -14,7 +14,6 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz):
     d(x/y/z):  Distance of cluster to center of MW-like galaxy
     d(vx/vy/vz):  Velocity of cluster around galactic potential
     """
-
     parent_set.x += dx
     parent_set.y += dy
     parent_set.z += dz
@@ -28,7 +27,7 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz):
 
 def parent_radius(system_mass, dt):
     """Merging radius of parent systems"""
-    return 3*(constants.G*system_mass*(dt)**2)**(1./3.)
+    return 3*(constants.G*system_mass*dt**2)**(1./3.)
 
 def planet_radius(planet_mass):
         """Define planet radius"""

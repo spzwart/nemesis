@@ -98,7 +98,7 @@ class Nemesis(object):
 
         if (self.star_evol):
             parti = self.particles.all()
-            self.stars = parti[parti.type == "STAR"]
+            self.stars = parti[parti.mass > (0.08 | units.MSun)]
             stellar_code = self.stellar_code
             stellar_code.particles.add_particle(self.stars)
 
@@ -163,7 +163,8 @@ class Nemesis(object):
         if timestep is None:
             timestep = tend-self.model_time
         evol_time = self.model_time
-        
+        print("======================================")
+        print("#Total", len(self.particles.all()), "#Parent", len(self.particles))
         while evol_time < (tend-timestep/2.):
             evol_time = self.model_time
             self.dEa = 0 | units.J
@@ -234,7 +235,6 @@ class Nemesis(object):
                     if len(sys) > 1:  # If system > 1 make a subsystem
                         newcode = self.subsys_code(sys, self.child_conv)
                         self.time_offsets[newcode] = (self.model_time - newcode.model_time)
-                        newcode.particles.add_particles(sys)
                         newparent = self.particles.add_subsystem(sys)  # Make a parent particle and add to global
                         subcodes[newparent] = newcode
 
@@ -444,6 +444,10 @@ class Nemesis(object):
             self.particles.remove_particle(parent)
             children.synchronize_to(self.subcodes[newparent].particles)
             newparent.radius = parent_radius(np.sum(children.mass), self.dt)
+            
+        else:
+            newparent = parent
+            children.synchronize_to(code.particles)
     
         if colliding_a.type == "STAR":
           self.stellar_code.particles.remove_particle(colliding_a)

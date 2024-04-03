@@ -42,7 +42,7 @@ def setup_cluster(stellar_pop, cluster_type, virial_radius, virial_ratio):
     MIN_MASS = 0.08 | units.MSun
     MAX_MASS = 30 | units.MSun
     SUN_MASS = 1 | units.MSun
-    MASS_TOLERANCE = 0.05 | units.MSun
+    MASS_TOLERANCE = 0.2 | units.MSun
     SIM_DIR = "examples/ejecting_suns"
     MODEL_NAME = "N"+str(stellar_pop) + "_model"+str(cluster_type) \
                  + "_rvir" + str(virial_radius.value_in(units.pc)) \
@@ -50,15 +50,15 @@ def setup_cluster(stellar_pop, cluster_type, virial_radius, virial_ratio):
                  
     # Creating output directories
     sim_data = os.path.join(SIM_DIR, "sim_data")
-    initial_pset_data = os.path.join(sim_data, "initial_set")
-    configuration = os.path.join(initial_pset_data, MODEL_NAME)
+    configuration = os.path.join(sim_data, MODEL_NAME)
+    initial_set_dir = os.path.join(configuration, "initial_set")
     if not os.path.exists(sim_data):
         os.mkdir(sim_data)
-    if not os.path.exists(initial_pset_data):
-        os.mkdir(initial_pset_data)
     if not os.path.exists(configuration):
         os.mkdir(configuration)
-    N_CONFIG = len(glob.glob(configuration+"/*"))
+    if not os.path.exists(initial_set_dir):
+        os.mkdir(initial_set_dir)
+    N_CONFIG = len(glob.glob(initial_set_dir+"/*"))
     
     converter = nbody_system.nbody_to_si(stellar_pop*(1|units.MSun), virial_radius)
     masses = new_kroupa_mass_distribution(stellar_pop, MIN_MASS, MAX_MASS)
@@ -71,6 +71,7 @@ def setup_cluster(stellar_pop, cluster_type, virial_radius, virial_ratio):
                                            )
     bodies.mass = masses
     bodies.syst_id = -1
+    bodies.type = "STAR"
     
     particle_set = Particles()
     nsyst = 0
@@ -79,11 +80,14 @@ def setup_cluster(stellar_pop, cluster_type, virial_radius, virial_ratio):
         host.mass = 1 | units.MSun
         host.radius = ZAMS_radius(host.mass)
         host.syst_id = nsyst
+        host.name = "HOST"
+        host.type = "HOST"
         
-    bodies.scale_to_standard(convert_nbody=converter)
+    bodies.scale_to_standard(convert_nbody=converter, virial_ratio=virial_ratio)
     for host in bodies[bodies.syst_id >= 0]:
         planets = solarsystem.new_solar_system()
         orb_planets = planets[3:-1]
+        orb_planets.type = "PLANET"
 
         # Rotate system
         phi = np.radians(random.uniform(0.0, 90.0))
@@ -101,7 +105,7 @@ def setup_cluster(stellar_pop, cluster_type, virial_radius, virial_ratio):
           planet.position += host.position
           planet.velocity += host.velocity
 
-        orb_planets.syst_id = nsyst
+        orb_planets.syst_id = host.syst_id
         particle_set.add_particle(host)
         particle_set.add_particle(orb_planets)
 
@@ -112,7 +116,7 @@ def setup_cluster(stellar_pop, cluster_type, virial_radius, virial_ratio):
     particle_set.add_particles(isol)
     
     if nsyst == 10:
-      output_dir = os.path.join(initial_pset_data, MODEL_NAME, "run_"+str(N_CONFIG))
+      output_dir = os.path.join(initial_set_dir, "run_"+str(N_CONFIG))
       print(output_dir)
       write_set_to_file(particle_set, output_dir, "amuse", 
                         close_file=True, overwrite_file=True
@@ -124,14 +128,15 @@ def setup_cluster(stellar_pop, cluster_type, virial_radius, virial_ratio):
     return nsyst_run
     
 cluster_type = ["Plummer", "Fractal"]
-Rvir = [1 | units.pc, 0.5 | units.pc]
-Ratio_vir = [0.2, 0.5, 0.75]
+Rvir = [0.5 | units.pc, 1 | units.pc]
+Ratio_vir = [0.25, 0.5, 1]
 Nstars = [100, 1000]
 succesful_conds = 0
 while succesful_conds < 10:
-  nsyst = setup_cluster(stellar_pop=Nstars[0],
-                        cluster_type=cluster_type[0], 
-                        virial_radius=Rvir[0],
-                        virial_ratio=Ratio_vir[0]
-                        )
-  succesful_conds += nsyst
+    print("...Attempt...")
+    nsyst = setup_cluster(stellar_pop=Nstars[0],
+                          cluster_type=cluster_type[1], 
+                          virial_radius=Rvir[0],
+                          virial_ratio=Ratio_vir[0]
+                          )
+    succesful_conds += nsyst

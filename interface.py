@@ -1,4 +1,5 @@
 import glob
+from natsort import natsorted
 import numpy as np
 import os
 import pandas as pd
@@ -37,10 +38,9 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     SNAP_PER_ITER = 10
     
     # Creating output directories
-    data_direc = os.path.join(sim_dir, "sim_data")
-    N_CONFIG = len(glob.glob(data_direc+"/*"))
-    config_name = "Nrun"+str(N_CONFIG)
-    dir_path = os.path.join(data_direc, config_name)
+    RUN_CHOICE = max(0, len(glob.glob(sim_dir+"/*")) - 1)
+    config_name = "Nrun"+str(RUN_CHOICE)
+    dir_path = os.path.join(sim_dir, config_name)
     if os.path.exists(os.path.join(dir_path, "*")):
         pass
     else:
@@ -56,8 +56,7 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     snapdir_path = os.path.join(dir_path, "simulation_snapshot")
 
     # Organise particle set
-    particle_set = read_set_from_file(os.path.join(sim_dir, 
-                                      "initial_particles/init_particle_set"))[:10]
+    particle_set = read_set_from_file(os.path.join(sim_dir, "initial_set/run_"+str(RUN_CHOICE)))[:24]
     particle_set.coll_events = 0
     major_bodies = particle_set[particle_set.mass > MIN_EVOL_MASS]
     if (gal_field):
@@ -126,6 +125,9 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                       os.path.join(snapdir_path, "snap_"+str(dt_iter)), 
                       'amuse', close_file=True, overwrite_file=True
                       )
+    
+    print(nemesis.particles.radius.in_(units.au))
+    
     # Run code
     while t < tend:
         t += dt
@@ -174,7 +176,7 @@ def run_simulation(sim_dir, tend, eta, code_dt,
             /(nemesis.particles.potential_energy())
 
     # Store data files
-    path = os.path.join(dir_path, "event_data", "event_"+str(N_CONFIG)+".h5")
+    path = os.path.join(dir_path, "event_data", "event_"+str(RUN_CHOICE)+".h5")
     data_arr = pd.DataFrame([nemesis.event_time, 
                             nemesis.event_key, 
                             nemesis.event_type]
@@ -193,7 +195,7 @@ def run_simulation(sim_dir, tend, eta, code_dt,
             "Init No. major_bodies: {}".format(NSYSTS)
             ]
     with open(os.path.join(dir_path, 'simulation_stats', 
-              'simulation_stats_'+str(N_CONFIG)+'.txt'), 'w') as f:
+              'simulation_stats_'+str(RUN_CHOICE)+'.txt'), 'w') as f:
         for line_ in lines:
             f.write(line_)
             f.write('\n')
@@ -202,7 +204,15 @@ if __name__=="__main__":
     # sim_dir = "examples/realistic_cluster/"
     # sim_dir = "examples/S-Stars"
     sim_dir = "examples/ejecting_suns"
-    run_simulation(sim_dir=sim_dir, tend=50 | units.Myr, 
+    if sim_dir == "examples/ejecting_suns":
+        config_idx = 0
+        run_idx = 0
+        
+        configurations = glob.glob(os.path.join(sim_dir, "sim_data", "*"))
+        config_choice = natsorted(configurations)[config_idx]
+        sim_dir = natsorted(glob.glob(config_choice))[run_idx]
+        
+    run_simulation(sim_dir=sim_dir, tend=30 | units.Myr, 
                    eta=1e-4, code_dt=1e-2, par_n_worker=1, 
                    gal_field=False, dE_track=False, 
                    star_evol=True,
