@@ -52,9 +52,9 @@ class HierarchicalParticles(ParticlesOverlay):
     def recenter_subsystems(self):
         """Recenter parents to children components"""
         for parent, sys in list(self.collection_attributes.subsystems.items()): 
+            sys.move_to_center()
             parent.position += sys.center_of_mass()
             parent.velocity += sys.center_of_mass_velocity()
-            sys.move_to_center()
 
     def remove_particles(self, parts):
         """Remove particles from particle set."""

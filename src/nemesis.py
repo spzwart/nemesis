@@ -99,6 +99,7 @@ class Nemesis(object):
         if (self.star_evol):
             parti = self.particles.all()
             self.stars = parti[parti.mass > self.min_mass_evol]
+            self.stars -= self.stars[self.stars.type == "JMO"] #Remove coagulated JMO
             stellar_code = self.stellar_code
             stellar_code.particles.add_particle(self.stars)
 
@@ -136,6 +137,7 @@ class Nemesis(object):
         code = Huayno(child_conv)
         code.particles.add_particles(children)
         code.set_integrator("SHARED4_COLLISIONS")
+        code.parameters.timestep_parameter = 10**-1
         return code
 
     def grav_channel_copier(self):
@@ -164,7 +166,7 @@ class Nemesis(object):
             timestep = tend-self.model_time
         evol_time = self.model_time
         print("======================================")
-        print("#Total", len(self.particles.all()), "#Parent", len(self.particles))
+        print("#Total", len(self.particles.all()), "#Parent", len(self.particles), "#Stars", len(self.stellar_code.particles))
         while evol_time < (tend-timestep/2.):
             evol_time = self.model_time
             self.dEa = 0 | units.J

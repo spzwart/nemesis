@@ -56,9 +56,21 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     snapdir_path = os.path.join(dir_path, "simulation_snapshot")
 
     # Organise particle set
-    particle_set = read_set_from_file(os.path.join(sim_dir, "initial_set/run_"+str(RUN_CHOICE)))[:24]
+    # Change line to directory hosting particle set
+    particle_set_dir = os.path.join(sim_dir, "initial_particles",
+                                    "run_"+str(RUN_CHOICE)
+                                    )
+    particle_set = read_set_from_file(particle_set_dir)
+    particle_set -= particle_set[particle_set.name=="EARTHMOO"]
+    
     particle_set.coll_events = 0
-    major_bodies = particle_set[particle_set.mass > MIN_EVOL_MASS]
+    major_bodies = particle_set[particle_set.syst_id < 0]
+    for system_id in np.unique(particle_set.syst_id):
+        if system_id > -1:
+            system = particle_set[particle_set.syst_id == system_id]
+            hosting_body = system[system.mass == max(system.mass)]
+            major_bodies += hosting_body
+        
     if (gal_field):
         particle_set = galactic_frame(particle_set, 
                                       dx=-8.4 | units.kpc, 
@@ -90,8 +102,6 @@ def run_simulation(sim_dir, tend, eta, code_dt,
         children = particle_set[particle_set.syst_id == id_]
         host = parents[parents.syst_id == id_][0]
         parents.assign_subsystem(children, host)
-    print("Rvir: ", RVIR_INIT)
-    print("Qvir: ", Q_INIT)
 
     # Setting up system
     conv_child = nbody_system.nbody_to_si(np.mean(parents.mass), 
@@ -126,7 +136,7 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                       'amuse', close_file=True, overwrite_file=True
                       )
     
-    print(nemesis.particles.radius.in_(units.au))
+    types, counts =  np.unique(allparts.type, return_counts=True)
     
     # Run code
     while t < tend:
