@@ -176,14 +176,14 @@ def run_simulation(sim_dir, tend, eta, code_dt,
         plt.close()
       
     print("...Simulation Ended...")
+    RVIR_FIN = nemesis.particles.virial_radius()
+    Q_FIN = -(nemesis.particles.kinetic_energy()) \
+            /(nemesis.particles.potential_energy())
     nemesis.stellar_code.stop()  
     nemesis.parent_code.stop()
     for code in nemesis.subcodes.values():
         code.stop()
 
-    RVIR_FIN = nemesis.particles.virial_radius()
-    Q_FIN = -(nemesis.particles.kinetic_energy()) \
-            /(nemesis.particles.potential_energy())
 
     # Store data files
     path = os.path.join(dir_path, "event_data", "event_"+str(RUN_CHOICE)+".h5")

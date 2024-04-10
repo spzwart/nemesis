@@ -167,7 +167,7 @@ class Nemesis(object):
         evol_time = self.model_time
         print("======================================")
         print("#Total", len(self.particles.all()), "#Parent", len(self.particles), "#Stars", len(self.stellar_code.particles))
-        while evol_time < (tend-timestep/2.):
+        while evol_time < (tend - timestep/2.)*(1 - 1.e-12):
             evol_time = self.model_time
             self.dEa = 0 | units.J
             self.save_snap = False
@@ -237,12 +237,14 @@ class Nemesis(object):
                     if len(sys) > 1:  # If system > 1 make a subsystem
                         newcode = self.subsys_code(sys, self.child_conv)
                         self.time_offsets[newcode] = (self.model_time - newcode.model_time)
+                        sys.syst_id = max(sys.syst_id)
                         newparent = self.particles.add_subsystem(sys)  # Make a parent particle and add to global
                         subcodes[newparent] = newcode
 
                         newparent.radius = parent_radius(np.sum(sys.mass), self.dt)
                         keys = np.concatenate((keys, sys.key), axis=None)
-                    else:                              
+                    else:
+                        sys.syst_id = -1
                         newparent = self.particles.add_subsystem(sys)
                         newparent.radius = parent_radius(newparent.mass, self.dt)
                         keys = np.concatenate((keys, sys.key), axis=None)        
@@ -306,9 +308,10 @@ class Nemesis(object):
         newparent.type = newparts[most_massive_idx].type
         newparent.radius = parent_radius(np.sum(newparts.mass), self.dt)
         if len(newparts[newparts.syst_id <= 0]) == len(newparts):
-            newparent.syst_id = -1
+            newparent.syst_id = max(self.particles.all().syst_id)
         else:
             newparent.syst_id = max(newparts.syst_id)
+        newparts.syst_id = newparent.syst_id
       
         self.event_key = np.concatenate((self.event_key, keys), axis=None)
         self.event_time = np.concatenate((self.event_time, self.model_time), axis=None)
@@ -332,7 +335,7 @@ class Nemesis(object):
                 offset = self.time_offsets[code]
                 stopping_condition = code.stopping_conditions.collision_detection
                 stopping_condition.enable()
-                while code.model_time < (coll_time - offset):
+                while code.model_time < (coll_time - offset)*(1 - 1.e-12):
                     code.evolve_model(coll_time-offset)
                     if stopping_condition.is_set():
                         coll_time = code.model_time
@@ -505,7 +508,7 @@ class Nemesis(object):
         code = self.stellar_code
         SN_detection = code.stopping_conditions.supernova_detection
         SN_detection.enable()
-        while code.model_time < dt*(1-1.e-12):
+        while code.model_time < dt*(1 - 1.e-12):
             code.evolve_model(dt)
             if SN_detection.is_set():
                 print("...Detection: SN Explosion...")
@@ -520,7 +523,7 @@ class Nemesis(object):
     
         stopping_condition = codes[-1].stopping_conditions.collision_detection
         stopping_condition.enable()
-        while codes[0].model_time < dt*(1-1e-12):
+        while codes[0].model_time < dt*(1 - 1e-12):
             codes[0].evolve_model(dt)
             if stopping_condition.is_set():
                 coll_time = codes[0].model_time
@@ -551,7 +554,7 @@ class Nemesis(object):
             evol_time = dt - self.time_offsets[code]
             stopping_condition = code.stopping_conditions.collision_detection
             stopping_condition.enable()
-            while code.model_time < evol_time*(1-1e-12):
+            while code.model_time < evol_time*(1 - 1e-12):
                 code.evolve_model(evol_time)
                 if stopping_condition.is_set():
                     print("!!! COLLIDING CHILDREN !!!")   
