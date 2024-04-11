@@ -123,7 +123,7 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     
     allparts = nemesis.particles.all()
     if (dE_track):
-        E0_all = allparts.kinetic_energy()+allparts.potential_energy()
+        E0_all = nemesis.energy_track()
         if (gal_field):
             PE = nemesis.grav_bridge.potential_energy
             KE = nemesis.grav_bridge.kinetic_energy
@@ -143,30 +143,31 @@ def run_simulation(sim_dir, tend, eta, code_dt,
         t += dt
         dt_iter += 1
         nemesis.evolve_model(t)  
-
         if (dE_track):
             E1_all = nemesis.energy_track()
             if (gal_field):
-              PE = nemesis.grav_bridge.potential_energy
-              KE = nemesis.grav_bridge.kinetic_energy
-              E1_all += (PE+KE)
-            E0_all += nemesis.dEa
-            print("Energy error: ", abs(E0_all-E1_all)/E0_all)
+                PE = nemesis.grav_bridge.potential_energy
+                KE = nemesis.grav_bridge.kinetic_energy
+                E1_all += (PE+KE)
+                E0_all += nemesis.dEa
+                print("Energy error: ", abs(E0_all-E1_all)/E0_all)
 
         if (nemesis.save_snap):
             path = os.path.join(syst_change_path, 
                                 "par_chng_"+str(len(nemesis.event_time))
                                 )
             write_set_to_file(allparts.savepoint(0|units.Myr), path, 
+                                'amuse', close_file=True, overwrite_file=True
+                                )
+        
+        if (diag_time*SNAP_PER_ITER) < t:
+            diag_time = t
+            print("Time: ", t.in_(units.yr))
+            allparts = nemesis.particles.all()
+            write_set_to_file(allparts.savepoint(0|units.Myr), 
+                              os.path.join(snapdir_path, "snap_"+str(dt_iter)), 
                               'amuse', close_file=True, overwrite_file=True
                               )
-        if (dt_iter % SNAP_PER_ITER) == 1:
-          print("Time: ", t.in_(units.yr))
-          allparts = nemesis.particles.all()
-          write_set_to_file(allparts.savepoint(0|units.Myr), 
-                            os.path.join(snapdir_path, "snap_"+str(dt_iter)), 
-                            'amuse', close_file=True, overwrite_file=True
-                            )
         allparts = nemesis.particles.all()
         plt.scatter(0,0)
         plt.scatter(allparts.x.value_in(units.kpc), allparts.y.value_in(units.kpc))
