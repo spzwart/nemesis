@@ -9,12 +9,12 @@ class HierarchicalParticles(ParticlesOverlay):
         ParticlesOverlay.__init__(self,*args,**kwargs)
         self.collection_attributes.subsystems = dict()
 
-    def add_particles(self, parts):
+    def add_particles(self,parts):  
         """Add particles to particle set."""
-        _parts = ParticlesOverlay.add_particles(self, parts)
+        _parts=ParticlesOverlay.add_particles(self,parts)
         if hasattr(parts.collection_attributes,"subsystems"):
-            for parent, sys in parts.collection_attributes.subsystems.items():
-              self.collection_attributes.subsystems[parent.as_particle_in_set(self)] = sys
+            for parent,sys in list(parts.collection_attributes.subsystems.items()):
+                self.collection_attributes.subsystems[parent.as_particle_in_set(self)] = sys
         return _parts
     
     def add_subsystem(self, sys, recenter=True):
@@ -29,25 +29,23 @@ class HierarchicalParticles(ParticlesOverlay):
         self.collection_attributes.subsystems[parent] = sys
         return parent
 
-    def assign_parent_attributes(self, cset, parent, relative=True, 
+    def assign_parent_attributes(self, sys, parent, relative=True, 
                                  recenter=True):
         """Create parent from subsystem attributes."""
-        parent.mass = np.sum(cset.mass)
-        host_idx = cset.mass.argmax()
-        parent.type = cset[host_idx].type
+        parent.mass = np.sum(sys.mass)
         if not (relative):
-            parent.position = 0.*cset[0].position
-            parent.velocity = 0.*cset[0].velocity
-        if recenter:
-            parent.position += cset.center_of_mass()
-            parent.velocity += cset.center_of_mass_velocity()
-            cset.move_to_center()
+            parent.position = 0.*sys[0].position
+            parent.velocity = 0.*sys[0].velocity
+        if (recenter):
+            parent.position += sys.center_of_mass()
+            parent.velocity += sys.center_of_mass_velocity()
+            sys.move_to_center()
     
-    def assign_subsystem(self, cset, parent, relative=False, 
+    def assign_subsystem(self, sys, parent, relative=True, 
                          recenter=True):
         """Assign children to their parent particle."""
-        self.assign_parent_attributes(cset, parent, relative, recenter)
-        self.collection_attributes.subsystems[parent] = cset
+        self.assign_parent_attributes(sys, parent, relative, recenter)
+        self.collection_attributes.subsystems[parent] = sys
     
     def recenter_subsystems(self):
         """Recenter parents to children components"""
@@ -72,4 +70,3 @@ class HierarchicalParticles(ParticlesOverlay):
             subsys.position += parent.position
             subsys.velocity += parent.velocity
         return parts
-  
