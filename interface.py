@@ -34,7 +34,7 @@ def run_simulation(sim_dir, tend, eta, code_dt,
         return conv.to_si(2**idt | nbody_system.time)
 
     START_TIME = cpu_time.time()
-    MIN_EVOL_MASS = 0.01 | units.MSun
+    MIN_EVOL_MASS = 0.08 | units.MSun
     SNAP_PER_ITER = 10
     
     # Creating output directories
@@ -58,10 +58,9 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     # Organise particle set
     # Change line to directory hosting particle set
     particle_set_dir = os.path.join(sim_dir, "initial_particles",
-                                    "run_"+str(RUN_CHOICE)
+                                    "init_particle_set"
                                     )
-    particle_set = read_set_from_file(particle_set_dir)
-    particle_set -= particle_set[particle_set.name=="EARTHMOO"]
+    particle_set = read_set_from_file(particle_set_dir)[:22]
     
     particle_set.coll_events = 0
     major_bodies = particle_set[particle_set.syst_id < 0]
@@ -84,14 +83,20 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                                         major_bodies.virial_radius()
                                         )
     dt = eta*tend
-    dt = smaller_nbody_power_of_two(dt, conv_par)
+    #dt = smaller_nbody_power_of_two(dt, conv_par)
     
     # Setting up parents
     NSYSTS = len(major_bodies)
+    rad_limit = False
+    if NSYSTS > 500:
+        par_n_worker = 2
+        rad_limit = True
+
     parents = Particles(NSYSTS)
     parents = major_bodies.copy()
     parents.sub_worker_radius = parents.radius
-    parents.radius = set_parent_radius(parents.mass, dt)
+    for par in parents:
+        par.radius = set_parent_radius(par.mass, dt, rad_limit)
     RVIR_INIT = parents.virial_radius().in_(units.pc)
     Q_INIT = abs(parents.kinetic_energy()/parents.potential_energy())
 
@@ -116,10 +121,10 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     nemesis.timestep = dt
     nemesis.particles.add_particles(parents)
     nemesis.parents = parents.copy_to_memory()
-    nemesis.radius = set_parent_radius(parents.mass, code_dt)
     nemesis.commit_particles(conv_child)
     nemesis.channel_makers()
     nemesis.coll_dir = coll_path
+    nemesis.limit_radius = rad_limit
     
     allparts = nemesis.particles.all()
     if (dE_track):
@@ -137,8 +142,9 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                       )
     
     # Run code
-    dt_iter = 0
-    dt_snapshot = SNAP_PER_ITER * dt
+    snapshot_no = 0
+    SNAP_PER_ITER = 10
+    dt_snapshot = dt * SNAP_PER_ITER
     while t < tend*(1-1e-12):
         t += dt
         while nemesis.parent_code.model_time < t*(1 - 1e-12):
@@ -160,13 +166,14 @@ def run_simulation(sim_dir, tend, eta, code_dt,
             write_set_to_file(allparts.savepoint(0|units.Myr), path,
                               'amuse', close_file=True, overwrite_file=True
                               )
-        if dt_snapshot <= t:
-          dt_iter += 50
+            
+        if dt_snapshot <= nemesis.parent_code.model_time:
+          print(dt_iter, "Saving snap @ time: ", t.in_(units.yr))
           dt_snapshot += SNAP_PER_ITER * dt
-          print("Saving snap @ time: ", t.in_(units.yr))
+          snapshot_no += 1
           allparts = nemesis.particles.all()
           write_set_to_file(allparts.savepoint(0|units.Myr),
-                            os.path.join(snapdir_path, "snap_"+str(dt_iter)),
+                            os.path.join(snapdir_path, "snap_"+str(snapshot_no)),
                             'amuse', close_file=True, overwrite_file=True
                             )
       
@@ -178,7 +185,6 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     nemesis.parent_code.stop()
     for code in nemesis.subcodes.values():
         code.stop()
-
 
     # Store data files
     path = os.path.join(dir_path, "event_data", "event_"+str(RUN_CHOICE)+".h5")
@@ -206,9 +212,9 @@ def run_simulation(sim_dir, tend, eta, code_dt,
             f.write('\n')
 
 if __name__=="__main__":
-    # sim_dir = "examples/realistic_cluster/"
+    sim_dir = "examples/realistic_cluster/"
     # sim_dir = "examples/S-Stars"
-    sim_dir = "examples/ejecting_suns"
+    # sim_dir = "examples/ejecting_suns"
     if sim_dir == "examples/ejecting_suns":
         config_idx = 0
         run_idx = 0
@@ -217,8 +223,12 @@ if __name__=="__main__":
         config_choice = natsorted(configurations)[config_idx]
         sim_dir = natsorted(glob.glob(config_choice))[run_idx]
         
-    run_simulation(sim_dir=sim_dir, tend=30 | units.Myr, 
-                   eta=1e-4, code_dt=1e-2, par_n_worker=1, 
-                   gal_field=False, dE_track=False, 
+    run_simulation(sim_dir=sim_dir, 
+                   tend=30 | units.Myr, 
+                   eta=1e-4, 
+                   code_dt=1e-2, 
+                   par_n_worker=1, 
+                   gal_field=False, 
+                   dE_track=False, 
                    star_evol=True,
                    )
