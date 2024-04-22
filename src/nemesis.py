@@ -69,7 +69,7 @@ class Nemesis(object):
         self.timestep = None
         self.coll_dir = None
         self.min_mass_evol = None
-        self.iter = 0
+        self.limit_radius = None
 
     def commit_particles(self, child_conv):
         """Commit particle system"""
@@ -87,7 +87,9 @@ class Nemesis(object):
             del code
 
         for parent, sys in list(subsystems.items()):
-            parent.radius = set_parent_radius(np.sum(sys.mass), self.dt)
+            parent.radius = set_parent_radius(np.sum(sys.mass), 
+                                              self.dt, self.limit_radius
+                                              )
             if parent not in self.subcodes:
                 gravity_code = self.subsys_code(sys, child_conv)
                 offset = (self.model_time - gravity_code.model_time)
@@ -174,7 +176,6 @@ class Nemesis(object):
         print("Evolving till: ", (tend-timestep/2.).in_(units.Myr))
         while self.model_time < (tend - timestep/2.)*(1 - 1.e-12):
             evolve_time = self.model_time
-            self.iter += 1
             self.dEa = 0 | units.J
             self.save_snap = False
             if (self.star_evol):
@@ -230,14 +231,20 @@ class Nemesis(object):
                         self.time_offsets[newcode] = (self.model_time - newcode.model_time)
                         newparent = self.particles.add_subsystem(sys)  # Make a parent particle and add to global
                         subcodes[newparent] = newcode
-                        newparent.radius = set_parent_radius(np.sum(sys.mass), self.dt)
+                        newparent.radius = set_parent_radius(np.sum(sys.mass), 
+                                                             self.dt, 
+                                                             self.limit_radius
+                                                             )
                         newparent.type = parent_type
                         keys = np.concatenate((keys, sys.key), axis=None)
                         
                     else:
                         sys.syst_id = -1
                         newparent = self.particles.add_subsystem(sys)
-                        newparent.radius = set_parent_radius(newparent.mass, self.dt)
+                        newparent.radius = set_parent_radius(newparent.mass, 
+                                                             self.dt, 
+                                                             self.limit_radius
+                                                             )
                         keys = np.concatenate((keys, sys.key), axis=None)  
                 del code
                 
@@ -260,7 +267,7 @@ class Nemesis(object):
                                                        coll_time
                                                        )
         self.correction_kicks(collsubset, collsyst, coll_time-corr_time)
-        
+
         keys = [ ]
         newparts = HierarchicalParticles(Particles())
         subsystems = par.collection_attributes.subsystems
@@ -301,7 +308,10 @@ class Nemesis(object):
       
         most_massive_idx = newparts.mass.argmax()
         newparent.type = newparts[most_massive_idx].type
-        newparent.radius = set_parent_radius(np.sum(newparts.mass), self.dt)
+        newparent.radius = set_parent_radius(np.sum(newparts.mass), 
+                                             self.dt, 
+                                             self.limit_radius
+                                             )
         if len(newparts[newparts.syst_id <= 0]) == len(newparts):
             newparent.syst_id = max(self.particles.all().syst_id) + 1
         else:
@@ -443,7 +453,9 @@ class Nemesis(object):
                     newparent = self.particles.add_subsystem(children)
                     
                 #Re-mapping dictionary to new parent
-                newparent.radius = set_parent_radius(np.sum(children.mass), self.dt)
+                newparent.radius = set_parent_radius(np.sum(children.mass), 
+                                                     self.dt, self.limit_radius
+                                                     )
                 newparent.position += parent.position
                 newparent.velocity += parent.velocity
                 
@@ -551,13 +563,13 @@ class Nemesis(object):
                     
     def drift_child(self, dt):
         """Evolve children system for dt."""
-        def evolve_code():
+        def evolve_code(lock):
             """Algorithm to evolve individual children codes"""
             try:
                 parent = parent_queue.get(timeout=1)  # Timeout to prevent blocking indefinitely
             except queue.Empty:
                 print("!!! Error: No children system !!!")
-          
+
             code = self.subcodes[parent]
             evol_time = dt - self.time_offsets[code]
             stopping_condition = code.stopping_conditions.collision_detection
@@ -565,25 +577,32 @@ class Nemesis(object):
             while code.model_time < evol_time*(1 - 1e-12):
                 code.evolve_model(evol_time)
                 if stopping_condition.is_set():
-                    print("!!! COLLIDING CHILDREN !!!")   
-                    subsystems = self.particles.collection_attributes.subsystems
-                    coll_time = code.model_time
-                    coll_sets = Particles(particles=[stopping_condition.particles(0), 
-                                                     stopping_condition.particles(1)
-                                                    ]
-                                         )
-                    self.handle_collision(subsystems[parent], parent, 
-                                          coll_sets, coll_time, code
-                                          )
+                    print("!!! COLLIDING CHILDREN !!!")
+                    with lock:
+                        subsystems = self.particles.collection_attributes.subsystems
+                        coll_time = code.model_time
+                        coll_sets = self.find_coll_sets(stopping_condition.particles(0),
+                                                        stopping_condition.particles(1)
+                                                       )
+                        print("Old parent: ", parent, "Old sys: ", code.particles)
+                        for cs in coll_sets:
+                            colliding_particles = Particles()
+                            for p in cs:
+                                colliding_particles.add_particle(p)
+                            parent = self.handle_collision(subsystems[parent], parent, 
+                                                           colliding_particles, coll_time, code
+                                                          )
+                        print("new parent: ", parent, "new subsys: ", code.particles)
             parent_queue.task_done()
         
         parent_queue = queue.Queue()
         for parent, sys_code in self.subcodes.items():
             parent_queue.put(parent)
         
+        lock = threading.Lock()
         threads = []
         for worker in range(len(self.subcodes.values())):
-            th = threading.Thread(target=evolve_code)
+            th = threading.Thread(target=evolve_code, args=(lock,))
             th.daemon = True
             th.start()
             threads.append(th)
