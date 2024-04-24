@@ -17,8 +17,10 @@ from amuse.ext.orbital_elements import orbital_elements_from_binary
 from amuse.lab import write_set_to_file
 from amuse.units import units, constants
 
-from src.environment_functions import set_parent_radius, planet_radius, natal_kick_pdf, ZAMS_radius
-from src.grav_correctors import CorrectionFromCompoundParticle, CorrectionForCompoundParticle
+from src.environment_functions import set_parent_radius, planet_radius
+from src.environment_functions import natal_kick_pdf, ZAMS_radius
+from src.grav_correctors import CorrectionFromCompoundParticle
+from src.grav_correctors import CorrectionForCompoundParticle
 from src.hierarchical_particles import HierarchicalParticles
 
 def potential_energy(system, get_potential):
@@ -224,13 +226,12 @@ class Nemesis(object):
                     sys = c.copy_to_memory()
                     sys.position += parent_pos 
                     sys.velocity += parent_vel
-                    print("System Pre", sys.x.in_(units.AU))
                     if len(sys) > 1:  # If system > 1 make a subsystem
                         newcode = self.subsys_code(sys, self.child_conv)
                         newcode.particles.move_to_center()  # Prevent energy drifting
                         
                         self.time_offsets[newcode] = (self.model_time - newcode.model_time)
-                        newparent = self.particles.add_subsystem(sys, recenter=False)  # Make a parent particle and add to global
+                        newparent = self.particles.add_subsystem(sys)  # Make a parent particle and add to global
                         subcodes[newparent] = newcode
                         newparent.radius = set_parent_radius(np.sum(sys.mass), 
                                                              self.dt, 
@@ -253,8 +254,7 @@ class Nemesis(object):
                 self.event_key = np.concatenate((self.event_key, keys), axis=None)
                 self.event_time = np.concatenate((self.event_time, self.model_time), axis=None)
                 self.event_type = np.concatenate((self.event_type, "Parent Dissolve"), axis=None)
-                
-                
+                           
     def parent_merger(self, coll_time, corr_time, coll_set):
         """Resolve the merging of two parent systems.
         Inputs:
@@ -312,7 +312,7 @@ class Nemesis(object):
         newcode.particles.move_to_center()  # Prevent energy drift
         
         self.time_offsets[newcode] = self.model_time - newcode.model_time
-        newparent = self.particles.add_subsystem(newparts, recenter=False)
+        newparent = self.particles.add_subsystem(newparts)
         self.subcodes[newparent] = newcode
       
         most_massive_idx = newparts.mass.argmax()
@@ -455,7 +455,7 @@ class Nemesis(object):
                     newcode = self.subsys_code(children, self.child_conv)
                     newcode.particles.move_to_center()
                     self.time_offsets[newcode] = (self.model_time - code.model_time)
-                    newparent = self.particles.add_subsystem(children, recenter=False)
+                    newparent = self.particles.add_subsystem(children)
                     self.subcodes[newparent] = newcode
                     newcode.model_time += code.model_time
                 else:
