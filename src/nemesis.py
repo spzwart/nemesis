@@ -23,11 +23,6 @@ from src.grav_correctors import CorrectionFromCompoundParticle
 from src.grav_correctors import CorrectionForCompoundParticle
 from src.hierarchical_particles import HierarchicalParticles
 
-def potential_energy(system, get_potential):
-    parts = system.particles.copy()
-    pot = get_potential(parts.radius, parts.x, parts.y, parts.z)
-    return (pot*parts.mass).sum()/2 
-
 
 class Nemesis(object):
     def __init__(self, par_conv, child_conv, dt, 
@@ -162,12 +157,6 @@ class Nemesis(object):
                                            target_names=["mass", "radius"]
                                            )
             channel.copy()
-
-    def energy_track(self):
-        """Extract energy of all particles"""
-        p = self.particles.all()
-        Eall = p.kinetic_energy() + p.potential_energy()
-        return Eall
     
     def evolve_model(self, tend, timestep=None):
         """Evolve the system"""
@@ -203,16 +192,18 @@ class Nemesis(object):
 
     def split_subcodes(self):
         """Function tracking the dissolution of a parent system"""
+        channel = self.parent_code.particles.new_channel_to(self.particles)
+        channel.copy_attributes(["x","y","z","vx","vy","vz"])
         subsystems = self.particles.collection_attributes.subsystems
         subcodes = self.subcodes
+        
         for parent, subsys in list(subsystems.items()):
             radius = parent.radius
+            channel = subcodes[parent].particles.new_channel_to(subsys)
+            channel.copy_attributes(["x","y","z","vx","vy","vz"])
             components = subsys.connected_components(threshold=1.75*radius)
             if len(components) > 1:  # Checking for dissolution of system
                 print("...Splitting subcode...")
-                channel = subcodes[parent].particles.new_channel_to(subsys)
-                channel.copy_attributes(["x","y","z","vx","vy","vz"])
-                
                 self.save_snap = True
                 parent_pos = parent.position
                 parent_vel = parent.velocity
@@ -238,6 +229,7 @@ class Nemesis(object):
                                                              self.limit_radius
                                                              )
                         newparent.type = parent_type
+                        
                         keys = np.concatenate((keys, sys.key), axis=None)
                         
                     else:
@@ -274,6 +266,7 @@ class Nemesis(object):
         keys = [ ]
         newparts = HierarchicalParticles(Particles())
         subsystems = par.collection_attributes.subsystems
+        E0 = self.energy_track
         import matplotlib.pyplot as plt
         for parti_ in collsubset:
             parti_ = parti_.as_particle_in_set(self.particles)
@@ -286,10 +279,10 @@ class Nemesis(object):
                 
                 channel = parts.new_channel_to(sys)
                 if (self.energy_track):
-                    dE_prior = self.energy_track()
+                    dE_prior = self.energy_track
                 channel.copy_attributes(["x","y","z","vx","vy","vz"])
                 if (self.energy_track):
-                    dE_fin = self.energy_track()
+                    dE_fin = self.energy_track
                     dE_update = (dE_fin-dE_prior)
                     self.dEa += dE_update
                 
@@ -560,7 +553,7 @@ class Nemesis(object):
                                                 stopping_condition.particles(1)
                                                 )
                 if (self.dE_track):
-                    E0 = self.energy_track()
+                    E0 = self.energy_track
                 t0 = cpu_time.time()
                 for cs in coll_sets:
                     self.parent_merger(coll_time, corr_time, cs)
@@ -568,7 +561,7 @@ class Nemesis(object):
                 print("Handle collision: ", t1-t0)
                 
                 if (self.dE_track):
-                    E1 = self.energy_track()
+                    E1 = self.energy_track
                     self.dEa += (E1-E0)
                     
     def drift_child(self, dt):
@@ -652,7 +645,7 @@ class Nemesis(object):
     def correction_kicks(self, particles, subsystems, dt):
         """Apply correcting kicks onto children and parent particles"""
         if (self.dE_track):
-            E0 = self.energy_track()
+            E0 = self.energy_track
             
         if subsystems is not None and len(particles) > 1:
             corr_chd = CorrectionFromCompoundParticle(self.particles, 
@@ -662,14 +655,14 @@ class Nemesis(object):
             self.kick_particles(self.particles, corr_chd, dt)
 
             corr_par = CorrectionForCompoundParticle(self.particles, None, 
-                                                    self.sys_kickers
-                                                    )
+                                                     self.sys_kickers
+                                                     )
             for parent, subsyst in subsystems.items():
                 corr_par.parent = parent
                 self.kick_particles(subsyst, corr_par, dt)
         
         if (self.dE_track):
-            E1 = self.energy_track()
+            E1 = self.energy_track
             self.dEa += (E1-E0)
 
     def child_energy_calc(self):
@@ -699,8 +692,14 @@ class Nemesis(object):
         for parent, code in self.subcodes.items():
             Ep += code.potential_energy
             if len(self.particles)>1:
-                corrector.parent=parent
-                Ep += potential_energy(code, corrector.get_potential_at_point)
+                corrector.parent = parent
+                parts = code.particles.copy()
+                potential = corrector.get_potential_at_point(parts.radius,
+                                                             parts.x,
+                                                             parts.y,
+                                                             parts.z
+                                                             )
+                Ep += potential
         return Ep
 
     @property
@@ -710,6 +709,13 @@ class Nemesis(object):
         for code in self.subcodes.values():
             Ek += code.kinetic_energy
         return Ek
+    
+    @property
+    def energy_track(self):
+        """Extract energy of all particles"""
+        p = self.particles.all()
+        Eall = p.kinetic_energy() + p.potential_energy()
+        return Eall
 
     @property
     def model_time(self):  
