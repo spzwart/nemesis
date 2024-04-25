@@ -35,7 +35,6 @@ def run_simulation(sim_dir, tend, eta, code_dt,
 
     START_TIME = cpu_time.time()
     MIN_EVOL_MASS = 0.08 | units.MSun
-    SNAP_PER_ITER = 10
     
     # Creating output directories
     RUN_CHOICE = max(0, len(glob.glob(sim_dir+"/*")) - 1)
@@ -60,7 +59,7 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     particle_set_dir = os.path.join(sim_dir, "initial_particles",
                                     "init_particle_set"
                                     )
-    particle_set = read_set_from_file(particle_set_dir)[:22]
+    particle_set = read_set_from_file(particle_set_dir)
     
     particle_set.coll_events = 0
     major_bodies = particle_set[particle_set.syst_id < 0]
@@ -96,7 +95,7 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     parents = major_bodies.copy()
     parents.sub_worker_radius = parents.radius
     for par in parents:
-        par.radius = set_parent_radius(par.mass, dt, rad_limit)
+        par.radius = set_parent_radius(par.mass, dt)
     RVIR_INIT = parents.virial_radius().in_(units.pc)
     Q_INIT = abs(parents.kinetic_energy()/parents.potential_energy())
 
@@ -128,30 +127,31 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     
     allparts = nemesis.particles.all()
     if (dE_track):
-        E0_all = nemesis.energy_track()
+        E0_all = nemesis.energy_track
         if (gal_field):
             PE = nemesis.grav_bridge.potential_energy
             KE = nemesis.grav_bridge.kinetic_energy
             E0_all += (PE+KE)
         
-    t = 0 | units.yr
-    dt_iter = 0
     write_set_to_file(allparts.savepoint(0|units.Myr), 
                       os.path.join(snapdir_path, "snap_"+str(dt_iter)), 
                       'amuse', close_file=True, overwrite_file=True
                       )
     
     # Run code
+    t = 0 | units.yr
+    dt_iter = 0
     snapshot_no = 0
     SNAP_PER_ITER = 10
     dt_snapshot = dt * SNAP_PER_ITER
+    
     while t < tend*(1-1e-12):
         t += dt
         while nemesis.parent_code.model_time < t*(1 - 1e-12):
             nemesis.evolve_model(t)
 
             if (dE_track):
-                E1_all = nemesis.energy_track()
+                E1_all = nemesis.energy_track
                 if (gal_field):
                     PE = nemesis.grav_bridge.potential_energy
                     KE = nemesis.grav_bridge.kinetic_energy
