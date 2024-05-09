@@ -40,7 +40,8 @@ def load_particles():
     """Load particles. Creates a single-planet planetary system."""
     # Load cluster data (Wilhem & Portegies Zwart (in works))
     data_dir = os.path.join("examples", "realistic_cluster", 
-                            "initial_particles", "data_files")
+                            "initial_particles", "data_files",
+                            "config_2_vm")
     cluster_data_files = os.path.join(data_dir, "cluster_data/*")
     env_files = natsorted(glob.glob(cluster_data_files))[-1]
     env_data = read_set_from_file(env_files, "hdf5")
@@ -60,19 +61,24 @@ def load_particles():
     stars_copy = stars.copy_to_memory()
     particle_set = Particles()
     nsyst = 0
+    
     for i in range(len(planet_data)):
-      nsyst+=1
       iplanet_df = np.load(planet_data[i], allow_pickle=True)
       semimajor = iplanet_df['a'][-1] | units.au
-      if semimajor>(1|units.au):  # Ignore tight orbits
-        host = stars_copy[int(planet_no[i])]
-        host.type = "STAR"
-        host.mass = iplanet_df['star_mass'] | units.MSun
-        host.radius = ZAMS_radius(host.mass)
+      
+      host = stars_copy[int(planet_no[i])]
+      host.type = "STAR"
+      host.mass = iplanet_df['star_mass'] | units.MSun
+      host.radius = ZAMS_radius(host.mass)
+      
+      period = np.sqrt((4*np.pi**2)/(constants.G*host.mass)*abs(semimajor)**3)[0]
+      
+      if period >= (1 | units.yr):  # Ignore tight orbits
+        nsyst += 1
 
         planet = Particle()
         iplanet_df.keys()
-        planet.mass = iplanet_df['Mc'][-1]+iplanet_df['Me'][-1] | units.MEarth
+        planet.mass = iplanet_df['Mc'][-1] + iplanet_df['Me'][-1] | units.MEarth
         planet.type = "PLANET"
 
         # Set planet radius using arXiv:2311.12593
@@ -85,7 +91,7 @@ def load_particles():
           planet.radius = (14.3|units.REarth)*(mass_in_earth)**(-0.02) 
 
         # Initialise planetary system orbital orientation
-        eccentricity = np.random.uniform(0, 0.05)
+        eccentricity = 0
         inclination = np.arccos(1-2*np.random.uniform(0,1, 1)) | units.rad
         long_asc_node = np.random.uniform(0, 2*np.pi, 1) | units.rad
         true_anomaly = np.random.uniform(0, 2*np.pi, 1)
@@ -133,9 +139,10 @@ def load_particles():
                               "initial_particles", "init_particle_set"
                               )
     write_set_to_file(particle_set, output_dir, "amuse", 
-                      close_file=True, overwrite_file=True)
+                      close_file=True, overwrite_file=True
+                      )
     print("Total #Planetary Systems: ", nsyst, end="")
-    print("#Isolated: ", len(particle_set[particle_set.nsyst == -1]))
+    print("#Isolated: ", len(particle_set)-2*nsyst)
 
   
 load_particles()
