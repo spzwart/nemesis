@@ -18,6 +18,7 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz):
     parent_set.y += dy
     parent_set.z += dz
     distance = np.sqrt(dx**2+dy**2+dz**2)
+    
     dvy += MWG.circular_velocity(distance)
     parent_set.vx += dvx
     parent_set.vy += dvy

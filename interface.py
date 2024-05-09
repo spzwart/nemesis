@@ -11,7 +11,6 @@ from src.environment_functions import galactic_frame, set_parent_radius
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
-import matplotlib.pyplot as plt
 
 def run_simulation(sim_dir, tend, eta, code_dt, 
                    par_n_worker, dE_track, gal_field, 
@@ -37,21 +36,20 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     MIN_EVOL_MASS = 0.08 | units.MSun
     
     # Creating output directories
-    RUN_CHOICE = max(0, len(glob.glob(sim_dir+"/*")) - 1)
+    RUN_CHOICE = max(0, len(glob.glob(sim_dir+"/*")) - 3)
     config_name = "Nrun"+str(RUN_CHOICE)
     dir_path = os.path.join(sim_dir, config_name)
     if os.path.exists(os.path.join(dir_path, "*")):
         pass
     else:
         os.mkdir(dir_path+"/")
-        subdir = ["event_data", "collision_snapshot", 
-                  "data_process", "simulation_stats", 
-                  "simulation_snapshot", "system_changes"
+        subdir = ["collision_snapshot", "data_process", 
+                  "simulation_stats", "simulation_snapshot", 
+                  "system_changes"
                  ]
         for path in subdir:
             os.makedirs(os.path.join(dir_path, path))
     coll_path = os.path.join(dir_path, "collision_snapshot")
-    syst_change_path = os.path.join(dir_path, "system_changes")
     snapdir_path = os.path.join(dir_path, "simulation_snapshot")
 
     # Organise particle set
@@ -60,8 +58,8 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                                     "init_particle_set"
                                     )
     particle_set = read_set_from_file(particle_set_dir)
-    
     particle_set.coll_events = 0
+    
     major_bodies = particle_set[particle_set.syst_id < 0]
     for system_id in np.unique(particle_set.syst_id):
         if system_id > -1:
@@ -85,17 +83,16 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     #dt = smaller_nbody_power_of_two(dt, conv_par)
     
     # Setting up parents
-    NSYSTS = len(major_bodies)
-    rad_limit = False
-    if NSYSTS > 500:
-        par_n_worker = 2
-        rad_limit = True
+    nmajor = len(major_bodies)
+    if nmajor > 1000:
+        par_n_worker = nmajor // 1000 + 1
 
-    parents = Particles(NSYSTS)
+    parents = Particles(nmajor)
     parents = major_bodies.copy()
     parents.sub_worker_radius = parents.radius
     for par in parents:
         par.radius = set_parent_radius(par.mass, dt)
+        
     RVIR_INIT = parents.virial_radius().in_(units.pc)
     Q_INIT = abs(parents.kinetic_energy()/parents.potential_energy())
 
@@ -105,7 +102,10 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     for id_ in np.unique(initial_systems.syst_id):
         children = particle_set[particle_set.syst_id == id_]
         host = parents[parents.syst_id == id_][0]
-        parents.assign_subsystem(children, host)
+        parents.assign_subsystem(children, host, 
+                                 relative=True, 
+                                 recenter=False
+                                 )
 
     # Setting up system
     conv_child = nbody_system.nbody_to_si(np.mean(parents.mass), 
@@ -123,18 +123,17 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     nemesis.commit_particles(conv_child)
     nemesis.channel_makers()
     nemesis.coll_dir = coll_path
-    nemesis.limit_radius = rad_limit
     
-    allparts = nemesis.particles.all()
     if (dE_track):
         E0_all = nemesis.energy_track
         if (gal_field):
             PE = nemesis.grav_bridge.potential_energy
             KE = nemesis.grav_bridge.kinetic_energy
             E0_all += (PE+KE)
-        
+            
+    allparts = nemesis.particles.all()
     write_set_to_file(allparts.savepoint(0|units.Myr), 
-                      os.path.join(snapdir_path, "snap_"+str(dt_iter)), 
+                      os.path.join(snapdir_path, "snap_0"), 
                       'amuse', close_file=True, overwrite_file=True
                       )
     
@@ -142,10 +141,13 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     t = 0 | units.yr
     dt_iter = 0
     snapshot_no = 0
-    SNAP_PER_ITER = 10
+    SNAP_PER_ITER = 1000
     dt_snapshot = dt * SNAP_PER_ITER
     
+    import matplotlib.pyplot as plt
+    i=0
     while t < tend*(1-1e-12):
+        i+=1
         t += dt
         while nemesis.parent_code.model_time < t*(1 - 1e-12):
             nemesis.evolve_model(t)
@@ -158,14 +160,6 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                     E1_all += (PE+KE)
                     E0_all += nemesis.dEa
                 print("Energy error: ", abs(E0_all-E1_all)/E0_all)
-
-        if (nemesis.save_snap):
-            path = os.path.join(syst_change_path,
-                                "par_chng_"+str(len(nemesis.event_time))
-                                )
-            write_set_to_file(allparts.savepoint(0|units.Myr), path,
-                              'amuse', close_file=True, overwrite_file=True
-                              )
             
         if dt_snapshot <= nemesis.parent_code.model_time:
           print(dt_iter, "Saving snap @ time: ", t.in_(units.yr))
@@ -176,6 +170,15 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                             os.path.join(snapdir_path, "snap_"+str(snapshot_no)),
                             'amuse', close_file=True, overwrite_file=True
                             )
+        allparts = nemesis.particles.all()
+        
+        plt.scatter(allparts.x.value_in(units.kpc), allparts.y.value_in(units.kpc))
+        plt.xlim(-10,10)
+        plt.ylim(-10,10)
+        plt.savefig("iter_"+str(i)+".png", dpi=200)
+        plt.clf()
+          
+          
       
     print("...Simulation Ended...")
     RVIR_FIN = nemesis.particles.virial_radius()
@@ -186,24 +189,16 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     for code in nemesis.subcodes.values():
         code.stop()
 
-    # Store data files
-    path = os.path.join(dir_path, "event_data", "event_"+str(RUN_CHOICE)+".h5")
-    data_arr = pd.DataFrame([nemesis.event_time, 
-                            nemesis.event_key, 
-                            nemesis.event_type]
-                            )
-    data_arr.to_hdf(path, key="df", mode="w")
-    SIM_TIME = cpu_time.time()-START_TIME
-
     # Store simulation statistics
-    lines = ["Total CPU Time: {} minutes".format(SIM_TIME),
+    sim_time = (cpu_time.time() - START_TIME)/60
+    lines = ["Total CPU Time: {} minutes".format(sim_time),
             "End Time: {}".format(t.in_(units.Myr)), 
             "Time step: {}".format(dt.in_(units.Myr)),
             "Initial Rvirial: {}".format(RVIR_INIT.in_(units.pc)),
             "Final Rvirial: {}".format(RVIR_FIN.in_(units.pc)),
             "Initial Q: {}".format(Q_INIT), 
             "Final Q: {}".format(Q_FIN),
-            "Init No. major_bodies: {}".format(NSYSTS)
+            "Init No. major_bodies: {}".format(nmajor)
             ]
     with open(os.path.join(dir_path, 'simulation_stats', 
               'simulation_stats_'+str(RUN_CHOICE)+'.txt'), 'w') as f:
@@ -211,7 +206,7 @@ def run_simulation(sim_dir, tend, eta, code_dt,
             f.write(line_)
             f.write('\n')
 
-if __name__=="__main__":
+if __name__ == "__main__":
     sim_dir = "examples/realistic_cluster/"
     # sim_dir = "examples/S-Stars"
     # sim_dir = "examples/ejecting_suns"
@@ -223,12 +218,8 @@ if __name__=="__main__":
         config_choice = natsorted(configurations)[config_idx]
         sim_dir = natsorted(glob.glob(config_choice))[run_idx]
         
-    run_simulation(sim_dir=sim_dir, 
-                   tend=30 | units.Myr, 
-                   eta=1e-4, 
-                   code_dt=1e-2, 
-                   par_n_worker=1, 
-                   gal_field=False, 
-                   dE_track=False, 
-                   star_evol=True,
+    run_simulation(sim_dir=sim_dir, tend=100 | units.Myr, 
+                   eta=1e-4, code_dt=0.03, 
+                   par_n_worker=1, gal_field=True, 
+                   dE_track=False, star_evol=True,
                    )

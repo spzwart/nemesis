@@ -52,12 +52,9 @@ class CorrectionFromCompoundParticle(object):
         particles.az = 0. | acc_units
 
         for parent,sys in list(self.subsystems.items()):
-            code = self.worker_code_factory()
-            code.particles.add_particles(sys.copy_to_memory())
-            code.particles.position += parent.position
-            code.particles.velocity += parent.velocity
-
-            # Potential from children particles
+            sys.position += parent.position
+            sys.velocity += parent.velocity
+            
             parts = particles - parent
             ax_sub, ay_sub, az_sub = find_gravity_at_point(sys, 
                                                            0*parts.radius, 
@@ -65,11 +62,10 @@ class CorrectionFromCompoundParticle(object):
                                                            parts.z
                                                            )
 
-            code = self.worker_code_factory()
-            code.particles.add_particle(parent)
             ax, ay, az = find_gravity_at_point(parent, 0*parts.radius, 
                                                parts.x, parts.y, parts.z
                                                )
+            
             for i in range(len(parts)):
                 parts[i].ax += ax_sub[i] - ax[i]
                 parts[i].ay += ay_sub[i] - ay[i]

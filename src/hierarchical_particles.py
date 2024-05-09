@@ -1,6 +1,5 @@
 import numpy as np
 from amuse.datamodel import Particle, ParticlesOverlay
-from amuse.units import units
 
 
 class HierarchicalParticles(ParticlesOverlay):
