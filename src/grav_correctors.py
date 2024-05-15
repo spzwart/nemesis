@@ -1,5 +1,6 @@
 import ctypes
 import numpy as np
+
 from amuse.lab import units, constants
 
 
@@ -86,7 +87,7 @@ class CorrectionFromCompoundParticle(object):
         return particles.ax, particles.ay, particles.az
   
 class CorrectionForCompoundParticle(object):  
-    def __init__(self, particles, parent, system, worker_code_factory):
+    def __init__(self, particles, parent, system):
         """Correct force vector exerted by global particles on childrens
         Inputs:
         particles:  All parent particles
@@ -96,7 +97,6 @@ class CorrectionForCompoundParticle(object):
         self.particles = particles
         self.parent = parent
         self.system = system
-        self.worker_code_factory = worker_code_factory
     
     def get_gravity_at_point(self,radius,x,y,z):
         """Compute gravitational acceleration felt by children via 
@@ -136,12 +136,12 @@ class CorrectionForCompoundParticle(object):
         result_ay = np.zeros(len(subsyst))
         result_az = np.zeros(len(subsyst))
         
-        lib.find_gravity_at_point(subsyst.x.value_in(units.m),
+        lib.find_gravity_at_point(parts.mass.value_in(units.kg),
+                                  subsyst.x.value_in(units.m),
                                   subsyst.y.value_in(units.m),
                                   subsyst.z.value_in(units.m),
                                   len(subsyst),
                                   result_ax, result_ay, result_az,
-                                  parts.mass.value_in(units.kg),
                                   parts.x.value_in(units.m),
                                   parts.y.value_in(units.m),
                                   parts.z.value_in(units.m),
@@ -152,11 +152,11 @@ class CorrectionForCompoundParticle(object):
         result_aym = np.zeros(len(subsyst))
         result_azm = np.zeros(len(subsyst))
         
-        lib.find_gravity_at_point(np.asarray([parent.x.value_in(units.m)]),
+        lib.find_gravity_at_point(parts.mass.value_in(units.kg),
+                                  np.asarray([parent.x.value_in(units.m)]),
                                   np.asarray([parent.y.value_in(units.m)]),
                                   np.asarray([parent.z.value_in(units.m)]),
                                   1, result_axm, result_aym, result_azm,
-                                  parts.mass.value_in(units.kg),
                                   parts.x.value_in(units.m),
                                   parts.y.value_in(units.m),
                                   parts.z.value_in(units.m),
