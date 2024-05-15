@@ -583,16 +583,17 @@ class Nemesis(object):
         """Apply correcting kicks onto children and parent particles"""
         if subsystems is not None and len(particles) > 1:
             corr_chd = CorrectionFromCompoundParticle(self.particles, 
-                                                      subsystems, 
-                                                      self.sys_kickers
+                                                      subsystems
                                                       )
             self.kick_particles(self.particles, corr_chd, dt)
 
-            corr_par = CorrectionForCompoundParticle(self.particles, None, 
+            corr_par = CorrectionForCompoundParticle(self.particles, 
+                                                     None, None, 
                                                      self.sys_kickers
-                                                    )
+                                                     )
             for parent, subsyst in subsystems.items():
                 corr_par.parent = parent
+                corr_par.system = subsyst
                 self.kick_particles(subsyst, corr_par, dt)
 
     def child_energy_calc(self):

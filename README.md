@@ -9,6 +9,8 @@ Run python interface.py from root directory to execute code.
 - src/nemesis.py: Script hosting the evolution procedure
 - examples/: Folders with several examples initialising particles set to be run.
 
+To compile src/grav_kicks.cpp execute: g++ -shared -o src/gravity.so -g -fPIC src/grav_kicks.cpp
+
 Unless in branch 'one\_child\_system', children identified as particles with attribute syst\_id>0. Corresponding parents have the same syst_id value.
 
  Branch | Application | Examples 

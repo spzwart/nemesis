@@ -1,112 +1,101 @@
+import ctypes
 import numpy as np
-from amuse.lab import constants
+from amuse.lab import units, constants
 
-def find_gravity_at_point(particles, radius, x, y, z):
-    """Find gravitational field at some point
-    Input:
-    particles:  Particle for which you want to find grav. field
-    radius:  Radius of all other relevant particles
-    x/y/z:  Position of all other relevant particles"""
-    m1 = particles.mass
-    result_ax = np.zeros_like(x)
-    result_ay = np.zeros_like(y)
-    result_az = np.zeros_like(z)
-
-    dx = x[:, np.newaxis] - particles.x
-    dy = y[:, np.newaxis] - particles.y
-    dz = z[:, np.newaxis] - particles.z
-    dr_squared = (dx**2 + dy**2 + dz**2 + radius[:, np.newaxis]**2)
-    
-    ax = -constants.G * (m1 * dx / dr_squared ** 1.5).sum(axis=1)
-    ay = -constants.G * (m1 * dy / dr_squared ** 1.5).sum(axis=1)
-    az = -constants.G * (m1 * dz / dr_squared ** 1.5).sum(axis=1)
-
-    result_ax[:] = ax
-    result_ay[:] = ay
-    result_az[:] = az
-
-    return result_ax, result_ay, result_az
 
 class CorrectionFromCompoundParticle(object):
-    def __init__(self, system, subsystems, worker_code_factory):
+    def __init__(self, particles, subsystems):
         """Correct force vector exerted by parents on all 
         other particles present by that of its children.
         Inputs:
-        system:  Parent particles to correct force of
+        particles:  Parent particles to correct force of
         subsystems:  Collection of subsystems present
-        worker_code_factory:  Calculate potential field
         """
-        self.system = system
+        self.particles = particles
         self.subsystems = subsystems
-        self.worker_code_factory = worker_code_factory
     
     def get_gravity_at_point(self, radius, x, y, z):
         """Compute difference in gravitational acceleration felt by parents
         due to force exerted by parents hosting children, and their children.
         dF = \sum_j (\sum_i F_{i} - F_{j}) where j is parent and i is children of parent j
         """
-        particles = self.system.copy_to_memory()
+        particles = self.particles.copy_to_memory()
         acc_units = (particles.vx.unit**2/particles.x.unit)
         particles.ax = 0. | acc_units
         particles.ay = 0. | acc_units
         particles.az = 0. | acc_units
-
-        for parent,sys in list(self.subsystems.items()):
-            sys.position += parent.position
-            sys.velocity += parent.velocity
+        
+        # Load the shared library
+        lib = ctypes.CDLL('./src/gravity.so')  # Adjust the path as necessary
+        lib.find_gravity_at_point.argtypes = [
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_mass
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_x
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_y
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_z
+            ctypes.c_int,  # num_particles
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_ax
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_ay
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_az
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_x
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_y
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_z
+            ctypes.c_int   # num_points
+        ]
+        
+        lib.find_gravity_at_point.restype = None
+        for parent, sys in list(self.subsystems.items()):
+            system = sys.copy_to_memory()
+            system.position += parent.position
             
             parts = particles - parent
-            ax_sub, ay_sub, az_sub = find_gravity_at_point(sys, 
-                                                           0*parts.radius, 
-                                                           parts.x, parts.y, 
-                                                           parts.z
-                                                           )
-
-            ax, ay, az = find_gravity_at_point(parent, 0*parts.radius, 
-                                               parts.x, parts.y, parts.z
-                                               )
+            result_ax = np.zeros(len(parts))
+            result_ay = np.zeros(len(parts))
+            result_az = np.zeros(len(parts))
             
-            for i in range(len(parts)):
-                parts[i].ax += ax_sub[i] - ax[i]
-                parts[i].ay += ay_sub[i] - ay[i]
-                parts[i].az += az_sub[i] - az[i]
-                
+            lib.find_gravity_at_point(system.mass.value_in(units.kg),
+                                      parts.x.value_in(units.m),
+                                      parts.y.value_in(units.m),
+                                      parts.z.value_in(units.m),
+                                      len(parts),
+                                      result_ax, result_ay, result_az,
+                                      system.x.value_in(units.m),
+                                      system.y.value_in(units.m),
+                                      system.z.value_in(units.m),
+                                      len(system),
+                                      )
+            
+            result_axm = np.zeros(len(parts))
+            result_aym = np.zeros(len(parts))
+            result_azm = np.zeros(len(parts))
+            
+            lib.find_gravity_at_point(np.array([parent.mass.value_in(units.kg)]),
+                                      parts.x.value_in(units.m),
+                                      parts.y.value_in(units.m),
+                                      parts.z.value_in(units.m),
+                                      len(parts),
+                                      result_axm, result_aym, result_azm,
+                                      np.array([parent.x.value_in(units.m)]),
+                                      np.array([parent.y.value_in(units.m)]),
+                                      np.array([parent.z.value_in(units.m)]),
+                                      1
+                                      )
+            
+            parts.ax += (result_ax - result_axm) * (1 | units.kg*units.m**-2) * constants.G
+            parts.ay += (result_ay - result_aym) * (1 | units.kg*units.m**-2) * constants.G
+            parts.az += (result_az - result_azm) * (1 | units.kg*units.m**-2) * constants.G
         return particles.ax, particles.ay, particles.az
-
-    def get_potential_at_point(self, radius, x, y, z):
-        """Compute difference in potential field felt by parents due 
-        to parents hosting children, and their children.
-        """
-        particles = self.system.copy_to_memory()
-        particles.phi = 0. | (particles.vx.unit**2)
-        for parent, sys in list(self.subsystems.items()): 
-            code = self.worker_code_factory()
-            code.particles.add_particles(sys.copy())
-            code.particles.position += parent.position
-            code.particles.velocity += parent.velocity
-
-            # Potential from children particles
-            parts = particles-parent
-            phi = code.get_potential_at_point(0.*parts.radius,
-                                              parts.x,parts.y,parts.z
-                                              )
-            parts.phi += phi
-            
-            # Potential from parent particle
-            code = self.worker_code_factory()
-            code.particles.add_particle(parent)
-            phi = code.get_potential_at_point(0.*parts.radius,
-                                              parts.x,parts.y,parts.z
-                                              )
-            parts.phi -= phi
-        return particles.phi
-  
   
 class CorrectionForCompoundParticle(object):  
-    def __init__(self, system, parent, worker_code_factory):
-        """Correct force vector exerted by global particles on childrens"""
-        self.system = system
+    def __init__(self, particles, parent, system, worker_code_factory):
+        """Correct force vector exerted by global particles on childrens
+        Inputs:
+        particles:  All parent particles
+        parent:  Subsystem's parent particle
+        system:  Subsystem particle set
+        """
+        self.particles = particles
         self.parent = parent
+        self.system = system
         self.worker_code_factory = worker_code_factory
     
     def get_gravity_at_point(self,radius,x,y,z):
@@ -115,40 +104,67 @@ class CorrectionForCompoundParticle(object):
         dF_j = F_{i} - F_{j} where i is parent and j is children of parent i
         """
         parent = self.parent
-        parts = self.system - parent
-        instance = self.worker_code_factory()
-        instance.particles.add_particles(parts)
-        ax,ay,az = instance.get_gravity_at_point(0.*radius,
-                                                parent.x+x,
-                                                parent.y+y,
-                                                parent.z+z
-                                                )
-        _ax,_ay,_az = instance.get_gravity_at_point([0.*parent.radius],
-                                                    [parent.x],
-                                                    [parent.y],
-                                                    [parent.z]
-                                                    )
-        instance.cleanup_code()
-        return (ax-_ax[0]), (ay-_ay[0]), (az-_az[0])
-
-
-    def get_potential_at_point(self, radius, x, y, z):
-        """Compute gravitational potential of children due to 
-        all other parents present in the simulation.
-        """
-        parent = self.parent
-        parts = self.system - parent
-        instance = self.worker_code_factory()
-        instance.particles.add_particles(parts)
-        phi = instance.get_potential_at_point(0.*radius,
-                                              parent.x+x, 
-                                              parent.y+y, 
-                                              parent.z+z
-                                              )
-        _phi = instance.get_potential_at_point([0.*parent.radius],
-                                              [parent.x],
-                                              [parent.y],
-                                              [parent.z]
-                                              )
-        instance.cleanup_code()
-        return (phi-_phi[0])
+        parts = self.particles - parent
+        
+        subsyst = self.system.copy_to_memory()
+        subsyst.position += parent.position
+        
+        acc_units = (subsyst.vx.unit**2/subsyst.x.unit)
+        subsyst.ax = 0. | acc_units
+        subsyst.ay = 0. | acc_units
+        subsyst.az = 0. | acc_units
+        
+        # Load the shared library
+        lib = ctypes.CDLL('./src/gravity.so')  # Adjust the path as necessary
+        lib.find_gravity_at_point.argtypes = [
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_mass
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_x
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_y
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_z
+            ctypes.c_int,  # num_particles
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_ax
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_ay
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_az
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_x
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_y
+            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_z
+            ctypes.c_int   # num_points
+        ]
+        lib.find_gravity_at_point.restype = None
+            
+        result_ax = np.zeros(len(subsyst))
+        result_ay = np.zeros(len(subsyst))
+        result_az = np.zeros(len(subsyst))
+        
+        lib.find_gravity_at_point(subsyst.x.value_in(units.m),
+                                  subsyst.y.value_in(units.m),
+                                  subsyst.z.value_in(units.m),
+                                  len(subsyst),
+                                  result_ax, result_ay, result_az,
+                                  parts.mass.value_in(units.kg),
+                                  parts.x.value_in(units.m),
+                                  parts.y.value_in(units.m),
+                                  parts.z.value_in(units.m),
+                                  len(parts),
+                                  )
+        
+        result_axm = np.zeros(len(subsyst))
+        result_aym = np.zeros(len(subsyst))
+        result_azm = np.zeros(len(subsyst))
+        
+        lib.find_gravity_at_point(np.asarray([parent.x.value_in(units.m)]),
+                                  np.asarray([parent.y.value_in(units.m)]),
+                                  np.asarray([parent.z.value_in(units.m)]),
+                                  1, result_axm, result_aym, result_azm,
+                                  parts.mass.value_in(units.kg),
+                                  parts.x.value_in(units.m),
+                                  parts.y.value_in(units.m),
+                                  parts.z.value_in(units.m),
+                                  len(parts),
+                                  )
+        
+        subsyst.ax += (result_ax - result_axm) * (1 | units.kg*units.m**-2) * constants.G
+        subsyst.ay += (result_ay - result_aym) * (1 | units.kg*units.m**-2) * constants.G
+        subsyst.az += (result_az - result_azm) * (1 | units.kg*units.m**-2) * constants.G
+        
+        return subsyst.ax, subsyst.ay, subsyst.az
