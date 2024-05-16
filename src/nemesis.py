@@ -16,6 +16,7 @@ from amuse.ext.orbital_elements import orbital_elements_from_binary
 from amuse.lab import write_set_to_file
 from amuse.units import units, constants
 
+from src.environment_functions import ejection_checker
 from src.environment_functions import set_parent_radius, planet_radius
 from src.environment_functions import natal_kick_pdf, ZAMS_radius
 from src.grav_correctors import CorrectionFromCompoundParticle
@@ -62,7 +63,10 @@ class Nemesis(object):
         self.timestep = None
         self.coll_dir = None
         self.min_mass_evol = None
-        self.weak_kicks = None
+        self.ejected_path = None
+        
+        self.no_ejec = 0
+        self.dt_step = 0
 
     def commit_particles(self, child_conv):
         """Commit particle system"""
@@ -167,6 +171,8 @@ class Nemesis(object):
                                   timestep/2.
                                   )
             self.split_subcodes()
+            ejected_idx = ejection_checker(self.particles.copy_to_memory())
+            self.ejection_remover(ejected_idx)
             
             if (self.star_evol):
                 stellar_time = self.stellar_code.model_time
@@ -215,7 +221,27 @@ class Nemesis(object):
                         newparent.radius = set_parent_radius(newparent.mass, self.dt)
                     
                 del code
-           
+               
+    def ejection_remover(self, ejected_idx):
+        """Output and remove ejected particles from system"""
+        for idx_ in ejected_idx:
+            self.no_ejec += 1
+            ejected_particle = self.particles[idx_]
+            
+            if ejected_particle in self.subcodes:
+                code = self.subcodes.pop(ejected_particle)
+                sys = self.particles.collection_attributes.subsystems[ejected_particle]
+                sys.ejec_id = self.no_ejec
+                del code
+            ejected_particle.ejec_id = self.no_ejec
+            
+            path = self.ejected_path+"/ejec#{:}_dt_{:}".format(self.no_ejec, self.dt_step)
+            write_set_to_file(self.particles.all().savepoint(0|units.Myr), path,
+                              'amuse', close_file=True, overwrite_file=True
+                              )
+            
+            self.particles.remove_particle(ejected_particle)
+    
     def parent_merger(self, coll_time, corr_time, coll_set):
         """Resolve the merging of two parent systems.
         Inputs:

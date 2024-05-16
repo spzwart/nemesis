@@ -1,3 +1,4 @@
+import ctypes
 import numpy as np
 from random import choices
 
@@ -6,6 +7,33 @@ from amuse.ext.galactic_potentials import MWpotentialBovy2015
 from amuse.ext.orbital_elements import orbital_elements_from_binary
 from amuse.units import units, constants
 
+
+def ejection_checker(particle_set):
+    """Find ejected systems"""
+    lib = ctypes.CDLL('./src/ejection.so')  # Adjust the path as necessary
+    lib.find_nearest_neighbour.argtypes = [
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # xcoord
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # ycoord
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # zcoord
+        ctypes.c_int,  # num_particles
+        ctypes.c_double,  # NN threshold distance
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # ejected bool
+    ]
+    
+    threshold = (3 | units.pc).value_in(units.m)
+    parts = particle_set.copy()
+    num_parts = len(parts)
+    
+    ejected_bools = np.zeros(len(parts))
+    lib.find_nearest_neighbour(parts.x.value_in(units.m),
+                               parts.y.value_in(units.m),
+                               parts.z.value_in(units.m),
+                               num_parts, threshold,
+                               ejected_bools
+                               )
+    ejected_idx = np.where(ejected_bools == 1)[0]
+    
+    return ejected_idx
 
 def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz):
     """Shift particle set to galactic frame
