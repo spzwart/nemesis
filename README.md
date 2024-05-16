@@ -10,6 +10,7 @@ Run python interface.py from root directory to execute code.
 - examples/: Folders with several examples initialising particles set to be run.
 
 To compile src/grav_kicks.cpp execute: g++ -shared -o src/gravity.so -g -fPIC src/grav_kicks.cpp
+To compile src/ejector_calc.cpp execute: g++ -shared -o src/ejection.so -g -fPIC src/ejector_calc.cpp
 
 Unless in branch 'one\_child\_system', children identified as particles with attribute syst\_id>0. Corresponding parents have the same syst_id value.
 
