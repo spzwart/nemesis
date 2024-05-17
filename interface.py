@@ -114,7 +114,6 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     nemesis.particles.add_particles(parents)
     nemesis.parents = parents.copy_to_memory()
     nemesis.commit_particles(conv_child)
-    nemesis.channel_makers()
     nemesis.coll_dir = coll_path
     nemesis.ejected_path = ejected_path
     
