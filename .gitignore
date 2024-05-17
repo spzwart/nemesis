@@ -163,7 +163,7 @@ cython_debug/
 examples/realistic_cluster/initial_particles/shuo_data_set/*
 examples/realistic_cluster/sim_data/*
 examples/realistic_cluster/initial_particles/data_files/*
-examples/realistic_cluster/z*
+examples/realistic_cluster/Nrun*
 examples/runaway_bh/data/*
 examples/runaway_bh/data_nosim/*
 examples/S-Stars/sim_data/*
