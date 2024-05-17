@@ -1,7 +1,7 @@
 import ctypes
 import numpy as np
 
-from amuse.lab import units, constants
+from amuse.lab import constants
 
 
 class CorrectionFromCompoundParticle(object):
@@ -22,6 +22,9 @@ class CorrectionFromCompoundParticle(object):
         """
         particles = self.particles.copy_to_memory()
         acc_units = (particles.vx.unit**2/particles.x.unit)
+        len_units = particles.x.unit
+        mas_units = particles.mass.unit
+        
         particles.ax = 0. | acc_units
         particles.ay = 0. | acc_units
         particles.az = 0. | acc_units
@@ -53,37 +56,39 @@ class CorrectionFromCompoundParticle(object):
             result_ay = np.zeros(len(parts))
             result_az = np.zeros(len(parts))
             
-            lib.find_gravity_at_point(system.mass.value_in(units.kg),
-                                      parts.x.value_in(units.m),
-                                      parts.y.value_in(units.m),
-                                      parts.z.value_in(units.m),
-                                      len(parts),
-                                      result_ax, result_ay, result_az,
-                                      system.x.value_in(units.m),
-                                      system.y.value_in(units.m),
-                                      system.z.value_in(units.m),
-                                      len(system),
-                                      )
+            lib.find_gravity_at_point(
+                system.mass.value_in(mas_units),
+                parts.x.value_in(len_units),
+                parts.y.value_in(len_units),
+                parts.z.value_in(len_units),
+                len(parts),
+                result_ax, result_ay, result_az,
+                system.x.value_in(len_units),
+                system.y.value_in(len_units),
+                system.z.value_in(len_units),
+                len(system)
+                )
             
             result_axm = np.zeros(len(parts))
             result_aym = np.zeros(len(parts))
             result_azm = np.zeros(len(parts))
             
-            lib.find_gravity_at_point(np.array([parent.mass.value_in(units.kg)]),
-                                      parts.x.value_in(units.m),
-                                      parts.y.value_in(units.m),
-                                      parts.z.value_in(units.m),
-                                      len(parts),
-                                      result_axm, result_aym, result_azm,
-                                      np.array([parent.x.value_in(units.m)]),
-                                      np.array([parent.y.value_in(units.m)]),
-                                      np.array([parent.z.value_in(units.m)]),
-                                      1
-                                      )
+            lib.find_gravity_at_point(
+                np.array([parent.mass.value_in(mas_units)]),
+                parts.x.value_in(len_units),
+                parts.y.value_in(len_units),
+                parts.z.value_in(len_units),
+                len(parts),
+                result_axm, result_aym, result_azm,
+                np.array([parent.x.value_in(len_units)]),
+                np.array([parent.y.value_in(len_units)]),
+                np.array([parent.z.value_in(len_units)]),
+                1
+                )
             
-            parts.ax += (result_ax - result_axm) * (1 | units.kg*units.m**-2) * constants.G
-            parts.ay += (result_ay - result_aym) * (1 | units.kg*units.m**-2) * constants.G
-            parts.az += (result_az - result_azm) * (1 | units.kg*units.m**-2) * constants.G
+            parts.ax += (result_ax - result_axm) * (1 | mas_units*len_units**-2) * constants.G
+            parts.ay += (result_ay - result_aym) * (1 | mas_units*len_units**-2) * constants.G
+            parts.az += (result_az - result_azm) * (1 | mas_units*len_units**-2) * constants.G
         return particles.ax, particles.ay, particles.az
   
 class CorrectionForCompoundParticle(object):  
@@ -107,9 +112,11 @@ class CorrectionForCompoundParticle(object):
         parts = self.particles - parent
         
         subsyst = self.system.copy_to_memory()
-        subsyst.position += parent.position
-        
         acc_units = (subsyst.vx.unit**2/subsyst.x.unit)
+        len_units = subsyst.x.unit
+        mas_units = subsyst.mass.unit
+        
+        subsyst.position += parent.position
         subsyst.ax = 0. | acc_units
         subsyst.ay = 0. | acc_units
         subsyst.az = 0. | acc_units
@@ -136,35 +143,37 @@ class CorrectionForCompoundParticle(object):
         result_ay = np.zeros(len(subsyst))
         result_az = np.zeros(len(subsyst))
         
-        lib.find_gravity_at_point(parts.mass.value_in(units.kg),
-                                  subsyst.x.value_in(units.m),
-                                  subsyst.y.value_in(units.m),
-                                  subsyst.z.value_in(units.m),
-                                  len(subsyst),
-                                  result_ax, result_ay, result_az,
-                                  parts.x.value_in(units.m),
-                                  parts.y.value_in(units.m),
-                                  parts.z.value_in(units.m),
-                                  len(parts),
-                                  )
+        lib.find_gravity_at_point(
+            parts.mass.value_in(mas_units),
+            subsyst.x.value_in(len_units),
+            subsyst.y.value_in(len_units),
+            subsyst.z.value_in(len_units),
+            len(subsyst),
+            result_ax, result_ay, result_az,
+            parts.x.value_in(len_units),
+            parts.y.value_in(len_units),
+            parts.z.value_in(len_units),
+            len(parts)
+            )
         
         result_axm = np.zeros(len(subsyst))
         result_aym = np.zeros(len(subsyst))
         result_azm = np.zeros(len(subsyst))
         
-        lib.find_gravity_at_point(parts.mass.value_in(units.kg),
-                                  np.asarray([parent.x.value_in(units.m)]),
-                                  np.asarray([parent.y.value_in(units.m)]),
-                                  np.asarray([parent.z.value_in(units.m)]),
-                                  1, result_axm, result_aym, result_azm,
-                                  parts.x.value_in(units.m),
-                                  parts.y.value_in(units.m),
-                                  parts.z.value_in(units.m),
-                                  len(parts),
-                                  )
+        lib.find_gravity_at_point(
+            parts.mass.value_in(mas_units),
+            np.asarray([parent.x.value_in(len_units)]),
+            np.asarray([parent.y.value_in(len_units)]),
+            np.asarray([parent.z.value_in(len_units)]),
+            1, result_axm, result_aym, result_azm,
+            parts.x.value_in(len_units),
+            parts.y.value_in(len_units),
+            parts.z.value_in(len_units),
+            len(parts)
+            )
         
-        subsyst.ax += (result_ax - result_axm) * (1 | units.kg*units.m**-2) * constants.G
-        subsyst.ay += (result_ay - result_aym) * (1 | units.kg*units.m**-2) * constants.G
-        subsyst.az += (result_az - result_azm) * (1 | units.kg*units.m**-2) * constants.G
+        subsyst.ax += (result_ax - result_axm) * (1 | mas_units*len_units**-2) * constants.G
+        subsyst.ay += (result_ay - result_aym) * (1 | mas_units*len_units**-2) * constants.G
+        subsyst.az += (result_az - result_azm) * (1 | mas_units*len_units**-2) * constants.G
         
         return subsyst.ax, subsyst.ay, subsyst.az

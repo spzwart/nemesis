@@ -52,7 +52,7 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     particle_set_dir = os.path.join(sim_dir, "initial_particles",
                                     "init_particle_set"
                                     )
-    particle_set = read_set_from_file(particle_set_dir)[:20]
+    particle_set = read_set_from_file(particle_set_dir)
     particle_set.coll_events = 0
     
     major_bodies = particle_set[particle_set.syst_id < 0]
@@ -75,7 +75,6 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                                         major_bodies.virial_radius()
                                         )
     dt = eta*tend
-    #dt = smaller_nbody_power_of_two(dt, conv_par)
     
     # Setting up parents
     nmajor = len(major_bodies)
@@ -106,9 +105,8 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     conv_child = nbody_system.nbody_to_si(np.mean(parents.mass), 
                                           np.mean(parents.radius)
                                           )
-    nemesis = Nemesis(conv_par, conv_child, 
-                      dt, code_dt, par_n_worker, 
-                      dE_track, star_evol, 
+    nemesis = Nemesis(conv_par, conv_child, dt, code_dt, 
+                      par_n_worker, dE_track, star_evol, 
                       gal_field
                       )
     nemesis.min_mass_evol = MIN_EVOL_MASS
@@ -137,9 +135,8 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     t = 0 | units.yr
     dt_iter = 0
     snapshot_no = 0
-    SNAP_PER_ITER = 1000
+    SNAP_PER_ITER = 100
     dt_snapshot = dt * SNAP_PER_ITER
-    
     while t < tend*(1-1e-12):
         t += dt
         nemesis.dt_step += 1
@@ -187,7 +184,7 @@ def run_simulation(sim_dir, tend, eta, code_dt,
              "Init No. major_bodies: {}".format(nmajor)
              ]
     with open(os.path.join(dir_path, 'simulation_stats', 
-              'simulation_stats_'+str(RUN_CHOICE)+'.txt'), 'w') as f:
+              'sim_stats_'+str(RUN_CHOICE)+'.txt'), 'w') as f:
         for line_ in lines:
             f.write(line_)
             f.write('\n')
@@ -203,7 +200,7 @@ if __name__ == "__main__":
         configurations = glob.glob(os.path.join(sim_dir, "sim_data", "*"))
         config_choice = natsorted(configurations)[config_idx]
         sim_dir = natsorted(glob.glob(config_choice))[run_idx]
-    print(sim_dir)
+    
     run_simulation(sim_dir=sim_dir, tend=100 | units.Myr, 
                    eta=1e-5, code_dt=0.03, 
                    par_n_worker=1, gal_field=True, 

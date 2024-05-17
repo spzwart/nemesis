@@ -106,7 +106,9 @@ class Nemesis(object):
                                     )
             gravity.add_system(self.parent_code, (self.MWG, ))
             gravity.timestep = self.timestep
-            self.grav_bridge = gravity
+            self.evolve_code = gravity
+        else:
+            self.evolve_code = self.parent_code
 
     def channel_makers(self):
         """Copy global code data to local particle set"""
@@ -173,7 +175,6 @@ class Nemesis(object):
             self.split_subcodes()
             ejected_idx = ejection_checker(self.particles.copy_to_memory())
             self.ejection_remover(ejected_idx)
-            
             if (self.star_evol):
                 stellar_time = self.stellar_code.model_time
                 self.stellar_evolution(stellar_time+timestep/2.)
@@ -311,6 +312,18 @@ class Nemesis(object):
         self.dEa += newcode.particles.potential_energy() \
                     + newcode.particles.kinetic_energy() \
                     + dE
+        
+        if (self.gal_field):
+            gravity = bridge.Bridge(use_threading=False,
+                                    method=SPLIT_4TH_S_M4
+                                    )
+            gravity.add_system(self.parent_code, (self.MWG, ))
+            gravity.timestep = self.timestep
+            self.evolve_code = gravity
+        else:
+            self.evolve_code = self.parent_code
+        while (True):
+            print("1")
         
         return newparent
         
@@ -505,18 +518,14 @@ class Nemesis(object):
     
     def drift_global(self, dt, corr_time):
         """Evolve parent system for dt"""
-        if (self.gal_field):
-          codes = [self.grav_bridge, self.parent_code]
-        else:
-          codes = [self.parent_code]
     
-        stopping_condition = codes[-1].stopping_conditions.collision_detection
+        stopping_condition = self.parent_code.stopping_conditions.collision_detection
         stopping_condition.enable()
-        while codes[0].model_time < dt*(1 - 1e-12):
-            codes[0].evolve_model(dt)
+        while self.evolve_code.model_time < dt*(1 - 1e-12):
+            self.evolve_code.evolve_model(dt)
             if stopping_condition.is_set():
                 print("!!! Parent Merger !!!")
-                coll_time = codes[0].model_time
+                coll_time = self.evolve_code.model_time
                 coll_sets = self.find_coll_sets(stopping_condition.particles(0), 
                                                 stopping_condition.particles(1)
                                                 )
