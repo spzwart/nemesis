@@ -322,8 +322,6 @@ class Nemesis(object):
             self.evolve_code = gravity
         else:
             self.evolve_code = self.parent_code
-        while (True):
-            print("1")
         
         return newparent
         
