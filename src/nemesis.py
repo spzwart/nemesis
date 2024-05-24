@@ -23,6 +23,7 @@ from src.grav_correctors import CorrectionFromCompoundParticle
 from src.grav_correctors import CorrectionForCompoundParticle
 from src.hierarchical_particles import HierarchicalParticles
 
+import time as cpu_time
 
 class Nemesis(object):
     def __init__(self, par_conv, child_conv, dt, 
@@ -100,16 +101,20 @@ class Nemesis(object):
             stellar_code.particles.add_particle(self.stars)
 
         if (self.gal_field):
-            self.MWG = MWpotentialBovy2015()
-            gravity = bridge.Bridge(use_threading=False,
-                                    method=SPLIT_4TH_S_M4
-                                    )
-            gravity.add_system(self.parent_code, (self.MWG, ))
-            gravity.timestep = self.timestep
-            self.evolve_code = gravity
+            self.setup_bridge()
         else:
             self.evolve_code = self.parent_code
 
+    def setup_bridge(self):
+        self.MWG = MWpotentialBovy2015()
+        gravity = bridge.Bridge(use_threading=False,
+                                method=SPLIT_4TH_S_M4
+                                )
+        gravity.add_system(self.parent_code, (self.MWG, ))
+        gravity.timestep = self.timestep
+        self.grav_bridge = gravity
+        self.evolve_code = self.grav_bridge
+    
     def stellar_worker(self):
         """Define stellar evolution integrator"""
         return SeBa()
@@ -157,33 +162,63 @@ class Nemesis(object):
             evolve_time = self.model_time
             self.dEa = 0 | units.J
             
+            t0 = cpu_time.time()
             if (self.star_evol):
                 self.stellar_evolution(self.model_time+timestep/2.)
                 self.star_channel_copier()
+            t1 = cpu_time.time()
+            print("Time taken for stellar: {:}".format(t1-t0))
+
+            t0 = cpu_time.time()
             self.correction_kicks(self.particles, 
                                   self.particles.collection_attributes.subsystems,
                                   timestep/2.
                                   )
+            t1 = cpu_time.time()
+            print("Time taken for kicks: {:}".format(t1-t0))
+
+            t0 = cpu_time.time()
             self.drift_global(self.model_time+timestep, 
                               self.model_time+timestep/2.
                               )
+            t1 = cpu_time.time()
+            print("Time taken for drift: {:}".format(t1-t0))
+
+            t0 = cpu_time.time()
             self.drift_child(evolve_time+timestep)
+            t1 = cpu_time.time()
+            print("Time taken for drift: {:}".format(t1-t0))
+
+            t0 = cpu_time.time()
             if (self.star_evol):
                 stellar_time = self.stellar_code.model_time
                 self.stellar_evolution(stellar_time+timestep/2.)
+            t1 = cpu_time.time()
+            print("Time taken for stellar: {:}".format(t1-t0))
+
+            t0 = cpu_time.time()
             self.correction_kicks(self.particles, 
                                   self.particles.collection_attributes.subsystems,
                                   timestep/2.
                                   )
+            t1 = cpu_time.time()
+            print("Time taken for kicks: {:}".format(t1-t0))
             
+            t0 = cpu_time.time()
             self.grav_channel_copier(self.parent_code.particles,
                                      self.particles,
                                      ["x","y","z","vx","vy","vz"]
                                      )
             
             self.split_subcodes()
+            t1 = cpu_time.time()
+            print("Time taken for splitting: {:}".format(t1-t0))
+
+            t0 = cpu_time.time()
             ejected_idx = ejection_checker(self.particles.copy_to_memory())
             self.ejection_remover(ejected_idx)
+            t1 = cpu_time.time()
+            print("Time taken for ejection: {:}".format(t1-t0))
 
     def split_subcodes(self):
         """Function tracking the dissolution of a parent system"""
@@ -320,16 +355,8 @@ class Nemesis(object):
         self.dEa += newcode.particles.potential_energy() \
                     + newcode.particles.kinetic_energy() \
                     + dE
-        
         if (self.gal_field):
-            gravity = bridge.Bridge(use_threading=False,
-                                    method=SPLIT_4TH_S_M4
-                                    )
-            gravity.add_system(self.parent_code, (self.MWG, ))
-            gravity.timestep = self.timestep
-            self.evolve_code = gravity
-        else:
-            self.evolve_code = self.parent_code
+            self.setup_bridge()
         
         return newparent
         
@@ -527,11 +554,15 @@ class Nemesis(object):
         """Evolve parent system for dt"""
         stopping_condition = self.parent_code.stopping_conditions.collision_detection
         stopping_condition.enable()
-        while self.evolve_code.model_time < dt*(1 - 1e-12):
+        while self.parent_code.model_time < dt*(1 - 1e-12):
+            print("Evolve code: ", self.evolve_code, self.evolve_code.model_time.in_(units.Myr), len(self.evolve_code.particles))
+            print("Parent code: ", self.parent_code, self.parent_code.model_time.in_(units.Myr), len(self.parent_code.particles))
             self.evolve_code.evolve_model(dt)
             if stopping_condition.is_set():
                 print("!!! Parent Merger !!!")
-                coll_time = self.evolve_code.model_time
+                print("Bridge time: ", self.evolve_code.model_time.in_(units.Myr))
+                print("Parent time: ", self.parent_code.model_time.in_(units.Myr))
+                coll_time = self.parent_code.model_time
                 coll_sets = self.find_coll_sets(stopping_condition.particles(0), 
                                                 stopping_condition.particles(1)
                                                 )

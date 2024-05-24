@@ -59,6 +59,11 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     for system_id in np.unique(particle_set.syst_id):
         if system_id > -1:
             system = particle_set[particle_set.syst_id == system_id]
+            if system_id == np.max(particle_set.syst_id):
+                system.position = particle_set[0].position + (100 | units.AU)
+            #elif system_id == np.max(particle_set.syst_id)-1:
+            #    system.position = particle_set[3].position + (1500 | units.AU)
+
             hosting_body = system[system.mass == max(system.mass)]
             major_bodies += hosting_body
         
@@ -202,6 +207,6 @@ if __name__ == "__main__":
     
     run_simulation(sim_dir=sim_dir, tend=100 | units.Myr, 
                    eta=1e-5, code_dt=0.03, 
-                   par_n_worker=1, gal_field=True, 
+                   par_n_worker=1, gal_field=False, 
                    dE_track=False, star_evol=True,
                    )
