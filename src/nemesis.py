@@ -269,19 +269,18 @@ class Nemesis(object):
             self.no_ejec += 1
             ejected_particle = self.particles[idx_]
             
+            path = self.ejected_path+"/ejec#{:}_dt_{:}".format(self.no_ejec, self.dt_step)
             if ejected_particle in self.subcodes:
                 code = self.subcodes.pop(ejected_particle)
                 sys = self.particles.collection_attributes.subsystems[ejected_particle]
-                sys.ejec_id = self.no_ejec
+                
+                write_set_to_file(sys.savepoint(0|units.Myr), path,
+                                  'amuse', close_file=True, overwrite_file=True
+                                  )
                 del code
-            ejected_particle.ejec_id = self.no_ejec
-            
-            path = self.ejected_path+"/ejec#{:}_dt_{:}".format(self.no_ejec, self.dt_step)
-            write_set_to_file(self.particles.all().savepoint(0|units.Myr), path,
-                              'amuse', close_file=True, overwrite_file=True
-                              )
             
             self.particles.remove_particle(ejected_particle)
+        print("# Removed Particles: ", len(ejected_idx))
     
     def parent_merger(self, coll_time, corr_time, coll_set):
         """Resolve the merging of two parent systems.

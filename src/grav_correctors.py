@@ -47,6 +47,7 @@ class CorrectionFromCompoundParticle(object):
         lib.find_gravity_at_point.restype = None
         for parent, sys in list(self.subsystems.items()):
             system = sys.copy_to_memory()
+            system = system[system.mass != (0 | units.kg)]
             system.position += parent.position
             
             parts = particles - parent
@@ -108,6 +109,7 @@ class CorrectionForCompoundParticle(object):
         """
         parent = self.parent
         parts = self.particles - parent
+        parts = parts[parts.mass != (0 | units.kg)]
         
         subsyst = self.system.copy_to_memory()
         acc_units = (subsyst.vx.unit**2/subsyst.x.unit)
