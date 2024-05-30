@@ -2,4 +2,3 @@ os
 numpy
 natsort
 tables
-pandas

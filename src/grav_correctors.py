@@ -4,6 +4,95 @@ import numpy as np
 from amuse.lab import constants, units
 
 
+def load_gravity_library():
+    """Setup library to allow Python and C++ communication"""
+    lib = ctypes.CDLL('./src/gravity.so')  # Adjust the path as necessary
+    lib.find_gravity_at_point.argtypes = [
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_mass
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_x
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_y
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_z
+        ctypes.c_int,  # num_particles
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_ax
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_ay
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_az
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_x
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_y
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_z
+        ctypes.c_int   # num_points
+    ]
+    lib.find_gravity_at_point.restype = None
+    return lib
+
+def system_to_cluster_frame(system, parent):
+    """Shift system particles coordinates to the parent"""
+    system = system.copy_to_memory()
+    system.position += parent.position
+    return system
+
+def compute_gravity(grav_lib, perturbers, particles, mode):
+    """Compute gravitational force felt by perturbers particle due to externals
+    Inputs:
+    perturbers:  Set of perturbing particles
+    particles:  Set of particles feeling force
+    mode: Mode for array configuration 
+        mode = 0: Multiple perturbers and particles
+        mode = 1: One perturbers and multiple particles
+        mode = 2: Multiple perturbers and one particle
+    """
+    if mode == 0:
+        result_ax = np.zeros(len(particles))
+        result_ay = np.zeros(len(particles))
+        result_az = np.zeros(len(particles))
+        
+        grav_lib.find_gravity_at_point(
+            perturbers.mass.value_in(units.kg),
+            particles.x.value_in(units.m),
+            particles.y.value_in(units.m),
+            particles.z.value_in(units.m),
+            len(particles),
+            result_ax, result_ay, result_az,
+            perturbers.x.value_in(units.m),
+            perturbers.y.value_in(units.m),
+            perturbers.z.value_in(units.m),
+            len(perturbers)
+            )
+    elif mode == 1:
+        result_ax = np.zeros(len(particles))
+        result_ay = np.zeros(len(particles))
+        result_az = np.zeros(len(particles))
+        
+        grav_lib.find_gravity_at_point(
+            np.array([perturbers.mass.value_in(units.kg)]),
+            particles.x.value_in(units.m),
+            particles.y.value_in(units.m),
+            particles.z.value_in(units.m),
+            len(particles),
+            result_ax, result_ay, result_az,
+            np.array([perturbers.x.value_in(units.m)]),
+            np.array([perturbers.y.value_in(units.m)]),
+            np.array([perturbers.z.value_in(units.m)]),
+            1
+            )
+    else:
+        result_ax = np.zeros(1)
+        result_ay = np.zeros(1)
+        result_az = np.zeros(1)
+        
+        grav_lib.find_gravity_at_point(
+            perturbers.mass.value_in(units.kg),
+            np.asarray([particles.x.value_in(units.m)]),
+            np.asarray([particles.y.value_in(units.m)]),
+            np.asarray([particles.z.value_in(units.m)]),
+            1,
+            result_ax, result_ay, result_az,
+            perturbers.x.value_in(units.m),
+            perturbers.y.value_in(units.m),
+            perturbers.z.value_in(units.m),
+            len(perturbers)
+            )
+    return result_ax, result_ay, result_az
+    
 class CorrectionFromCompoundParticle(object):
     def __init__(self, particles, subsystems):
         """Correct force vector exerted by parents on all 
@@ -27,67 +116,19 @@ class CorrectionFromCompoundParticle(object):
         particles.ay = 0. | acc_units
         particles.az = 0. | acc_units
         
-        # Load the shared library
-        lib = ctypes.CDLL('./src/gravity.so')  # Adjust the path as necessary
-        lib.find_gravity_at_point.argtypes = [
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_mass
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_x
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_y
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_z
-            ctypes.c_int,  # num_particles
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_ax
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_ay
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_az
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_x
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_y
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_z
-            ctypes.c_int   # num_points
-        ]
-        
-        lib.find_gravity_at_point.restype = None
+        lib = load_gravity_library()
         for parent, sys in list(self.subsystems.items()):
             system = sys.copy_to_memory()
-            system = system[system.mass != (0 | units.kg)]
-            system.position += parent.position
+            system = system_to_cluster_frame(system, parent)
             
             parts = particles - parent
-            result_ax = np.zeros(len(parts))
-            result_ay = np.zeros(len(parts))
-            result_az = np.zeros(len(parts))
+            ax_chd, ay_chd, az_chd = compute_gravity(lib, system, parts, mode=0)
+            ax_par, ay_par, az_par = compute_gravity(lib, parent, parts, mode=1)
             
-            lib.find_gravity_at_point(
-                system.mass.value_in(units.kg),
-                parts.x.value_in(units.m),
-                parts.y.value_in(units.m),
-                parts.z.value_in(units.m),
-                len(parts),
-                result_ax, result_ay, result_az,
-                system.x.value_in(units.m),
-                system.y.value_in(units.m),
-                system.z.value_in(units.m),
-                len(system)
-                )
+            parts.ax += (ax_chd - ax_par) * (1 | units.kg*units.m**-2) * constants.G
+            parts.ay += (ay_chd - ay_par) * (1 | units.kg*units.m**-2) * constants.G
+            parts.az += (az_chd - az_par) * (1 | units.kg*units.m**-2) * constants.G
             
-            result_axm = np.zeros(len(parts))
-            result_aym = np.zeros(len(parts))
-            result_azm = np.zeros(len(parts))
-            
-            lib.find_gravity_at_point(
-                np.array([parent.mass.value_in(units.kg)]),
-                parts.x.value_in(units.m),
-                parts.y.value_in(units.m),
-                parts.z.value_in(units.m),
-                len(parts),
-                result_axm, result_aym, result_azm,
-                np.array([parent.x.value_in(units.m)]),
-                np.array([parent.y.value_in(units.m)]),
-                np.array([parent.z.value_in(units.m)]),
-                1
-                )
-            
-            parts.ax += (result_ax - result_axm) * (1 | units.kg*units.m**-2) * constants.G
-            parts.ay += (result_ay - result_aym) * (1 | units.kg*units.m**-2) * constants.G
-            parts.az += (result_az - result_azm) * (1 | units.kg*units.m**-2) * constants.G
         return particles.ax, particles.ay, particles.az
   
 class CorrectionForCompoundParticle(object):  
@@ -109,69 +150,53 @@ class CorrectionForCompoundParticle(object):
         """
         parent = self.parent
         parts = self.particles - parent
-        parts = parts[parts.mass != (0 | units.kg)]
+        parts = parts[parts.mass != (0 | units.kg)]  # Test particles exert no force
         
-        subsyst = self.system.copy_to_memory()
-        acc_units = (subsyst.vx.unit**2/subsyst.x.unit)
+        system = self.system.copy_to_memory()
+        system = system_to_cluster_frame(system, parent)
+        acc_units = (system.vx.unit**2/system.x.unit)
         
-        subsyst.position += parent.position
-        subsyst.ax = 0. | acc_units
-        subsyst.ay = 0. | acc_units
-        subsyst.az = 0. | acc_units
+        system.ax = 0. | acc_units
+        system.ay = 0. | acc_units
+        system.az = 0. | acc_units
         
-        # Load the shared library
-        lib = ctypes.CDLL('./src/gravity.so')  # Adjust the path as necessary
-        lib.find_gravity_at_point.argtypes = [
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_mass
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_x
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_y
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_z
-            ctypes.c_int,  # num_particles
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_ax
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_ay
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_az
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_x
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_y
-            np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_z
-            ctypes.c_int   # num_points
-        ]
-        lib.find_gravity_at_point.restype = None
-            
-        result_ax = np.zeros(len(subsyst))
-        result_ay = np.zeros(len(subsyst))
-        result_az = np.zeros(len(subsyst))
+        lib = load_gravity_library()
         
-        lib.find_gravity_at_point(
-            parts.mass.value_in(units.kg),
-            subsyst.x.value_in(units.m),
-            subsyst.y.value_in(units.m),
-            subsyst.z.value_in(units.m),
-            len(subsyst),
-            result_ax, result_ay, result_az,
-            parts.x.value_in(units.m),
-            parts.y.value_in(units.m),
-            parts.z.value_in(units.m),
-            len(parts)
-            )
+        ax_chd, ay_chd, az_chd = compute_gravity(lib, parts, system, mode=0)
+        ax_par, ay_par, az_par = compute_gravity(lib, parts, parent, mode=2)
         
-        result_axm = np.zeros(len(subsyst))
-        result_aym = np.zeros(len(subsyst))
-        result_azm = np.zeros(len(subsyst))
+        system.ax += (ax_chd - ax_par) * (1 | units.kg*units.m**-2) * constants.G
+        system.ay += (ay_chd - ay_par) * (1 | units.kg*units.m**-2) * constants.G
+        system.az += (az_chd - az_par) * (1 | units.kg*units.m**-2) * constants.G
         
-        lib.find_gravity_at_point(
-            parts.mass.value_in(units.kg),
-            np.asarray([parent.x.value_in(units.m)]),
-            np.asarray([parent.y.value_in(units.m)]),
-            np.asarray([parent.z.value_in(units.m)]),
-            1, result_axm, result_aym, result_azm,
-            parts.x.value_in(units.m),
-            parts.y.value_in(units.m),
-            parts.z.value_in(units.m),
-            len(parts)
-            )
+        return system.ax, system.ay, system.az
+    
+class KickTestParticles(object):
+    def __init__(self, particles):
+        """Calculate gravitational field for test particles"""
+        particles = particles.copy_to_memory()
+        self.perturbers = particles[particles.mass != (0|units.kg)]
+        self.test_particles = particles - self.perturbers
+    
+    def get_gravity_at_point(self,radius,x,y,z):
+        """Compute gravitational acceleration felt by children via 
+        all other parents present in the simulation.
+        dF_j = F_{i} - F_{j} where i is parent and j is children of parent i
+        """
+        acc_units = (self.test_particles.vx.unit**2/self.test_particles.x.unit)
         
-        subsyst.ax += (result_ax - result_axm) * (1 | units.kg*units.m**-2) * constants.G
-        subsyst.ay += (result_ay - result_aym) * (1 | units.kg*units.m**-2) * constants.G
-        subsyst.az += (result_az - result_azm) * (1 | units.kg*units.m**-2) * constants.G
+        self.test_particles.ax = 0. | acc_units
+        self.test_particles.ay = 0. | acc_units
+        self.test_particles.az = 0. | acc_units
         
-        return subsyst.ax, subsyst.ay, subsyst.az
+        lib = load_gravity_library()
+        
+        ax, ay, az = compute_gravity(lib, self.perturbers, 
+                                     self.test_particles, mode=0
+                                     )
+        
+        self.test_particles.ax = ax * (1 | units.kg*units.m**-2) * constants.G
+        self.test_particles.ay = ay * (1 | units.kg*units.m**-2) * constants.G
+        self.test_particles.az = az * (1 | units.kg*units.m**-2) * constants.G
+        
+        return self.test_particles.ax, self.test_particles.ay, self.test_particles.az

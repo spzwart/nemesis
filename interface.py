@@ -2,7 +2,6 @@ import glob
 from natsort import natsorted
 import numpy as np
 import os
-import pandas as pd
 import time as cpu_time
 
 from amuse.lab import Particles, read_set_from_file, write_set_to_file
@@ -55,17 +54,19 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     particle_set = read_set_from_file(particle_set_dir)
     particle_set.coll_events = 0
     
-    major_bodies = particle_set[particle_set.syst_id < 0]
+    major_bodies = particle_set[(particle_set.syst_id < 0) 
+                                & (particle_set.mass != (0 | units.kg))
+                                ]
     for system_id in np.unique(particle_set.syst_id):
         if system_id > -1:
             system = particle_set[particle_set.syst_id == system_id]
-            if system_id == np.max(particle_set.syst_id):
-                system.position = particle_set[0].position + (100 | units.AU)
-            #elif system_id == np.max(particle_set.syst_id)-1:
-            #    system.position = particle_set[3].position + (1500 | units.AU)
 
             hosting_body = system[system.mass == max(system.mass)]
             major_bodies += hosting_body
+            
+    test_particles = particle_set[(particle_set.syst_id < 0) 
+                                & (particle_set.mass == (0 | units.kg))
+                                ]
         
     if (gal_field):
         particle_set = galactic_frame(particle_set, 
@@ -117,10 +118,10 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     nemesis.min_mass_evol = MIN_EVOL_MASS
     nemesis.timestep = dt
     nemesis.particles.add_particles(parents)
-    nemesis.parents = parents.copy_to_memory()
     nemesis.commit_particles(conv_child)
     nemesis.coll_dir = coll_path
     nemesis.ejected_path = ejected_path
+    nemesis.test_particles = test_particles
     
     if (dE_track):
         E0_all = nemesis.energy_track

@@ -44,6 +44,7 @@ class Nemesis(object):
         self.code_timestep = code_dt
         self.par_nworker = par_nworker
         self.star_evol = star_evol
+        self.test_particles = None
       
         self.parent_code = self.parent_worker(par_conv)
         self.subsys_code = self.sub_worker
@@ -187,7 +188,7 @@ class Nemesis(object):
             t0 = cpu_time.time()
             self.drift_child(evolve_time+timestep)
             t1 = cpu_time.time()
-            print("Time taken for drift: {:}".format(t1-t0))
+            print("Time taken for children: {:}".format(t1-t0))
 
             t0 = cpu_time.time()
             if (self.star_evol):
@@ -380,15 +381,18 @@ class Nemesis(object):
                     code.evolve_model(coll_time-offset)
                     if stopping_condition.is_set():
                         coll_time = code.model_time
-                        coll_sets = Particles(particles=[stopping_condition.particles(0), 
-                                                         stopping_condition.particles(1)
-                                                        ]
-                                              )
+                        coll_sets = self.find_coll_sets(stopping_condition.particles(0),
+                                                        stopping_condition.particles(1)
+                                                        )
+                        for cs in coll_sets:
+                            colliding_particles = Particles()
+                            for p in cs:
+                                colliding_particles.add_particle(p)
+                            newparent = self.handle_collision(subsystems[parti_], 
+                                                            parti_, coll_sets, 
+                                                            coll_time, code
+                                                            )
                         collsubset.remove_particle(parti_)
-                        newparent = self.handle_collision(subsystems[parti_], 
-                                                          parti_, coll_sets, 
-                                                          coll_time, code
-                                                          )
                         collsubset.add_particle(newparent)
                         subsystems = self.particles.collection_attributes.subsystems
         for parti_ in collsubset:              
