@@ -95,7 +95,7 @@ def setup_cluster(stellar_pop, cluster_type, virial_radius, virial_ratio):
     
     particle_set = Particles()
     nsyst = 0
-    for host in bodies[abs(bodies.mass-SUN_MASS) < MASS_TOLERANCE]:
+    for host in bodies:
         nsyst += 1
         host.mass = 1 | units.MSun
         host.radius = ZAMS_radius(host.mass)
@@ -107,12 +107,13 @@ def setup_cluster(stellar_pop, cluster_type, virial_radius, virial_ratio):
     bodies.scale_to_standard(convert_nbody=converter, virial_ratio=virial_ratio)
     for host in bodies[bodies.syst_id >= 0]:
         planets = solarsystem.new_solar_system()
+        print(host.syst_id)
         orb_planets = planets[3:-1]
         orb_planets.type = "PLANET"
         orb_planets.syst_id = host.syst_id
         particle_set.add_particle(orb_planets)
         
-        local_converter = nbody_system.nbody_to_si(host.mass, 1|units.au)
+        """local_converter = nbody_system.nbody_to_si(host.mass, 1|units.au)
         asteroids = ProtoPlanetaryDisk(NUM_ASTEROID, densitypower=1.5, 
                                        Rmin=1, Rmax=100, q_out=1, 
                                        discfraction=0.01,
@@ -122,7 +123,7 @@ def setup_cluster(stellar_pop, cluster_type, virial_radius, virial_ratio):
         asteroids.syst_id = host.syst_id
         asteroids.mass = 0 | units.MSun
         asteroids.radius = 10 | units.km
-        particle_set.add_particle(asteroids)
+        particle_set.add_particle(asteroids)"""
 
         # Rotate system
         phi = np.radians(random.uniform(0.0, 90.0))
@@ -156,7 +157,7 @@ def setup_cluster(stellar_pop, cluster_type, virial_radius, virial_ratio):
     isol = bodies[bodies.syst_id == -1]
     isol.radius = ZAMS_radius(isol.mass)
     particle_set.add_particles(isol)
-    if nsyst == 10:
+    if nsyst > 1000:
         print("!!! SAVING !!!")
         output_dir = os.path.join(initial_set_dir, "run_"+str(N_CONFIG))
         write_set_to_file(particle_set, output_dir, "amuse", 
@@ -175,7 +176,7 @@ Nstars = [100, 1000]
 succesful_conds = 0
 while succesful_conds < 10:
     print("...Attempt...")
-    nsyst = setup_cluster(stellar_pop=Nstars[0],
+    nsyst = setup_cluster(stellar_pop=Nstars[1],
                           cluster_type=cluster_type[1], 
                           virial_radius=Rvir[0],
                           virial_ratio=Ratio_vir[0]

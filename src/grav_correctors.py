@@ -1,6 +1,7 @@
 import ctypes
 import numpy as np
 
+from amuse.couple.bridge import CalculateFieldForParticles
 from amuse.lab import constants, units
 
 
@@ -8,17 +9,17 @@ def load_gravity_library():
     """Setup library to allow Python and C++ communication"""
     lib = ctypes.CDLL('./src/gravity.so')  # Adjust the path as necessary
     lib.find_gravity_at_point.argtypes = [
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_mass
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_x
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_y
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # comp_z
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # Target mass
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # Target x
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # Target y
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # Target z
         ctypes.c_int,  # num_particles
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_ax
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_ay
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # res_az
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_x
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_y
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # int_z
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # Others ax
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # Others ay
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # Others az
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # Target x
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # Target y
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # Target z
         ctypes.c_int   # num_points
     ]
     lib.find_gravity_at_point.restype = None
@@ -36,9 +37,9 @@ def compute_gravity(grav_lib, perturbers, particles, mode):
     perturbers:  Set of perturbing particles
     particles:  Set of particles feeling force
     mode: Mode for array configuration 
-        mode = 0: Multiple perturbers and particles
-        mode = 1: One perturbers and multiple particles
-        mode = 2: Multiple perturbers and one particle
+          mode = 0: Multiple perturbers and particles
+          mode = 1: One perturbers and multiple particles
+          mode = 2: Multiple perturbers and one particle
     """
     if mode == 0:
         result_ax = np.zeros(len(particles))
@@ -56,7 +57,8 @@ def compute_gravity(grav_lib, perturbers, particles, mode):
             perturbers.y.value_in(units.m),
             perturbers.z.value_in(units.m),
             len(perturbers)
-            )
+        )
+        
     elif mode == 1:
         result_ax = np.zeros(len(particles))
         result_ay = np.zeros(len(particles))
@@ -73,7 +75,7 @@ def compute_gravity(grav_lib, perturbers, particles, mode):
             np.array([perturbers.y.value_in(units.m)]),
             np.array([perturbers.z.value_in(units.m)]),
             1
-            )
+        )
     else:
         result_ax = np.zeros(1)
         result_ay = np.zeros(1)
@@ -90,7 +92,7 @@ def compute_gravity(grav_lib, perturbers, particles, mode):
             perturbers.y.value_in(units.m),
             perturbers.z.value_in(units.m),
             len(perturbers)
-            )
+        )
     return result_ax, result_ay, result_az
     
 class CorrectionFromCompoundParticle(object):
@@ -130,6 +132,35 @@ class CorrectionFromCompoundParticle(object):
             parts.az += (az_chd - az_par) * (1 | units.kg*units.m**-2) * constants.G
             
         return particles.ax, particles.ay, particles.az
+    
+    def get_potential_at_point(self, radius, x, y, z):
+        particles = self.particles.copy_to_memory()
+        particles.phi = 0. | (particles.vx.unit**2)
+        for parent,sys in list(self.subsystems.items()): 
+            code = CalculateFieldForParticles(gravity_constant = constants.G)
+            code.particles.add_particles(sys.copy())
+            code.particles.position += parent.position
+            code.particles.velocity += parent.velocity
+            parts = particles - parent
+            phi = code.get_potential_at_point(0.*parts.radius, 
+                                              parts.x, 
+                                              parts.y, 
+                                              parts.z
+                                              )
+            parts.phi += phi
+            code.cleanup_code()
+            
+            code = CalculateFieldForParticles(gravity_constant = constants.G)
+            code.particles.add_particle(parent)
+            phi=code.get_potential_at_point(0.*parts.radius,
+                                            parts.x,
+                                            parts.y,
+                                            parts.z
+                                            )
+            parts.phi -= phi
+            code.cleanup_code()
+            
+        return particles.phi
   
 class CorrectionForCompoundParticle(object):  
     def __init__(self, particles, parent, system):
@@ -171,32 +202,21 @@ class CorrectionForCompoundParticle(object):
         
         return system.ax, system.ay, system.az
     
-class KickTestParticles(object):
-    def __init__(self, particles):
-        """Calculate gravitational field for test particles"""
-        particles = particles.copy_to_memory()
-        self.perturbers = particles[particles.mass != (0|units.kg)]
-        self.test_particles = particles - self.perturbers
     
-    def get_gravity_at_point(self,radius,x,y,z):
-        """Compute gravitational acceleration felt by children via 
-        all other parents present in the simulation.
-        dF_j = F_{i} - F_{j} where i is parent and j is children of parent i
-        """
-        acc_units = (self.test_particles.vx.unit**2/self.test_particles.x.unit)
-        
-        self.test_particles.ax = 0. | acc_units
-        self.test_particles.ay = 0. | acc_units
-        self.test_particles.az = 0. | acc_units
-        
-        lib = load_gravity_library()
-        
-        ax, ay, az = compute_gravity(lib, self.perturbers, 
-                                     self.test_particles, mode=0
-                                     )
-        
-        self.test_particles.ax = ax * (1 | units.kg*units.m**-2) * constants.G
-        self.test_particles.ay = ay * (1 | units.kg*units.m**-2) * constants.G
-        self.test_particles.az = az * (1 | units.kg*units.m**-2) * constants.G
-        
-        return self.test_particles.ax, self.test_particles.ay, self.test_particles.az
+    def get_potential_at_point(self,radius,x,y,z):
+        parent = self.parent
+        parts = self.system - parent
+        instance = CalculateFieldForParticles(gravity_constant = constants.G)
+        instance.particles.add_particles(parts)
+        phi = instance.get_potential_at_point(0.*radius,
+                                              parent.x + x,
+                                              parent.y + y,
+                                              parent.z + z
+                                              )
+        _phi = instance.get_potential_at_point([0.*parent.radius],
+                                               [parent.x],
+                                               [parent.y],
+                                               [parent.z]
+                                               )
+        instance.cleanup_code()
+        return (phi-_phi[0])

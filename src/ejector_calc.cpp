@@ -14,13 +14,10 @@ extern "C" {
                     double dz = z[i] - z[j];
                     double dr = dx*dx + dy*dy + dz*dz;
                     double dist = std::sqrt(dr);
-
                     min_dist = std::min(min_dist, dist);
                 }
             }
-            if (min_dist > distance){
-                ejected_bools[j] = 1;
-            }
+            ejected_bools[j] = (min_dist > distance) ? 1 : 0;
         }
     }
 }

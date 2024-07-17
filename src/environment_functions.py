@@ -7,6 +7,11 @@ from amuse.ext.galactic_potentials import MWpotentialBovy2015
 from amuse.ext.orbital_elements import orbital_elements_from_binary
 from amuse.units import units, constants
 
+DIST_THRESHOLD = 3 | units.pc
+SN_MEAN_VEL = 250 
+SN_STD_VEL = 190
+MWG = MWpotentialBovy2015()
+VELOCITY_RANGE = np.linspace(0, 3000, 1000)
 
 def ejection_checker(particle_set):
     """Find ejected systems"""
@@ -18,9 +23,9 @@ def ejection_checker(particle_set):
         ctypes.c_int,  # num_particles
         ctypes.c_double,  # NN threshold distance
         np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # ejected bool
-        ]
+    ]
     
-    threshold = (3 | units.pc).value_in(units.m)
+    threshold = DIST_THRESHOLD.value_in(units.m)
     parts = particle_set.copy()
     num_parts = len(parts)
     
@@ -73,12 +78,9 @@ def planet_radius(planet_mass):
 
 def natal_kick_pdf():
     """Extract natal kick of SN event"""
-    meanV = 250 
-    sigmaV = 190
-    
     # PDF of SN kicks: arXiv:708071
-    weight = np.sqrt(2/np.pi) * (meanV**2/sigmaV**3) \
-             * np.exp(-VELOCITY_RANGE**2/(2*sigmaV**2))
+    weight = np.sqrt(2/np.pi) * (SN_MEAN_VEL**2/SN_STD_VEL**3) \
+             * np.exp(-VELOCITY_RANGE**2/(2*SN_STD_VEL**2))
     
     r = [-1,1]
     scalex = np.random.choice(r) | units.kms
@@ -113,6 +115,3 @@ def ZAMS_radius(star_mass):
     mass_sq = (mass_in_sun)**2
     r_zams = mass_in_sun**1.25*(0.1148+0.8604*mass_sq)/(0.04651+mass_sq)
     return r_zams | units.RSun
-
-MWG = MWpotentialBovy2015()
-VELOCITY_RANGE = np.linspace(0, 3000, 1000)
