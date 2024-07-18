@@ -4,11 +4,11 @@ from amuse.datamodel import Particle, ParticlesOverlay
 
 class HierarchicalParticles(ParticlesOverlay):
     """Class to make particle set"""
-    def __init__(self, *args,**kwargs):
+    def __init__(self, *args, **kwargs):
         ParticlesOverlay.__init__(self,*args,**kwargs)
         self.collection_attributes.subsystems = dict()
 
-    def add_particles(self,parts):  
+    def add_particles(self, parts):  
         """Add particles to particle set."""
         _parts=ParticlesOverlay.add_particles(self,parts)
         if hasattr(parts.collection_attributes,"subsystems"):
@@ -21,15 +21,15 @@ class HierarchicalParticles(ParticlesOverlay):
         if len(sys) == 1:
             return self.add_particles(sys)[0]
         p = Particle()
-        self.assign_parent_attributes(sys, p, relative=False, 
-                                      recenter=recenter
-                                      )
+        self.assign_parent_attributes(
+            sys, p, relative=False, 
+            recenter=recenter
+        )
         parent = self.add_particle(p)
         self.collection_attributes.subsystems[parent] = sys
         return parent
 
-    def assign_parent_attributes(self, sys, parent, relative=True, 
-                                 recenter=True):
+    def assign_parent_attributes(self, sys, parent, relative=True, recenter=True):
         """Create parent from subsystem attributes."""
         parent.mass = np.sum(sys.mass)
         if not (relative):
@@ -40,8 +40,7 @@ class HierarchicalParticles(ParticlesOverlay):
             parent.velocity += sys.center_of_mass_velocity()
             sys.move_to_center()
     
-    def assign_subsystem(self, sys, parent, relative=True, 
-                         recenter=True):
+    def assign_subsystem(self, sys, parent, relative=True, recenter=True):
         """Assign children to their parent particle."""
         self.assign_parent_attributes(sys, parent, relative, recenter)
         self.collection_attributes.subsystems[parent] = sys

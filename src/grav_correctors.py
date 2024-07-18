@@ -34,6 +34,7 @@ def system_to_cluster_frame(system, parent):
 def compute_gravity(grav_lib, perturbers, particles, mode):
     """Compute gravitational force felt by perturbers particle due to externals
     Inputs:
+    grav_lib: Library communicating between Python and C++
     perturbers:  Set of perturbing particles
     particles:  Set of particles feeling force
     mode: Mode for array configuration 
@@ -137,7 +138,7 @@ class CorrectionFromCompoundParticle(object):
         particles = self.particles.copy_to_memory()
         particles.phi = 0. | (particles.vx.unit**2)
         for parent,sys in list(self.subsystems.items()): 
-            code = CalculateFieldForParticles(gravity_constant = constants.G)
+            code = CalculateFieldForParticles(gravity_constant=constants.G)
             code.particles.add_particles(sys.copy())
             code.particles.position += parent.position
             code.particles.velocity += parent.velocity
@@ -150,13 +151,13 @@ class CorrectionFromCompoundParticle(object):
             parts.phi += phi
             code.cleanup_code()
             
-            code = CalculateFieldForParticles(gravity_constant = constants.G)
+            code = CalculateFieldForParticles(gravity_constant=constants.G)
             code.particles.add_particle(parent)
-            phi=code.get_potential_at_point(0.*parts.radius,
-                                            parts.x,
-                                            parts.y,
-                                            parts.z
-                                            )
+            phi = code.get_potential_at_point(0.*parts.radius,
+                                             parts.x,
+                                             parts.y,
+                                             parts.z
+                                             )
             parts.phi -= phi
             code.cleanup_code()
             
@@ -174,7 +175,7 @@ class CorrectionForCompoundParticle(object):
         self.parent = parent
         self.system = system
     
-    def get_gravity_at_point(self,radius,x,y,z):
+    def get_gravity_at_point(self, radius, x, y, z):
         """Compute gravitational acceleration felt by children via 
         all other parents present in the simulation.
         dF_j = F_{i} - F_{j} where i is parent and j is children of parent i
@@ -192,7 +193,6 @@ class CorrectionForCompoundParticle(object):
         system.az = 0. | acc_units
         
         lib = load_gravity_library()
-        
         ax_chd, ay_chd, az_chd = compute_gravity(lib, parts, system, mode=0)
         ax_par, ay_par, az_par = compute_gravity(lib, parts, parent, mode=2)
         
@@ -201,12 +201,11 @@ class CorrectionForCompoundParticle(object):
         system.az += (az_chd - az_par) * (1 | units.kg*units.m**-2) * constants.G
         
         return system.ax, system.ay, system.az
-    
-    
+      
     def get_potential_at_point(self,radius,x,y,z):
         parent = self.parent
         parts = self.system - parent
-        instance = CalculateFieldForParticles(gravity_constant = constants.G)
+        instance = CalculateFieldForParticles(gravity_constant=constants.G)
         instance.particles.add_particles(parts)
         phi = instance.get_potential_at_point(0.*radius,
                                               parent.x + x,

@@ -63,11 +63,9 @@ class Nemesis(object):
         self.min_mass_evol = None
         self.coll_dir = None
         self.ejected_dir = None
-        
+        self.E0 = None
         self.no_ejec = 0
         self.dt_step = 0
-        
-        self.E0 = None
 
     def commit_particles(self, child_conv):
         """Commit particle system"""
@@ -106,6 +104,7 @@ class Nemesis(object):
             self.evolve_code = self.parent_code
 
     def setup_bridge(self):
+        """Embed system into galactic potential"""
         self.MWG = MWpotentialBovy2015()
         gravity = bridge.Bridge(use_threading=True,
                                 method=SPLIT_4TH_S_M6,
@@ -123,51 +122,67 @@ class Nemesis(object):
         """Define global integrator"""
         code = ph4(par_conv, number_of_workers=self.par_nworker)
         code.parameters.epsilon_squared = (0.|units.au)**2
-        code.parameters.timestep_parameter = self.code_timestep
+        code.parameters.timestep_parameter = 2e-3
         return code
       
     def sub_worker(self, children, child_conv):
         """Defining the local integrator based on system population"""
         sorted_masses = np.sort(children.mass)
-        if (1):#sorted_masses[0] == (0 | units.kg): # Test particle Huayno
-            print("...Test Particle...")
+        if sorted_masses[0] == (0 | units.kg): # Test particle Huayno
+            print("...Integrator: Test Particle...")
             code = Huayno(child_conv)
             code.particles.add_particles(children)
             code.parameters.timestep_parameter = self.code_timestep
             code.set_integrator("OK")
+            
         elif sorted_masses[-1]/sorted_masses[-2] > 100.:
-            print("...Huayno...")
+            print("...Integrator: Huayno...")
             code = Huayno(child_conv)
             code.particles.add_particles(children)
             code.parameters.timestep_parameter = self.code_timestep
             code.set_integrator("SHARED4_COLLISIONS")
-        """else:
-            print("...Rebound...")
+            
+        else:
+            print("...Integrator: Rebound...")
             code = Rebound(child_conv)
             code.particles.add_particles(children)
-            code.set_time_step = 0.03"""
+            code.set_time_step = self.code_timestep
         return code
 
     def star_channel_copier(self):
-        """Copy attributes from stellar evolution code to local particle set"""
+        """Copy attributes from stellar code to grav. integrator particle set"""
         stars = self.stellar_code.particles
         stars.new_channel_to(self.parent_code.particles).copy_attributes(["mass"])
         for children in self.subcodes.values():
             channel = stars.new_channel_to(children.particles)
             channel.copy_attributes(["mass", "radius"])
             
-    def grav_channel_copier(self, grav_particles, local_particles, attributes):
-        """Copy attributes from gravitational code to local particle set"""
-        channel = grav_particles.new_channel_to(local_particles)
+    def grav_channel_copier(self, transfer_data, receive_data, attributes):
+        """Communicate information between grav. integrator and local particle set
+        Inputs:
+        transfer_data:  Particle set to transfer data from
+        receive_data:  Particle set to update data
+        """
+        channel = transfer_data.new_channel_to(receive_data)
         channel.copy_attributes(attributes)
     
+    def energy_tracker(self):
+        """Compute energy error"""
+        all_particles = self.particles.all()
+        Ek = all_particles.kinetic_energy()
+        Ep = all_particles.potential_energy()
+        Etot = Ek + Ep + self.corr_energy
+        dE = abs((Etot - self.E0)/self.E0)
+        return dE
+        
     def evolve_model(self, tend, timestep=None):
-        """Evolve the system"""
+        """Evolve the system until tend"""
         if timestep is None:
-            timestep = tend-self.model_time
+            timestep = tend - self.model_time
             
-        print("============= Evolving till {:} =============".format((tend-timestep/2.).in_(units.Myr)))
-        while self.model_time < (tend - timestep/2.)*(1 - 1.e-12):
+        print("============= Evolving till {:} =============".format((tend - timestep/2.).in_(units.yr)))
+        print("Current Parent Time: ", self.parent_code.model_time.in_(units.yr), (timestep/2.).in_(units.yr))
+        while self.model_time < (tend - timestep/2.):
             evolve_time = self.model_time
             self.corr_energy = 0 | units.J
             
@@ -176,77 +191,103 @@ class Nemesis(object):
                 self.stellar_evolution(self.model_time+timestep/2.)
                 self.star_channel_copier()
             t1 = cpu_time.time()
-            print("Time taken for stellar: {:}".format(t1-t0))
+            
+            if (self.dE_track):
+                dE = self.energy_tracker()
+                print("Time taken for stellar: {:.8}    dE = {:.16}".format(t1-t0, dE))
 
             t0 = cpu_time.time()
-            self.correction_kicks(self.particles, 
-                                  self.particles.collection_attributes.subsystems,
-                                  timestep/2.
-                                  )
-            t1 = cpu_time.time()
             if (self.dE_track):
-                print(abs(((self.corr_energy+self.particles.all().potential_energy()+self.particles.all().kinetic_energy())-self.E0)/self.E0))
-            print("Time taken for kicks: {:}".format(t1-t0))
+                Ek = self.particles.all().kinetic_energy()
+                Ep = self.particles.all().potential_energy()
+                E0 = Ek + Ep
+            self.correction_kicks(
+                self.particles, self.particles.collection_attributes.subsystems,
+                timestep/2.
+            )
+            if (self.dE_track):
+                all_parts = self.particles.all()
+                Ek = all_parts.kinetic_energy()
+                Ep = all_parts.potential_energy()
+                E1 = Ek + Ep
+                self.corr_energy += E1 - E0
+            t1 = cpu_time.time()
+            
+            if (self.dE_track):
+                dE = self.energy_tracker()
+                print("Time taken for kicks: {:.5f}    dE = {:.16}".format(t1-t0, dE))
 
             t0 = cpu_time.time()
-            self.drift_global(self.model_time+timestep, 
-                              self.model_time+timestep/2.
-                              )
+            self.drift_global(evolve_time+timestep, evolve_time+timestep/2.)
             t1 = cpu_time.time()
             if (self.dE_track):
-                print(abs(((self.corr_energy+self.particles.all().potential_energy()+self.particles.all().kinetic_energy())-self.E0)/self.E0))
-            print("Time taken for drift: {:}".format(t1-t0))
+                self.grav_channel_copier(
+                    self.parent_code.particles,
+                    self.particles,
+                    ["x","y","z","vx","vy","vz"]
+                )
+                dE = self.energy_tracker()
+                print("Time taken for drift: {:.5f}    dE = {:.16}".format(t1-t0, dE))
 
             t0 = cpu_time.time()
             self.drift_child(evolve_time+timestep)
             t1 = cpu_time.time()
-            E1 = self.corr_energy+self.potential_energy+self.kinetic_energy
-            
+            subsystems = self.particles.collection_attributes.subsystems
+            subcodes = self.subcodes
+            print("Time taken for child: {:}".format(t1-t0))
+                
             if (self.dE_track):
-                print(abs(((self.corr_energy+self.particles.all().potential_energy()+self.particles.all().kinetic_energy())-self.E0)/self.E0))
-            print("Time taken for children: {:}".format(t1-t0))
+                for parent, subsys in list(subsystems.items()):
+                    self.grav_channel_copier(
+                        subcodes[parent].particles, subsys,
+                        ["x","y","z","vx","vy","vz"]
+                    )
+                dE = self.energy_tracker()
+                print("Time taken for children: {:.5f}    dE = {:.16}".format(t1-t0, dE))
+            #STOP
 
             t0 = cpu_time.time()
             if (self.star_evol):
                 stellar_time = self.stellar_code.model_time
                 self.stellar_evolution(stellar_time+timestep/2.)
             t1 = cpu_time.time()
-            print("Time taken for stellar: {:}".format(t1-t0))
+            print("Time taken for stellar: {:.5f}".format(t1-t0))
 
             t0 = cpu_time.time()
-            self.correction_kicks(self.particles, 
-                                  self.particles.collection_attributes.subsystems,
-                                  timestep/2.
-                                  )
+            self.correction_kicks(
+                self.particles, 
+                self.particles.collection_attributes.subsystems,
+                timestep/2.
+            )
             t1 = cpu_time.time()
-            print("Time taken for kicks: {:}".format(t1-t0))
-            
-            t0 = cpu_time.time()
-            self.grav_channel_copier(self.parent_code.particles,
-                                     self.particles,
-                                     ["x","y","z","vx","vy","vz"]
-                                     )
+            print("Time taken for kicks: {:.5f}".format(t1-t0))
             
             self.split_subcodes()
             t1 = cpu_time.time()
-            print("Time taken for splitting: {:}".format(t1-t0))
+            print("Time taken for splitting: {:.5f}".format(t1-t0))
 
             t0 = cpu_time.time()
             ejected_idx = ejection_checker(self.particles.copy())
             self.ejection_remover(ejected_idx)
             t1 = cpu_time.time()
-            print("Time taken for ejection: {:}".format(t1-t0))
-
+            print("Time taken for ejection: {:.5f}".format(t1-t0))
+        
+        print("Parent Code Time:  {:}".format(self.parent_code.model_time.in_(units.yr)))
+        print("Stellar Code Time: {:}".format(self.stellar_code.model_time.in_(units.yr)))
+        for s, d in self.subcodes.items():
+            print("Subcode time: {:}".format(d.model_time.in_(units.yr)))
+            
     def split_subcodes(self):
-        """Function tracking the dissolution of a parent system"""
+        """Track parent system dissolution"""
         subsystems = self.particles.collection_attributes.subsystems
         subcodes = self.subcodes
             
         for parent, subsys in list(subsystems.items()):
             radius = parent.radius
-            self.grav_channel_copier(subcodes[parent].particles, subsys,
-                                     ["x","y","z","vx","vy","vz"]
-                                     )
+            self.grav_channel_copier(
+                subcodes[parent].particles, subsys,
+                ["x","y","z","vx","vy","vz"]
+            )
             components = subsys.connected_components(threshold=1.75*radius)
             
             if len(components) > 1:  # Checking for dissolution of system
@@ -258,7 +299,6 @@ class Nemesis(object):
                 self.particles.remove_particle(parent)
                 code = subcodes.pop(parent)
                 offset = self.time_offsets.pop(code)
-                
                 for c in components:
                     sys = c.copy_to_memory()
                     sys.position += parent_pos
@@ -267,7 +307,7 @@ class Nemesis(object):
                         newcode = self.subsys_code(sys, self.child_conv)
                         newcode.particles.move_to_center()  # Prevent energy drifting
                         
-                        self.time_offsets[newcode] = (self.model_time - newcode.model_time)
+                        self.time_offsets[newcode] = self.model_time - newcode.model_time
                         newparent = self.particles.add_subsystem(sys)  # Make a parent particle and add to global
                         subcodes[newparent] = newcode
                         newparent.radius = set_parent_radius(np.sum(sys.mass), self.dt)
@@ -283,7 +323,10 @@ class Nemesis(object):
     def ejection_remover(self, ejected_idx):
         """Output and remove ejected particles from system"""
         if (self.dE_track):
-            E0 = self.particles.all().potential_energy() +  self.particles.all().kinetic_energy()
+            allparts = self.particles.all()
+            Ep = allparts.potential_energy() 
+            Ek = allparts.kinetic_energy()
+            E0 = Ep + Ek
             
         for idx_ in ejected_idx:
             self.no_ejec += 1
@@ -296,16 +339,20 @@ class Nemesis(object):
                 print("System: ", sys)
 
                 path = self.ejected_dir+"/ejec#{:}_dt_{:}".format(self.no_ejec, self.dt_step)
-                write_set_to_file(sys, path, 'amuse', 
-                                  close_file=True, 
-                                  overwrite_file=True
-                                  )
+                write_set_to_file(
+                    sys, path, 'amuse', 
+                    close_file=True, 
+                    overwrite_file=True
+                    )
                 del code
             
             self.particles.remove_particle(ejected_particle)
             
         if (self.dE_track):
-            E1 = self.particles.all().potential_energy() + self.particles.all().kinetic_energy()
+            allparts = self.particles.all()
+            Ep = allparts.potential_energy() 
+            Ek = allparts.kinetic_energy()
+            E1 = Ep + Ek
             self.corr_energy += E1 - E0
             
         print("# Removed Particles: ", len(ejected_idx))
@@ -328,10 +375,11 @@ class Nemesis(object):
         
         newparts = HierarchicalParticles(Particles())
         subsystems = par.collection_attributes.subsystems
-        self.grav_channel_copier(self.parent_code.particles,
-                                 self.particles,
-                                 ["x","y","z","vx","vy","vz"]
-                                 )
+        self.grav_channel_copier(
+            self.parent_code.particles,
+            self.particles,
+            ["x","y","z","vx","vy","vz"]
+        )
         
         max_id = 0
         for parti_ in collsubset:
@@ -398,7 +446,7 @@ class Nemesis(object):
                 offset = self.time_offsets[code]
                 stopping_condition = code.stopping_conditions.collision_detection
                 stopping_condition.enable()
-                while code.model_time < (coll_time - offset)*(1 - 1.e-12):
+                while code.model_time < (coll_time - offset):
                     code.evolve_model(coll_time-offset)
                     if stopping_condition.is_set():
                         coll_time = code.model_time
@@ -410,12 +458,13 @@ class Nemesis(object):
                             for p in cs:
                                 colliding_particles.add_particle(p)
                             newparent = self.handle_collision(subsystems[parti_], 
-                                                            parti_, coll_sets, 
-                                                            coll_time, code
-                                                            )
+                                                              parti_, coll_sets, 
+                                                              coll_time, code
+                                                              )
                         collsubset.remove_particle(parti_)
                         collsubset.add_particle(newparent)
                         subsystems = self.particles.collection_attributes.subsystems
+                        
         for parti_ in collsubset:              
             if parti_ in subsystems:
                 collsyst[parti_] = subsystems[parti_]
@@ -426,18 +475,21 @@ class Nemesis(object):
         """Merge two particles if the collision stopping condition is met
         Inputs:
         children:  The children particle set
+        parent:  The parent particle
         enc_parti:  The particles in the collision
         tcoll:  The time-stamp for which the particles collide at
         code:  The integrator used
         """
-        if (self.dE_track):
-            print("1", abs(((self.corr_energy+self.particles.all().potential_energy()+self.particles.all().kinetic_energy())-self.E0)/self.E0))
         subsystems = self.particles.collection_attributes.subsystems
-        self.grav_channel_copier(code.particles, children,
-                                 ["x","y","z","vx","vy","vz"]
-                                 )
+        self.grav_channel_copier(
+            code.particles, children,
+            ["x","y","z","vx","vy","vz"]
+        )
         if (self.dE_track):
-            E0 = self.particles.all().potential_energy() + self.particles.all().kinetic_energy()
+            allparts = self.particles.all()
+            Ep = allparts.potential_energy() 
+            Ek = allparts.kinetic_energy()
+            E0 = Ep + Ek
               
         ### Save properties
         allparts = self.particles.all()
@@ -451,15 +503,14 @@ class Nemesis(object):
         coll_b = children[children.key == enc_parti[1].key]
         
         collider = Particles()
-        collider.add_particle(enc_parti[0])
-        collider.add_particle(enc_parti[1])
+        collider.add_particle(coll_a)
+        collider.add_particle(coll_b)
+        print("Collider masses: {:}".format(collider.mass.in_(units.kg)))
+        
         kepler_elements = orbital_elements_from_binary(collider, G=constants.G)
         sem = kepler_elements[2]
         ecc = kepler_elements[3]
         inc = kepler_elements[4]
-        arg_peri = kepler_elements[5]
-        asc_node = kepler_elements[6]
-        true_anm = kepler_elements[7]
         with open(os.path.join(self.coll_dir, "merger"+str(nmerge)+'.txt'), 'a') as f:
             f.write("Tcoll: {}".format(tcoll.in_(units.yr)))
             f.write("\nKey1: {}".format(enc_parti[0].key))
@@ -469,10 +520,7 @@ class Nemesis(object):
             f.write("\nSemi-major axis: {}".format(abs(sem).in_(units.au)))
             f.write("\nEccentricity: {}".format(ecc))
             f.write("\nInclination: {} deg".format(inc))
-            f.write("\nArgument of Periapsis: {} deg".format(arg_peri))
-            f.write("\nLongitude of Asc. Node: {} deg".format(asc_node))
-            f.write("\nTrue Anomaly: {} deg\n".format(true_anm))
-            f.close()
+        f.close()
         
         ### Create merger remnant
         remnant  = Particles(1)
@@ -528,18 +576,28 @@ class Nemesis(object):
           self.stellar_code.particles.remove_particle(coll_a)
         if coll_b.mass > self.min_mass_evol:
           self.stellar_code.particles.remove_particle(coll_b)
+          
         if (self.dE_track):
-            E0 = self.particles.all().potential_energy() + self.particles.all().kinetic_energy()
-            self.corr_energy += E1-E0
+            allparts = self.particles.all()
+            Ep = allparts.potential_energy() 
+            Ek = allparts.kinetic_energy()
+            E1 = Ep + Ek
+            self.corr_energy += E1 - E0
         
         return newparent
     
     def handle_supernova(self, SN_detect, bodies):
-        """Function handling SN explosions
+        """Handle SN events
         Inputs:
         SN_detect: Detected particle set undergoing SN
         bodies:    All bodies undergoing stellar evolution
         """
+        if (self.dE_track):
+            allparts = self.particles.all()
+            Ep = allparts.potential_energy() 
+            Ek = allparts.kinetic_energy()
+            E0 = Ep + Ek
+            
         SN_particle = SN_detect.particles(0)
         for ci in range(len(SN_particle)):
             SN_parti = Particles(particles=SN_particle)
@@ -552,33 +610,43 @@ class Nemesis(object):
             SN_parti.vx += natal_kick_x
             SN_parti.vy += natal_kick_y
             SN_parti.vz += natal_kick_z
-
-    def find_coll_sets(self,p1,p2):
+            
+        if (self.dE_track):
+            allparts = self.particles.all()
+            Ep = allparts.potential_energy() 
+            Ek = allparts.kinetic_energy()
+            E1 = Ep + Ek
+            self.corr_energy += E1 - E0
+            
+    def find_coll_sets(self, p1, p2):
+        """Find encountering particle sets"""
         coll_sets = UnionFind()
-        for p,q in zip(p1,p2):
-            coll_sets.union(p,q)
+        for p,q in zip(p1, p2):
+            coll_sets.union(p, q)
         return coll_sets.sets()
 
     def stellar_evolution(self, dt):
         """Evolve stellar evolution"""
-        code = self.stellar_code
-        SN_detection = code.stopping_conditions.supernova_detection
+        SN_detection = self.stellar_code.stopping_conditions.supernova_detection
         SN_detection.enable()
-        while code.model_time < dt*(1 - 1.e-12):
-            code.evolve_model(dt)
+        while self.stellar_code.model_time < dt:
+            self.stellar_code.evolve_model(dt)
             if SN_detection.is_set():
                 print("...Detection: SN Explosion...")
                 self.handle_supernova(SN_detection, self.stars)
     
     def drift_global(self, dt, corr_time):
-        """Evolve parent system for dt"""
+        """Evolve parent system until dt"""
         stopping_condition = self.parent_code.stopping_conditions.collision_detection
         stopping_condition.enable()
-        while self.parent_code.model_time < dt*(1 - 1e-12):
+        while self.parent_code.model_time < dt*(1-1e-12):
             self.evolve_code.evolve_model(dt)
             if stopping_condition.is_set():
                 if (self.dE_track):
-                    E0 = self.particles.all().potential_energy() + self.particles.all().kinetic_energy()
+                    allparts = self.particles.all()
+                    Ep = allparts.potential_energy() 
+                    Ek = allparts.kinetic_energy()
+                    E0 = Ep + Ek
                     
                 print("!!! Parent Merger !!!")
                 print("Bridge time: ", self.evolve_code.model_time.in_(units.Myr))
@@ -591,11 +659,14 @@ class Nemesis(object):
                     self.parent_merger(coll_time, corr_time, cs)
                     
                 if (self.dE_track):
-                    E1 = self.particles.all().potential_energy() + self.particles.all().parent_code.particles.kinetic_energy()
+                    allparts = self.particles.all()
+                    Ep = allparts.potential_energy() 
+                    Ek = allparts.kinetic_energy()
+                    E1 = Ep + Ek
                     self.corr_energy += E1 - E0
                     
     def drift_child(self, dt):
-        """Evolve children system for dt."""
+        """Evolve children system until dt."""
         def evolve_code(lock):
             """Algorithm to evolve individual children codes"""
             try:
@@ -607,7 +678,7 @@ class Nemesis(object):
             evol_time = dt - self.time_offsets[code]
             stopping_condition = code.stopping_conditions.collision_detection
             stopping_condition.enable()
-            while code.model_time < evol_time*(1 - 1e-12):
+            while code.model_time < evol_time:
                 code.evolve_model(evol_time)
                 if stopping_condition.is_set():
                     print("!!! COLLIDING CHILDREN !!!")
@@ -648,9 +719,6 @@ class Nemesis(object):
             th.join()  # Wait for all threads to finish
             
         subsystems = self.particles.collection_attributes.subsystems
-        for p, c in self.subcodes.items():
-            print(self.parent_code.model_time.in_(units.Myr), c.model_time.in_(units.Myr))
-            
         for parent in single_parents:  # Remove single children systems:
             old_subcode = self.subcodes.pop(parent)
             old_offset = self.time_offsets.pop(old_subcode)
@@ -661,18 +729,18 @@ class Nemesis(object):
             del old_subsyst
                 
     def kick_particles(self, particles, corr_code, dt):
-        """Apply correction kicks on particles
+        """Kick particle set
         Inputs:
         particles:  Particles to correct accelerations of
         corr_code:  Code containing information on difference in gravitational field
         dt:  Time-step of correction kick
         """
         parts = particles.copy_to_memory()
-        ax,ay,az = corr_code.get_gravity_at_point(parts.radius,
-                                                  parts.x, 
-                                                  parts.y, 
-                                                  parts.z
-                                                  )
+        ax, ay, az = corr_code.get_gravity_at_point(parts.radius,
+                                                    parts.x, 
+                                                    parts.y, 
+                                                    parts.z
+                                                    )
         parts.vx += dt*ax
         parts.vy += dt*ay
         parts.vz += dt*az
@@ -681,39 +749,48 @@ class Nemesis(object):
         channel.copy_attributes(["vx","vy","vz"])
 
     def correction_kicks(self, particles, subsystems, dt):
-        """Apply correcting kicks onto children and parent particles"""
+        """Apply correcting kicks onto children and parent particles
+        Inputs:
+        particles:  Parent particle set
+        subsystems:  Dictionary of children system
+        dt:  Time interval for applying kicks
+        """
         if subsystems is not None and len(particles) > 1:
             attributes = ["x","y","z","vx","vy","vz"]
             
             # Kick parent particles
-            self.grav_channel_copier(self.parent_code.particles, 
-                                     self.particles, attributes
-                                     )
-            corr_chd = CorrectionFromCompoundParticle(self.particles, 
+            corr_chd = CorrectionFromCompoundParticle(particles, 
                                                       subsystems
                                                       )
-            self.kick_particles(self.particles, corr_chd, dt)
-            self.grav_channel_copier(self.particles, 
-                                     self.parent_code.particles,
-                                     ["vx","vy","vz"]
-                                     )
+            self.grav_channel_copier(
+                self.parent_code.particles, 
+                particles, attributes
+            )
+            self.kick_particles(particles, corr_chd, dt)
+            self.grav_channel_copier(
+                particles, 
+                self.parent_code.particles,
+                ["vx","vy","vz"]
+            )
             
             # Kick children
-            corr_par = CorrectionForCompoundParticle(self.particles, 
+            corr_par = CorrectionForCompoundParticle(particles, 
                                                      parent=None, 
                                                      system=None
                                                      )
             for parent, subsyst in subsystems.items():
-                self.grav_channel_copier(self.subcodes[parent].particles, 
-                                         subsyst, attributes
-                                         )
                 corr_par.parent = parent
                 corr_par.system = subsyst
+                
+                self.grav_channel_copier(
+                    self.subcodes[parent].particles, 
+                    subsyst, attributes
+                )
                 self.kick_particles(subsyst, corr_par, dt)
-                self.grav_channel_copier(subsyst, 
-                                         self.subcodes[parent].particles, 
-                                         ["vx","vy","vz"]
-                                         )
+                self.grav_channel_copier(
+                    subsyst, self.subcodes[parent].particles, 
+                    ["vx","vy","vz"]
+                )
   
     def get_potential_at_point(self, radius, x, y, z):
         """Get the potential field at some position (x,y,z)"""
@@ -722,46 +799,8 @@ class Nemesis(object):
 
     def get_gravity_at_point(self, radius, x, y, z):
         """Get gravitational force felt at some position (x,y,z)"""
-        ax,ay,az = self.parent_code.get_gravity_at_point(radius, x, y, z)
+        ax, ay, az = self.parent_code.get_gravity_at_point(radius, x, y, z)
         return ax, ay, az
-    
-    @property
-    def potential_energy(self):
-        """Compute systems total potential energy"""
-        subsystems = self.particles.collection_attributes.subsystems
-        Ep = self.parent_code.potential_energy
-        if len(self.particles) > 1:
-            corrector = CorrectionFromCompoundParticle(self.particles,
-                                                       subsystems
-                                                       )
-            particles = self.parent_code.particles.copy()
-            potential = corrector.get_potential_at_point(particles.radius,
-                                                         particles.x,
-                                                         particles.y,
-                                                         particles.z
-                                                         )
-            Ep += (potential*particles.mass).sum()/2
-            
-        corrector = CorrectionForCompoundParticle(self.particles, 
-                                                  parent=None, 
-                                                  system=None
-                                                  )
-        for parent, code in self.subcodes.items():
-            Ep += code.potential_energy
-            if len(self.particles) > 1:
-                corrector.parent = parent
-                corrector.system = code.particles.copy()
-                particles = code.particles.copy()
-                potential = corrector.get_potential_at_point(particles.radius,
-                                                             particles.x,
-                                                             particles.y,
-                                                             particles.z
-                                                             )
-                Ep += (potential*particles.mass).sum()/2
-        return Ep
-
-    @property
-    def kinetic_energy(self): 
         """Track the kinetic energy of the system""" 
         Ek = self.parent_code.kinetic_energy
         for code in self.subcodes.values():

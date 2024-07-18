@@ -11,9 +11,9 @@ Run python interface.py from root directory to execute code.
 
  Branch | Application | Examples 
 :---|:---:|---:
- refactor |  Planetary Systems | realistic\_cluster, ejecting\_suns 
+ refactor |  Planetary Systems | realistic\_cluster
  one\_child\_system |   Democratic AGN | runaway\_bh 
- PN\_global |  Hierarchical AGN | S-Stars 
+ PN\_global | AGN Environment | S-Stars 
  
 To compile src/grav_kicks.cpp execute: g++ -shared -o src/gravity.so -g -fPIC src/grav_kicks.cpp <br />
 To compile src/ejector_calc.cpp execute: g++ -shared -o src/ejection.so -g -fPIC src/ejector_calc.cpp

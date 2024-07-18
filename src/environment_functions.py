@@ -11,7 +11,7 @@ DIST_THRESHOLD = 3 | units.pc
 SN_MEAN_VEL = 250 
 SN_STD_VEL = 190
 MWG = MWpotentialBovy2015()
-VELOCITY_RANGE = np.linspace(0, 3000, 1000)
+VELOCITY_RANGE = np.linspace(0, 10000, 1000)
 
 def ejection_checker(particle_set):
     """Find ejected systems"""
@@ -30,12 +30,13 @@ def ejection_checker(particle_set):
     num_parts = len(parts)
     
     ejected_bools = np.zeros(len(parts))
-    lib.find_nearest_neighbour(parts.x.value_in(units.m),
-                               parts.y.value_in(units.m),
-                               parts.z.value_in(units.m),
-                               num_parts, threshold,
-                               ejected_bools
-                               )
+    lib.find_nearest_neighbour(
+        parts.x.value_in(units.m),
+        parts.y.value_in(units.m),
+        parts.z.value_in(units.m),
+        num_parts, threshold,
+        ejected_bools
+    )
     ejected_idx = np.where(ejected_bools == 1)[0]
     
     return ejected_idx
@@ -50,7 +51,7 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz):
     parent_set.x += dx
     parent_set.y += dy
     parent_set.z += dz
-    distance = np.sqrt(dx**2+dy**2+dz**2)
+    distance = np.sqrt(dx**2 + dy**2 + dz**2)
     
     dvy += MWG.circular_velocity(distance)
     parent_set.vx += dvx
@@ -65,7 +66,7 @@ def set_parent_radius(system_mass, dt):
     return min(2000 | units.AU, max(50|units.AU, radius))
 
 def planet_radius(planet_mass):
-        """Define planet radius"""
+        """Define planet radius based on its mass"""
         mass_in_earth = planet_mass.value_in(units.MEarth)
         if planet_mass < (7.8|units.MEarth):
             radius = (1|units.REarth)*(mass_in_earth)**0.41
@@ -93,7 +94,7 @@ def natal_kick_pdf():
     return kick_vx[0], kick_vy[0], kick_vz[0]
 
 def tidal_radius(parent_set):
-    """Tidal radius (Spitzer 1987 eqn 5.10)"""
+    """Tidal radius (Spitzer 1987 eqn 5.10). Assume system is point mass"""
     cg_sys = Particles(2)
     cg_sys[0].position = parent_set.center_of_mass()
     cg_sys[0].velocity = parent_set.center_of_mass_velocity()
