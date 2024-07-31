@@ -140,7 +140,7 @@ class Nemesis(object):
             code = Huayno(child_conv)
             code.particles.add_particles(children)
             code.parameters.timestep_parameter = self.code_timestep
-            code.set_integrator("SHARED4_COLLISIONS")
+            code.set_integrator("SHARED8_COLLISIONS")
             
         else:
             print("...Integrator: Rebound...")
@@ -399,6 +399,7 @@ class Nemesis(object):
                 sys.velocity += parti_.velocity 
                 newparts.add_particles(sys)
                 
+                code.stop()
                 del code
               
             else:  # Loop for two parent particle collisions
@@ -449,18 +450,31 @@ class Nemesis(object):
                 while code.model_time < (coll_time - offset):
                     code.evolve_model(coll_time-offset)
                     if stopping_condition.is_set():
+                        print("!!! COLLIDING CHILDREN !!!")
                         coll_time = code.model_time
-                        coll_sets = self.find_coll_sets(stopping_condition.particles(0),
-                                                        stopping_condition.particles(1)
-                                                        )
-                        for cs in coll_sets:
-                            colliding_particles = Particles()
-                            for p in cs:
-                                colliding_particles.add_particle(p)
-                            newparent = self.handle_collision(subsystems[parti_], 
-                                                              parti_, coll_sets, 
-                                                              coll_time, code
-                                                              )
+                        
+                        resolved_keys = dict()
+                        Nmergers = max(len(np.unique(stopping_condition.particles(0).key)),  
+                                       len(np.unique(stopping_condition.particles(1).key))
+                                       )
+                        Nresolved = 0
+                        for coll_a, coll_b in zip(stopping_condition.particles(0), stopping_condition.particles(1)):
+                            if Nresolved < Nmergers:  # Stop recursive loop
+                                if coll_a.key in resolved_keys.keys():
+                                    coll_a = code.particles[code.particles.key == resolved_keys[coll_a.key]]
+                                if coll_b.key in resolved_keys.keys():
+                                    coll_b = code.particles[code.particles.key == resolved_keys[coll_b.key]]
+                                    
+                                if coll_b.key == coll_a.key:
+                                    print("Curious?")
+                                    continue
+                                Nresolved += 1
+                                
+                                colliding_particles = Particles(particles=[coll_a, coll_b])
+                                newparent, resolved_keys = self.handle_collision(subsystems[parti_], parti_, 
+                                                                                 colliding_particles, coll_time, 
+                                                                                 code, resolved_keys
+                                                                                 )
                         collsubset.remove_particle(parti_)
                         collsubset.add_particle(newparent)
                         subsystems = self.particles.collection_attributes.subsystems
@@ -471,7 +485,7 @@ class Nemesis(object):
         
         return collsubset, collsyst
     
-    def handle_collision(self, children, parent, enc_parti, tcoll, code):
+    def handle_collision(self, children, parent, enc_parti, tcoll, code, resolved_keys):
         """Merge two particles if the collision stopping condition is met
         Inputs:
         children:  The children particle set
@@ -479,8 +493,8 @@ class Nemesis(object):
         enc_parti:  The particles in the collision
         tcoll:  The time-stamp for which the particles collide at
         code:  The integrator used
+        resolved_keys:  Dictionary holding {Collider i Key: Remnant Key}
         """
-        subsystems = self.particles.collection_attributes.subsystems
         self.grav_channel_copier(
             code.particles, children,
             ["x","y","z","vx","vy","vz"]
@@ -491,44 +505,46 @@ class Nemesis(object):
             Ek = allparts.kinetic_energy()
             E0 = Ep + Ek
               
-        ### Save properties
+        # Save properties
         allparts = self.particles.all()
         nmerge = np.sum(allparts.coll_events) + 1
-        print("...Collision #{:} Detected...".format(nmerge))
+        print(f"...Collision #{nmerge} Detected...")
         write_set_to_file(allparts.savepoint(0|units.Myr),
                 os.path.join(self.coll_dir, "merger"+str(nmerge)),
                 'amuse', close_file=True, overwrite_file=True
                 )
+        
         coll_a = children[children.key == enc_parti[0].key]
         coll_b = children[children.key == enc_parti[1].key]
         
         collider = Particles()
         collider.add_particle(coll_a)
         collider.add_particle(coll_b)
-        print("Collider masses: {:}".format(collider.mass.in_(units.kg)))
         
         kepler_elements = orbital_elements_from_binary(collider, G=constants.G)
         sem = kepler_elements[2]
         ecc = kepler_elements[3]
         inc = kepler_elements[4]
         with open(os.path.join(self.coll_dir, "merger"+str(nmerge)+'.txt'), 'a') as f:
-            f.write("Tcoll: {}".format(tcoll.in_(units.yr)))
-            f.write("\nKey1: {}".format(enc_parti[0].key))
-            f.write("\nKey2: {}".format(enc_parti[1].key))
-            f.write("\nM1: {}".format(enc_parti[0].mass.in_(units.MSun)))
-            f.write("\nM2: {}".format(enc_parti[1].mass.in_(units.MSun)))
-            f.write("\nSemi-major axis: {}".format(abs(sem).in_(units.au)))
-            f.write("\nEccentricity: {}".format(ecc))
-            f.write("\nInclination: {} deg".format(inc))
+            f.write(f"Tcoll: {tcoll.in_(units.yr)}")
+            f.write(f"\nKey1: {enc_parti[0].key}")
+            f.write(f"\nKey2: {enc_parti[1].key}")
+            f.write(f"\nM1: {enc_parti[0].mass.in_(units.MSun)}")
+            f.write(f"\nM2: {enc_parti[1].mass.in_(units.MSun)}")
+            f.write(f"\nSemi-major axis: {abs(sem).in_(units.au)}")
+            f.write(f"\nEccentricity: {ecc}")
+            f.write(f"\nInclination: {inc} deg")
         f.close()
         
         ### Create merger remnant
-        remnant  = Particles(1)
-        remnant.mass = collider.total_mass()
-        remnant.position = collider.center_of_mass()
-        remnant.velocity = collider.center_of_mass_velocity()
-        remnant.coll_events = collider.coll_events.sum() + 1
-        remnant.syst_id = coll_a.syst_id
+        if max(collider.mass) > 0 | units.kg:
+            remnant  = Particles(1)
+            remnant.mass = collider.total_mass()
+            remnant.position = collider.center_of_mass()
+            remnant.velocity = collider.center_of_mass_velocity()
+        else:
+            remnant = coll_a
+            
         if "STAR" in coll_a.type or "STAR" in coll_b.type:
             remnant.type = "STAR"
             remnant.radius = ZAMS_radius(remnant.mass)
@@ -538,29 +554,52 @@ class Nemesis(object):
         else:
             remnant.type = "PLANET"
             remnant.radius = planet_radius(remnant.mass)
+            
         if remnant.mass > self.min_mass_evol: #Lower limit for star evolution
             self.stellar_code.particles.add_particle(remnant)
-
+            
+        remnant.coll_events = collider.coll_events.sum() + 1
+        remnant.syst_id = coll_a.syst_id
         remnant.sub_worker_radius = remnant.radius
+        
+        changes = [ ]
+        coll_a_change = coll_b_change = 0
+        if not resolved_keys:
+            resolved_keys[coll_a.key[0]] = remnant.key[0]
+            resolved_keys[coll_b.key[0]] = remnant.key[0]
+        else: 
+            # If the current collider is a remnant of past event, remap
+            for prev_collider, resulting_remnant in resolved_keys.items():
+                if coll_a.key[0] == resulting_remnant:  
+                    changes.append((prev_collider, remnant.key[0]))
+                    coll_a_change = 1
+                elif coll_b.key[0] == resulting_remnant:
+                    changes.append((prev_collider, remnant.key[0]))
+                    coll_b_change = 1
+            if coll_a_change == 0:
+                resolved_keys[coll_a.key[0]] = remnant.key[0]
+            if coll_b_change == 0:
+                resolved_keys[coll_b.key[0]] = remnant.key[0]
+       
+        for key, new_value in changes:
+            resolved_keys[key] = new_value
+        
         children.add_particles(remnant)
         children.remove_particles(coll_a)
         children.remove_particles(coll_b)
+        nearest_mass = abs(children.mass - parent.mass).argmin()
         
-        if coll_a.key == parent.key or coll_b.key == parent.key:
-            if len(children) > 1:
-                newcode = self.subsys_code(children, self.child_conv)
-                newcode.particles.move_to_center()
-                self.time_offsets[newcode] = self.model_time - code.model_time
-                newparent = self.particles.add_subsystem(children)
-                self.subcodes[newparent] = newcode
-                newcode.model_time += code.model_time
-            else:
-                newparent = self.particles.add_subsystem(children)
-                
+        if remnant.key == children[nearest_mass].key:
+            print("...New parent particle...")
+            children.position += parent.position
+            children.velocity += parent.velocity
+            
+            # Create new parent particle
+            newparent = self.particles.add_subsystem(children)
+            newparent.radius = parent.radius
+            newparent.type = parent.type
+            
             #Re-mapping dictionary to new parent
-            newparent.radius = set_parent_radius(np.sum(children.mass), self.dt)
-            subsystems = self.particles.collection_attributes.subsystems
-            subsystems[newparent] = subsystems.pop(parent)
             old_code = self.subcodes.pop(parent)
             self.time_offsets[newparent] = self.model_time - old_code.model_time
             self.subcodes[newparent] = old_code
@@ -584,7 +623,7 @@ class Nemesis(object):
             E1 = Ep + Ek
             self.corr_energy += E1 - E0
         
-        return newparent
+        return newparent, resolved_keys
     
     def handle_supernova(self, SN_detect, bodies):
         """Handle SN events
@@ -685,20 +724,29 @@ class Nemesis(object):
                     with lock:  # All threads stop until resolve collision
                         subsystems = self.particles.collection_attributes.subsystems
                         coll_time = code.model_time
-                        coll_sets = self.find_coll_sets(stopping_condition.particles(0),
-                                                        stopping_condition.particles(1)
-                                                        )
-                        print(len(stopping_condition.particles(0).key))
-                        for cs in coll_sets:
-                            colliding_particles = Particles()
-                            for p in cs:
-                                colliding_particles.add_particle(p)
-                            parent = self.handle_collision(subsystems[parent], parent, 
-                                                           colliding_particles, coll_time, 
-                                                           code
-                                                           )
-                            if len(code.particles) == 1:
-                                single_parents.append(parent)
+                        
+                        resolved_keys = dict()
+                        Nmergers = max(len(np.unique(stopping_condition.particles(0).key)),  
+                                       len(np.unique(stopping_condition.particles(1).key))
+                                       )
+                        Nresolved = 0
+                        for coll_a, coll_b in zip(stopping_condition.particles(0), stopping_condition.particles(1)):
+                            if Nresolved < Nmergers:  # Stop recursive loop
+                                if coll_a.key in resolved_keys.keys():
+                                    coll_a = code.particles[code.particles.key == resolved_keys[coll_a.key]]
+                                if coll_b.key in resolved_keys.keys():
+                                    coll_b = code.particles[code.particles.key == resolved_keys[coll_b.key]]
+                                    
+                                if coll_b.key == coll_a.key:
+                                    print("Curious?")
+                                    continue
+                                Nresolved += 1
+                                
+                                colliding_particles = Particles(particles=[coll_a, coll_b])
+                                parent, resolved_keys = self.handle_collision(subsystems[parent], parent, 
+                                                                              colliding_particles, coll_time, 
+                                                                              code, resolved_keys
+                                                                              )
             parent_queue.task_done()
         
         single_parents = [ ]

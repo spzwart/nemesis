@@ -6,7 +6,7 @@ import time as cpu_time
 
 from amuse.lab import Particles, read_set_from_file, write_set_to_file
 from amuse.units import units, nbody_system
-from src.environment_functions import galactic_frame
+from src.environment_functions import galactic_frame, set_parent_radius
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
@@ -84,7 +84,9 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     parents = Particles(nmajor)
     parents = major_bodies.copy()
     parents.sub_worker_radius = parents.radius
-    parents = HierarchicalParticles(parents)
+    for p in parents:
+        p.radius = set_parent_radius(p.mass, dt)
+    parents = HierarchicalParticles()
     
     initial_systems = parents[parents.syst_id > 0]
     for id_ in np.unique(initial_systems.syst_id):
