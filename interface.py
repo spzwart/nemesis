@@ -4,12 +4,29 @@ import numpy as np
 import os
 import time as cpu_time
 
-from amuse.lab import Particles, read_set_from_file, write_set_to_file
+from amuse.lab import read_set_from_file, write_set_to_file
 from amuse.units import units, nbody_system
 from src.environment_functions import galactic_frame, set_parent_radius
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
+
+def create_output_directories(sim_dir, run_idx):
+    """Create output directories"""
+    config_name = f"Nrun{run_idx}"
+    dir_path = os.path.join(sim_dir, config_name)
+    if os.path.exists(os.path.join(dir_path, "*")):
+        pass
+    else:
+        os.mkdir(dir_path+"/")
+        subdir = ["event_data", "collision_snapshot", 
+                  "data_process", "simulation_stats", 
+                  "simulation_snapshot", "ejected_particles"
+                  ]
+        for path in subdir:
+            os.makedirs(os.path.join(dir_path, path))
+            
+    return dir_path
 
 def run_simulation(sim_dir, tend, eta, code_dt,
                    par_n_worker, dE_track, gal_field, 
@@ -26,21 +43,9 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     gal_field:  Flag turning on galactic field or not
     star_evol:  Flag turning on stellar evolution
     """
-    
-    # Creating output directories
     run_idx = len(glob.glob(sim_dir+"/*")) - 1
-    config_name = "Nrun"+str(run_idx)
-    dir_path = os.path.join(sim_dir, config_name)
-    if os.path.exists(os.path.join(dir_path, "*")):
-        pass
-    else:
-        os.mkdir(dir_path+"/")
-        subdir = ["event_data", "collision_snapshot", 
-                  "data_process", "simulation_stats", 
-                  "simulation_snapshot", "ejected_particles"
-                  ]
-        for path in subdir:
-            os.makedirs(os.path.join(dir_path, path))
+    
+    dir_path = create_output_directories(sim_dir, run_idx)
     coll_path = os.path.join(dir_path, "collision_snapshot")
     ejected_dir = os.path.join(dir_path, "ejected_particles")
     snapdir_path = os.path.join(dir_path, "simulation_snapshot")
@@ -50,13 +55,12 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                                     "run_{:}".format(run_idx)
                                     )
     particle_set = read_set_from_file(particle_set_dir)
-    particle_set -= particle_set[particle_set.syst_id > 8]
     particle_set.coll_events = 0
     
     isolated_particles = particle_set[particle_set.syst_id < 0]
     major_bodies = isolated_particles[isolated_particles.mass != (0 | units.kg)]
     test_particles = isolated_particles - major_bodies
-    for system_id in np.unique(particle_set.syst_id):
+    for system_id in np.unique(particle_set.syst_id): # Identify your parents
         if system_id > -1:
             system = particle_set[particle_set.syst_id == system_id]
             hosting_body = system[system.mass == max(system.mass)]
@@ -71,23 +75,18 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                                       dvy=12.25 | units.kms,
                                       dvz=7.41 | units.kms
                                       )
+        
     conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), 
                                         major_bodies.virial_radius()
                                         )
-    dt = eta*tend
-    
+    dt = eta * tend
+    par_n_worker = len(major_bodies) // 400 + 1
 
-    # Setting up parents + children
-    nmajor = len(major_bodies)
-    par_n_worker = nmajor // 1000 + 1
-
-    parents = Particles(nmajor)
-    parents = major_bodies.copy()
-    parents.sub_worker_radius = parents.radius
-    for p in parents:
+    major_bodies.sub_worker_radius = major_bodies.radius
+    for p in major_bodies:
         p.radius = set_parent_radius(p.mass, dt)
-    parents = HierarchicalParticles()
-    
+        
+    parents = HierarchicalParticles(major_bodies)
     initial_systems = parents[parents.syst_id > 0]
     for id_ in np.unique(initial_systems.syst_id):
         children = particle_set[particle_set.syst_id == id_]
@@ -124,8 +123,8 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     
     t = 0 | units.yr
     snapshot_no = 0
-    SNAP_PER_ITER = 100
-    dt_snapshot = dt * SNAP_PER_ITER
+    ITER_PER_SNAP = 1/(1000*eta)
+    dt_snapshot = dt * ITER_PER_SNAP
     prev_step = nemesis.dt_step
     while t < tend:
         t += dt
@@ -136,11 +135,11 @@ def run_simulation(sim_dir, tend, eta, code_dt,
             
         if dt_snapshot <= nemesis.parent_code.model_time:
             print("Saving snap @ time: ", t.in_(units.yr))
-            dt_snapshot += SNAP_PER_ITER * dt
+            dt_snapshot += ITER_PER_SNAP * dt
             snapshot_no += 1
             allparts = nemesis.particles.all()
             
-            fname = os.path.join(snapdir_path, "snap_"+str(snapshot_no))
+            fname = os.path.join(snapdir_path, f"snap_{snapshot_no}")
             write_set_to_file(
                 allparts.savepoint(0|units.Myr),
                 fname, 'amuse', close_file=True, 
@@ -164,12 +163,14 @@ def run_simulation(sim_dir, tend, eta, code_dt,
 
     # Store simulation statistics
     sim_time = (cpu_time.time() - START_TIME)/60
-    fname = os.path.join(dir_path, 'simulation_stats', 'sim_stats_'+str(run_idx)+'.txt')
+    fname = os.path.join(dir_path, 'simulation_stats', 
+                         f'sim_stats_{run_idx}.txt'
+                         )
     with open(fname, 'w') as f:
-        f.write("Total CPU Time: {} minutes".format(sim_time))
-        f.write("\nEnd Time: {}".format(t.in_(units.Myr)))
-        f.write("\nTime step: {}".format(dt.in_(units.Myr)))
-    f.close()
+        f.write(f"Total CPU Time: {sim_time} minutes \
+                \nEnd Time: {t.in_(units.Myr)} \
+                \nTime step: {dt.in_(units.Myr)}"
+                )
         
 if __name__ == "__main__":
     START_TIME = cpu_time.time()
