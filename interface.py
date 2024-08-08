@@ -81,10 +81,6 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                                         )
     dt = eta * tend
     par_n_worker = len(major_bodies) // 400 + 1
-
-    major_bodies.sub_worker_radius = major_bodies.radius
-    for p in major_bodies:
-        p.radius = set_parent_radius(p.mass, dt)
         
     parents = HierarchicalParticles(major_bodies)
     initial_systems = parents[parents.syst_id > 0]
@@ -147,13 +143,13 @@ def run_simulation(sim_dir, tend, eta, code_dt,
             )
           
         if (nemesis.dE_track) and (prev_step != nemesis.dt_step):
-            print("...Check {:}...".format(t.in_(units.Myr)))
             allparts = nemesis.particles.all()
             E1 = allparts.potential_energy() + allparts.kinetic_energy() 
             E1 += nemesis.corr_energy
             energy_arr.append(abs((E1-E0)/E0))
             
             prev_step = nemesis.dt_step
+            print(f"t = {t.in_(units.Myr)}, dE = {abs((E1-E0)/E0)}")
       
     print("...Simulation Ended...")
     nemesis.stellar_code.stop()  
