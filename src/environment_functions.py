@@ -7,7 +7,6 @@ from amuse.ext.orbital_elements import orbital_elements_from_binary
 from amuse.units import units, constants
 
 
-DIST_THRESHOLD = 3 | units.pc
 MWG = MWpotentialBovy2015()
 
 def ejection_checker(particle_set, tidal_field):
@@ -26,7 +25,7 @@ def ejection_checker(particle_set, tidal_field):
     if (tidal_field):
         threshold = tidal_radius(particle_set).value_in(units.m)
     else:
-        threshold = DIST_THRESHOLD.value_in(units.m)
+        threshold = (3 | units.pc).value_in(units.pc)
         
     parts = particle_set.copy()
     num_parts = len(parts)
@@ -68,34 +67,36 @@ def set_parent_radius(system_mass, dt):
     return min(2000 | units.AU, max(50|units.AU, radius))
 
 def planet_radius(planet_mass):
-        """Define planet radius"""
-        mass_in_earth = planet_mass.value_in(units.MEarth)
-        if planet_mass < (7.8 | units.MEarth):
-            radius = (1 | units.REarth)*(mass_in_earth)**0.41
-            return radius
-        elif planet_mass < (125 | units.MEarth):
-            radius = (0.55 | units.REarth)*(mass_in_earth)**0.65
-            return radius
-        radius = (14.3 | units.REarth)*(mass_in_earth)**(-0.02) 
+    """Define planet radius (arXiv:2311.12593)"""
+    mass_in_earth = planet_mass.value_in(units.MEarth)
+    if planet_mass < (7.8 | units.MEarth):
+        radius = (1 | units.REarth)*(mass_in_earth)**0.41
         return radius
+    elif planet_mass < (125 | units.MEarth):
+        radius = (0.55 | units.REarth)*(mass_in_earth)**0.65
+        return radius
+    radius = (14.3 | units.REarth)*(mass_in_earth)**(-0.02) 
+    return radius
 
 def tidal_radius(parent_set):
     """Tidal radius (Spitzer 1987 eqn 5.10)"""
     cluster_galaxy_system = Particles(2)
+    
+    cluster_mass = parent_set.mass.sum()
     cluster_pos = parent_set.center_of_mass()
+    enclosed_mass = MWG.enclosed_mass(cluster_pos.length())
+    
     cluster_galaxy_system[0].position = cluster_pos
     cluster_galaxy_system[0].velocity = parent_set.center_of_mass_velocity()
-    cluster_galaxy_system[0].mass = parent_set.mass.sum()
-
+    cluster_galaxy_system[0].mass = cluster_mass
+    
     cluster_galaxy_system[1].position = [0, 0, 0] | units.kpc
     cluster_galaxy_system[1].velocity = [0, 0, 0] | units.kms
-    cluster_galaxy_system[1].mass = MWG.enclosed_mass(cluster_pos.length())
+    cluster_galaxy_system[1].mass = enclosed_mass
 
     kepler_elements = orbital_elements_from_binary(cluster_galaxy_system, G=constants.G)
     ecc = kepler_elements[3]
-    coeff = ((cluster_galaxy_system[0].mass/cluster_galaxy_system[1].mass)/(3+ecc))**(1./3.)
-    rtide = coeff * cluster_pos.length()
-    return rtide
+    return ((cluster_mass/enclosed_mass)/(3+ecc))**(1./3.) * cluster_pos.length()
     
 def ZAMS_radius(star_mass):
     """Define stellar radius at ZAMS"""

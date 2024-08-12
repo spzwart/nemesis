@@ -2,6 +2,7 @@ import glob
 from natsort import natsorted
 import numpy as np
 import os
+import sys
 import time as cpu_time
 
 from amuse.lab import read_set_from_file, write_set_to_file
@@ -45,17 +46,28 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     """
     run_idx = len(glob.glob(sim_dir+"/*")) - 1
     
+    # Setup directory paths
     dir_path = create_output_directories(sim_dir, run_idx)
     coll_path = os.path.join(dir_path, "collision_snapshot")
     ejected_dir = os.path.join(dir_path, "ejected_particles")
     snapdir_path = os.path.join(dir_path, "simulation_snapshot")
 
-    # Organise particle set
+    # Load particle set
     particle_set_dir = os.path.join(sim_dir, "initial_particles",
                                     "run_{:}".format(run_idx)
                                     )
     particle_set = read_set_from_file(particle_set_dir)
     particle_set.coll_events = 0
+
+    if (gal_field): # Sun's orbit
+        particle_set = galactic_frame(particle_set, 
+                                      dx=-8.4 | units.kpc, 
+                                      dy=0.0 | units.kpc, 
+                                      dz=17  | units.pc,
+                                      dvx=11.352 | units.kms,
+                                      dvy=12.25 | units.kms,
+                                      dvz=7.41 | units.kms
+                                      )
     
     isolated_particles = particle_set[particle_set.syst_id < 0]
     major_bodies = isolated_particles[isolated_particles.mass != (0 | units.kg)]
@@ -66,23 +78,19 @@ def run_simulation(sim_dir, tend, eta, code_dt,
             hosting_body = system[system.mass == max(system.mass)]
             major_bodies += hosting_body
         
-    if (gal_field): # Sun's orbit
-        particle_set = galactic_frame(particle_set, 
-                                      dx=-8.4 | units.kpc, 
-                                      dy=0.0 | units.kpc, 
-                                      dz=17  | units.pc,
-                                      dvx=11.352 | units.kms,
-                                      dvy=12.25 | units.kms,
-                                      dvz=7.41 | units.kms
-                                      )
-        
-    conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), 
-                                        major_bodies.virial_radius()
-                                        )
     dt = eta * tend
-    par_n_worker = len(major_bodies) // 400 + 1
         
     parents = HierarchicalParticles(major_bodies)
+    
+    typical_radius = set_parent_radius(np.mean(parents.mass), dt)
+    vdisp = np.std(parents.velocity.lengths())
+    typical_crosstime = (typical_radius/vdisp)
+    
+    print("dt", dt.in_(units.yr), "Typical system crossing time: ", typical_crosstime.in_(units.yr))
+    if dt > 0.2*typical_crosstime:
+        print("!!! Error: dt > 0.2*Typical System Crossing Time !!!")
+        sys.exit(1)
+    
     initial_systems = parents[parents.syst_id > 0]
     for id_ in np.unique(initial_systems.syst_id):
         children = particle_set[particle_set.syst_id == id_]
@@ -91,27 +99,33 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                                  relative=True, 
                                  recenter=False
                                  )
-
-    # Setting up system
+    
+    par_n_worker = len(major_bodies) // 400 + 1
+    conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), 
+                                        major_bodies.virial_radius()
+                                        )
     conv_child = nbody_system.nbody_to_si(np.mean(parents.mass), 
                                           np.mean(parents.radius)
                                           )
+
+    # Setting up system
     nemesis = Nemesis(conv_par, conv_child, dt, code_dt, 
                       par_n_worker, dE_track, star_evol, 
                       gal_field
                       )
     nemesis.min_mass_evol = MIN_EVOL_MASS
     nemesis.particles.add_particles(parents)
-    nemesis.commit_particles(conv_child)
+    nemesis.commit_particles()
     nemesis.coll_dir = coll_path
     nemesis.ejected_dir = ejected_dir
     nemesis.test_particles = test_particles
     
-    allparts = nemesis.particles.all()
     if (nemesis.dE_track):
         energy_arr = [ ]
-        E0 = allparts.potential_energy() + allparts.kinetic_energy()
+        E0 = nemesis.calculate_total_energy()
         nemesis.E0 = E0
+    
+    allparts = nemesis.particles.all()
     write_set_to_file(allparts.savepoint(0|units.Myr), 
                       os.path.join(snapdir_path, "snap_0"), 
                       'amuse', close_file=True, overwrite_file=True
@@ -119,7 +133,7 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     
     t = 0 | units.yr
     snapshot_no = 0
-    ITER_PER_SNAP = 1/(1000*eta)
+    ITER_PER_SNAP = int(1/(1000*eta))
     dt_snapshot = dt * ITER_PER_SNAP
     prev_step = nemesis.dt_step
     while t < tend:
@@ -143,13 +157,13 @@ def run_simulation(sim_dir, tend, eta, code_dt,
             )
           
         if (nemesis.dE_track) and (prev_step != nemesis.dt_step):
-            allparts = nemesis.particles.all()
-            E1 = allparts.potential_energy() + allparts.kinetic_energy() 
+            E1 = nemesis.calculate_total_energy()
             E1 += nemesis.corr_energy
             energy_arr.append(abs((E1-E0)/E0))
             
             prev_step = nemesis.dt_step
             print(f"t = {t.in_(units.Myr)}, dE = {abs((E1-E0)/E0)}")
+        prev_step = nemesis.dt_step
       
     print("...Simulation Ended...")
     nemesis.stellar_code.stop()  
@@ -165,7 +179,9 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     with open(fname, 'w') as f:
         f.write(f"Total CPU Time: {sim_time} minutes \
                 \nEnd Time: {t.in_(units.Myr)} \
-                \nTime step: {dt.in_(units.Myr)}"
+                \nTime step: {dt.in_(units.Myr)} \
+                \nSnap every: {(dt*ITER_PER_SNAP).in_(units.yr)} \
+                \nInitial Typical tcross: {typical_crosstime.in_(units.yr)}"
                 )
         
 if __name__ == "__main__":
@@ -182,10 +198,11 @@ if __name__ == "__main__":
     run_simulation(
         sim_dir=config_choice, 
         par_n_worker=1, 
-        tend=10 | units.Myr, 
-        eta=1e-5, 
-        code_dt=5e-2, 
+        tend=30 | units.Myr, 
+        eta=1e-4,
+        code_dt=1e-1, 
         gal_field=True, 
-        dE_track=True, 
+        dE_track=False, 
         star_evol=True, 
     )
+    

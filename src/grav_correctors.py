@@ -128,6 +128,7 @@ class CorrectionFromCompoundParticle(object):
             code.cleanup_code()
             
         return particles.phi
+    
   
 class CorrectionForCompoundParticle(object):  
     def __init__(self, particles, parent, system):
@@ -170,7 +171,7 @@ class CorrectionForCompoundParticle(object):
         system.az += (az_chd - az_par) * (1 | units.kg*units.m**-2) * constants.G
         
         return system.ax, system.ay, system.az
-      
+    
     def get_potential_at_point(self,radius,x,y,z):
         parent = self.parent
         parts = self.system - parent
