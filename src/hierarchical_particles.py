@@ -20,6 +20,7 @@ class HierarchicalParticles(ParticlesOverlay):
         """Create a parent from particle subsytem"""
         if len(sys) == 1:
             return self.add_particles(sys)[0]
+        
         p = Particle()
         self.assign_parent_attributes(
             sys, p, relative=False, 
@@ -35,6 +36,7 @@ class HierarchicalParticles(ParticlesOverlay):
         if not (relative):
             parent.position = 0.*sys[0].position
             parent.velocity = 0.*sys[0].velocity
+            
         if (recenter):
             parent.position += sys.center_of_mass()
             parent.velocity += sys.center_of_mass_velocity()
@@ -61,10 +63,15 @@ class HierarchicalParticles(ParticlesOverlay):
     def all(self):
         """Get copy of complete particle set"""
         parts = self.copy_to_memory()
-        for parent, sys in self.collection_attributes.subsystems.items():
+        parts.syst_id = -1
+        
+        subsystems = self.collection_attributes.subsystems
+        for system_id, (parent, sys) in enumerate(subsystems.items()):
             parts.remove_particle(parent)
             subsys = parts.add_particles(sys)
             subsys.sub_worker_radius = subsys.radius
             subsys.position += parent.position
             subsys.velocity += parent.velocity
+            subsys.syst_id = system_id 
+
         return parts
