@@ -79,16 +79,26 @@ def run_simulation(sim_dir, tend, eta, code_dt,
             major_bodies += hosting_body
         
     dt = eta * tend
-        
+    
     parents = HierarchicalParticles(major_bodies)
+    initial_systems = parents[parents.syst_id > 0]
+    for id_ in np.unique(initial_systems.syst_id):
+        children = particle_set[particle_set.syst_id == id_]
+        host = parents[parents.syst_id == id_][0]
+        parents.assign_subsystem(children, host, 
+                                 relative=True, 
+                                 recenter=False
+                                 )
     
     typical_radius = set_parent_radius(np.mean(parents.mass), dt)
     vdisp = np.std(parents.velocity.lengths())
     typical_crosstime = (typical_radius/vdisp)
     
-    print("dt", dt.in_(units.yr), "Typical system crossing time: ", typical_crosstime.in_(units.yr))
-    if dt > 0.2*typical_crosstime:
-        print("!!! Error: dt > 0.2*Typical System Crossing Time !!!")
+    print("dt", dt.in_(units.yr), end=" ")
+    print("Typical system crossing time: ", typical_crosstime.in_(units.yr), end =" ")
+    print("Typical radius: ", typical_radius.in_(units.au))
+    if dt > 0.25*typical_crosstime:
+        print("!!! Error: dt > 0.25*Typical System Crossing Time !!!")
         sys.exit(1)
     
     initial_systems = parents[parents.syst_id > 0]
@@ -134,7 +144,6 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     t = 0 | units.yr
     snapshot_no = 0
     ITER_PER_SNAP = int(1/(1000*eta))
-    dt_snapshot = dt * ITER_PER_SNAP
     prev_step = nemesis.dt_step
     while t < tend:
         t += dt
@@ -143,9 +152,8 @@ def run_simulation(sim_dir, tend, eta, code_dt,
             nemesis.dt_step += 1
             nemesis.evolve_model(t)
             
-        if dt_snapshot <= nemesis.parent_code.model_time:
+        if nemesis.dt_step % ITER_PER_SNAP == 0:
             print("Saving snap @ time: ", t.in_(units.yr))
-            dt_snapshot += ITER_PER_SNAP * dt
             snapshot_no += 1
             allparts = nemesis.particles.all()
             

@@ -79,6 +79,9 @@ class Nemesis(object):
                 continue
             self.time_offsets.pop(code)
             del code
+            
+        for parent in self.particles:
+            parent.radius = set_parent_radius(parent.mass, self.dt)
 
         for parent, sys in subsystems.items():
             parent.radius = set_parent_radius(np.sum(sys.mass), self.dt)

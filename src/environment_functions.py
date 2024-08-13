@@ -64,7 +64,7 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz):
 def set_parent_radius(system_mass, dt):
     """Merging radius of parent systems"""
     radius = 10*(constants.G*system_mass*dt**2)**(1./3.)
-    return min(2000 | units.AU, max(50|units.AU, radius))
+    return max(50|units.AU, radius)
 
 def planet_radius(planet_mass):
     """Define planet radius (arXiv:2311.12593)"""
