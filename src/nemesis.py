@@ -203,10 +203,12 @@ class Nemesis(object):
             evolve_time = self.model_time
             self.corr_energy = 0 | units.J
             
+            # Stellar evolution
             if (self.star_evol):
                 self.stellar_evolution(self.model_time + timestep/2.)
                 self.star_channel_copier()
             
+            # Correction kicks
             if (self.dE_track):
                 E0 = self.calculate_total_energy()
             self.correction_kicks(
@@ -216,7 +218,8 @@ class Nemesis(object):
             if (self.dE_track):
                 E1 = self.calculate_total_energy()
                 self.corr_energy += E1 - E0
-
+                
+            # Drifting particles
             self.drift_global(evolve_time + timestep, 
                               evolve_time + timestep/2.
                               )
@@ -224,10 +227,12 @@ class Nemesis(object):
             if len(self.test_particles) > 0: #and self.dt_step % 10 == 0:
                 dt = self.parent_code.model_time - evolve_time
                 self.drift_test_particles(dt)
-
+                
+            # Stellar evolution
             if (self.star_evol):
                 self.stellar_evolution(self.parent_code.model_time)
-
+                
+            # Correction kicks
             if (self.dE_track):
                 E0 = self.calculate_total_energy()
             self.correction_kicks(
@@ -239,6 +244,7 @@ class Nemesis(object):
                 E1 = self.calculate_total_energy()
                 self.corr_energy += E1 - E0
             
+            # System updates
             self.split_subcodes()
             ejected_idx = ejection_checker(self.particles.copy(), 
                                            self.gal_field
