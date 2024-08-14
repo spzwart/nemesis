@@ -5,9 +5,9 @@ import os
 import sys
 import time as cpu_time
 
-from amuse.lab import read_set_from_file, write_set_to_file
+from amuse.lab import constants, read_set_from_file, write_set_to_file
 from amuse.units import units, nbody_system
-from src.environment_functions import galactic_frame, set_parent_radius
+from src.environment_functions import galactic_frame
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
@@ -57,8 +57,16 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                                     "run_{:}".format(run_idx)
                                     )
     particle_set = read_set_from_file(particle_set_dir)
+    particle_set -= particle_set[particle_set.syst_id > 3]
     particle_set.coll_events = 0
 
+    parent_particles = particle_set[(particle_set.type != "JMO") 
+                                    & (particle_set.type != "ASTEROID") 
+                                    & (particle_set.type != "PLANET")
+                                    ]
+    Rvir = parent_particles.virial_radius()
+    vdisp = np.sqrt((constants.G*parent_particles.mass.sum())/Rvir)
+    
     if (gal_field): # Sun's orbit
         particle_set = galactic_frame(particle_set, 
                                       dx=-8.4 | units.kpc, 
@@ -90,17 +98,6 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                                  recenter=False
                                  )
     
-    typical_radius = set_parent_radius(np.mean(parents.mass), dt)
-    vdisp = np.std(parents.velocity.lengths())
-    typical_crosstime = (typical_radius/vdisp)
-    
-    print("dt", dt.in_(units.yr), end=" ")
-    print("Typical system crossing time: ", typical_crosstime.in_(units.yr), end =" ")
-    print("Typical radius: ", typical_radius.in_(units.au))
-    if dt > 0.25*typical_crosstime:
-        print("!!! Error: dt > 0.25*Typical System Crossing Time !!!")
-        sys.exit(1)
-    
     initial_systems = parents[parents.syst_id > 0]
     for id_ in np.unique(initial_systems.syst_id):
         children = particle_set[particle_set.syst_id == id_]
@@ -129,6 +126,20 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     nemesis.coll_dir = coll_path
     nemesis.ejected_dir = ejected_dir
     nemesis.test_particles = test_particles
+    
+    subsystems = nemesis.particles.collection_attributes.subsystems
+    min_radius = 1 | units.pc
+    for parent in subsystems.keys():
+        min_radius = min(min_radius, parent.radius)
+    
+    min_crosstime = 2*(min_radius/vdisp)
+    print(f"dt= {dt.in_(units.yr)}", end=" ")
+    print(f"Minimum children system radius = {min_radius.in_(units.au)}", end=" ")
+    print(f"Dispersion velocity = {vdisp.in_(units.kms)}", end=" ")
+    print(f"Minimum system crossing time = {min_crosstime.in_(units.yr)}")
+    if dt > 2*min_crosstime:
+        print("!!! Error: dt > 2*Typical System Crossing Time !!!")
+        sys.exit(1)
     
     if (nemesis.dE_track):
         energy_arr = [ ]
@@ -189,16 +200,18 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                 \nEnd Time: {t.in_(units.Myr)} \
                 \nTime step: {dt.in_(units.Myr)} \
                 \nSnap every: {(dt*ITER_PER_SNAP).in_(units.yr)} \
-                \nInitial Typical tcross: {typical_crosstime.in_(units.yr)}"
+                \nInitial Minimum tcross: {min_crosstime.in_(units.yr)}"
                 )
         
 if __name__ == "__main__":
     START_TIME = cpu_time.time()
     MIN_EVOL_MASS = 0.08 | units.MSun
+    eta = 1e-5
     
     # data_dir = "examples/S-Stars"
     data_dir = "examples/ejecting_suns"
     if data_dir == "examples/ejecting_suns":
+        eta = 5e-5
         config_idx = 1
         configurations = glob.glob(os.path.join(data_dir, "sim_data", "*"))
         config_choice = natsorted(configurations)[config_idx]
@@ -207,9 +220,9 @@ if __name__ == "__main__":
         sim_dir=config_choice, 
         par_n_worker=1, 
         tend=30 | units.Myr, 
-        eta=1e-4,
+        eta=eta,
         code_dt=1e-1, 
-        gal_field=True, 
+        gal_field=False, 
         dE_track=False, 
         star_evol=True, 
     )
