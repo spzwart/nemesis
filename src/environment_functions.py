@@ -26,15 +26,13 @@ def ejection_checker(particle_set, tidal_field):
         threshold = tidal_radius(particle_set).value_in(units.m)
     else:
         threshold = (3 | units.pc).value_in(units.pc)
-        
-    parts = particle_set.copy()
-    num_parts = len(parts)
+    num_parts = len(particle_set)
     
-    ejected_bools = np.zeros(len(parts))
+    ejected_bools = np.zeros(len(particle_set))
     lib.find_nearest_neighbour(
-        parts.x.value_in(units.m),
-        parts.y.value_in(units.m),
-        parts.z.value_in(units.m),
+        particle_set.x.value_in(units.m),
+        particle_set.y.value_in(units.m),
+        particle_set.z.value_in(units.m),
         num_parts, threshold,
         ejected_bools
     )
@@ -61,10 +59,9 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz):
     
     return parent_set
 
-def set_parent_radius(system_mass, dt):
+def set_parent_radius(system_mass, dt, no_particles):
     """Merging radius of parent systems"""
-    radius = 5*(constants.G*system_mass*dt**2)**(1./3.)
-    return max(50|units.AU, radius)
+    return no_particles*(constants.G*system_mass*dt**2)**(1./3.)
 
 def planet_radius(planet_mass):
     """Define planet radius (arXiv:2311.12593)"""
