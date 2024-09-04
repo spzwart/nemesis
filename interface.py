@@ -6,6 +6,8 @@ import time as cpu_time
 
 from amuse.lab import constants, read_set_from_file, write_set_to_file
 from amuse.units import units, nbody_system
+from amuse.units.optparse import OptionParser
+
 from src.environment_functions import galactic_frame
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
@@ -56,7 +58,8 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                                     "run_{:}".format(run_idx)
                                     )
     particle_set = read_set_from_file(particle_set_dir)
-    particle_set -= particle_set[particle_set.syst_id > 3]
+    particle_set -= particle_set[particle_set.syst_id > 5]
+    particle_set -= particle_set[particle_set.mass == (0 | units.kg)]
     particle_set.coll_events = 0
 
     parent_particles = particle_set[(particle_set.type != "JMO") 
@@ -123,10 +126,10 @@ def run_simulation(sim_dir, tend, eta, code_dt,
         min_radius = min(min_radius, parent.radius)
     
     typical_crosstime = 2*(min_radius/vdisp)
-    print(f"dt= {dt.in_(units.yr)}", end=" ")
-    print(f"Minimum children system radius = {min_radius.in_(units.au)}", end=" ")
-    print(f"Dispersion velocity = {vdisp.in_(units.kms)}", end=" ")
-    print(f"Minimum system crossing time = {typical_crosstime.in_(units.yr)}")
+    print(f"dt= {dt.in_(units.yr)}", end="  ")
+    print(f"Minimum children system radius= {min_radius.in_(units.au)}", end="  ")
+    print(f"Dispersion velocity= {vdisp.in_(units.kms)}", end="  ")
+    print(f"Min. system crossing time= {typical_crosstime.in_(units.kyr)}")
     if dt > 5*typical_crosstime:
         print("!!! Warning: dt > 5*Typical System Crossing Time !!!")
         cpu_time.sleep(2)
@@ -152,12 +155,12 @@ def run_simulation(sim_dir, tend, eta, code_dt,
         while nemesis.parent_code.model_time < t:
             nemesis.evolve_model(t)
             
-            if t % (dt*ITER_PER_SNAP) < dt:
+            if nemesis.dt_step % ITER_PER_SNAP == 0:
                 print("Saving snap @ time: ", t.in_(units.yr))
                 snapshot_no += 1
                 allparts = nemesis.particles.all()
                 
-                fname = os.path.join(snapdir_path, f"snap_{snapshot_no}")
+                fname = os.path.join(snapdir_path, f"snap_{nemesis.dt_step}")
                 write_set_to_file(
                     allparts.savepoint(0|units.Myr),
                     fname, 'amuse', close_file=True, 
@@ -191,6 +194,19 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                 \nSnap every: {(dt*ITER_PER_SNAP).in_(units.yr)} \
                 \nInitial Typical tcross: {typical_crosstime.in_(units.yr)}"
                 )
+     
+def new_option_parser():
+    result = OptionParser()
+    result.add_option("-sim_dir", dest="sim_dir", type="string", default="examples/S-Stars")
+    result.add_option("-par_n_worker", dest="par_n_worker", type="int", default=1)
+    result.add_option("-tend", dest="tend", type="float", default=30.0 | units.Myr)
+    result.add_option("-eta", dest="eta", type="float", default=1e-5)
+    result.add_option("-code_dt", dest="code_dt", type="float", default=1e-1)
+    result.add_option("-gal_field", dest="gal_field", action="store_true", default=False)
+    result.add_option("-dE_track", dest="dE_track", action="store_true", default=False)
+    result.add_option("-star_evol", dest="star_evol", action="store_true", default=False)
+    
+    return result
         
 if __name__ == "__main__":
     START_TIME = cpu_time.time()
@@ -205,14 +221,16 @@ if __name__ == "__main__":
         configurations = glob.glob(os.path.join(data_dir, "sim_data", "*"))
         config_choice = natsorted(configurations)[config_idx]
     
+    o, args = new_option_parser().parse_args()
+    
     run_simulation(
-        sim_dir=config_choice, 
-        par_n_worker=1, 
-        tend=30 | units.Myr, 
-        eta=eta,
-        code_dt=1e-1, 
-        gal_field=True, 
-        dE_track=False, 
-        star_evol=True, 
+        sim_dir=o.sim_dir, 
+        par_n_worker=o.par_n_worker, 
+        tend=o.tend, 
+        eta=o.eta,
+        code_dt=o.code_dt, 
+        gal_field=o.gal_field, 
+        dE_track=o.dE_track, 
+        star_evol=o.star_evol, 
     )
     

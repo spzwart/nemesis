@@ -130,14 +130,14 @@ class Nemesis(object):
             print("...Integrator: Test Particle...")
             code = Huayno(self.child_conv)
             code.particles.add_particles(children)
-            code.parameters.timestep_parameter = self.code_timestep
+            code.parameters.timestep_parameter = 0.1  # self.code_timestep
             code.set_integrator("OK")
             
         else:
             print("...Integrator: Huayno...")
             code = Huayno(self.child_conv)
             code.particles.add_particles(children)
-            code.parameters.timestep_parameter = self.code_timestep
+            code.parameters.timestep_parameter = 0.1  # self.code_timestep
             code.set_integrator("SHARED8_COLLISIONS")
         
         return code
@@ -242,6 +242,10 @@ class Nemesis(object):
                 self.corr_energy += E1 - E0
             
             self.split_subcodes()
+            for p in self.particles:
+                if p in self.subcodes:
+                    par = p 
+            par.position += 5 | units.pc
             ejected_idx = ejection_checker(self.particles.copy(), 
                                            self.gal_field
                                            )
@@ -323,17 +327,21 @@ class Nemesis(object):
             print(f"...Ejection #{self.no_ejec} Detected...")
             if ejected_particle in self.subcodes:
                 code = self.subcodes.pop(ejected_particle)
-                sys = self.particles.collection_attributes.subsystems[ejected_particle]
+                
+                subsystems = self.particles.collection_attributes.subsystems
+                sys = subsystems[ejected_particle]
                 path = os.path.join(self.ejected_dir, 
                                     f"ejec{self.no_ejec}_iter{self.dt_step}"
                                     )
                 print(f"System pop: {len(sys)}")
                                     
                 write_set_to_file(
-                    sys, path, 'amuse', 
+                    code.particles, 
+                    path, 'amuse', 
                     close_file=True, 
                     overwrite_file=True
                 )
+                
                 del code
         
         self.particles.remove_particle(ejected_particles)    

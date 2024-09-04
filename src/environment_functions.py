@@ -25,7 +25,7 @@ def ejection_checker(particle_set, tidal_field):
     if (tidal_field):
         threshold = tidal_radius(particle_set).value_in(units.m)
     else:
-        threshold = (3 | units.pc).value_in(units.pc)
+        threshold = (3 | units.pc).value_in(units.m)
     num_parts = len(particle_set)
     
     ejected_bools = np.zeros(len(particle_set))
