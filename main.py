@@ -2,6 +2,7 @@ import glob
 from natsort import natsorted
 import numpy as np
 import os
+import sys
 import time as cpu_time
 
 from amuse.lab import constants, read_set_from_file, write_set_to_file
@@ -14,12 +15,19 @@ from src.nemesis import Nemesis
 
 
 def create_output_directories(sim_dir, run_idx):
-    """Create output directories"""
+    """
+    Creates relevant directories for output data
+    
+    Args:
+        sim_dir (String): Simulation directory path
+        run_idx (Int):    Index of specific run
+    
+    Returns:
+        String: Directory path for specific run
+    """
     config_name = f"Nrun{run_idx}"
     dir_path = os.path.join(sim_dir, config_name)
-    if os.path.exists(os.path.join(dir_path, "*")):
-        pass
-    else:
+    if not os.path.exists(os.path.join(dir_path, "*")):
         os.mkdir(dir_path+"/")
         subdir = ["event_data", "collision_snapshot", 
                   "data_process", "simulation_stats", 
@@ -31,19 +39,24 @@ def create_output_directories(sim_dir, run_idx):
     return dir_path
 
 def run_simulation(sim_dir, tend, eta, code_dt,
-                   par_n_worker, dE_track, gal_field, 
+                   par_nworker, dE_track, gal_field, 
                    star_evol
                    ):
-    """Function to run simulation.
-    Inputs:
-    sim_dir:  Initial condition file directory path
-    tend:  Simulation end time
-    eta:  Parent system simulation step-time
-    code_dt:  Child integrator internal timestep
-    par_n_worker:  Number of workers for parent code
-    dE_track:  Flag turning on energy error tracker
-    gal_field:  Flag turning on galactic field or not
-    star_evol:  Flag turning on stellar evolution
+    """
+    Run simulation and output data.
+    
+    Args:
+        sim_dir (String):     Path to initial conditions
+        tend (Float):         Simulation end time
+        eta (Float):          Parameter tuning diagnostic timestep
+        code_dt (Float):      Gravitational integrator internal timestep
+        par_nworker (Int):    Number of workers for parent code
+        dE_track (Boolean):   Flag turning on energy error tracker
+        gal_field (Boolean):  Flag turning on galactic field or not
+        star_evol (Boolean):  Flag turning on stellar evolution
+    
+    Returns:
+        Completed simulation
     """
     run_idx = len(glob.glob(sim_dir+"/*")) - 1
     
@@ -54,12 +67,10 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     snapdir_path = os.path.join(dir_path, "simulation_snapshot")
 
     # Load particle set
-    particle_set_dir = os.path.join(sim_dir, "initial_particles",
-                                    "run_{:}".format(run_idx)
-                                    )
+    particle_set_dir = os.path.join(sim_dir, "initial_particles", f"run_{run_idx}")
     particle_set = read_set_from_file(particle_set_dir)
+    particle_set -= particle_set[particle_set.mass == 0. | units.kg]
     particle_set -= particle_set[particle_set.syst_id > 5]
-    particle_set -= particle_set[particle_set.mass == (0 | units.kg)]
     particle_set.coll_events = 0
 
     parent_particles = particle_set[(particle_set.type != "JMO") 
@@ -80,15 +91,13 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                                       )
     
     isolated_particles = particle_set[particle_set.syst_id < 0]
-    major_bodies = isolated_particles[isolated_particles.mass != (0 | units.kg)]
+    major_bodies = isolated_particles[isolated_particles.mass != (0. | units.kg)]
     test_particles = isolated_particles - major_bodies
     for system_id in np.unique(particle_set.syst_id): # Identify your parents
         if system_id > -1:
             system = particle_set[particle_set.syst_id == system_id]
             hosting_body = system[system.mass == max(system.mass)]
             major_bodies += hosting_body
-        
-    dt = eta * tend
     
     parents = HierarchicalParticles(major_bodies)
     initial_systems = parents[parents.syst_id > 0]
@@ -100,17 +109,18 @@ def run_simulation(sim_dir, tend, eta, code_dt,
                                  recenter=False
                                  )
     
-    par_n_worker = len(major_bodies) // 1000 + 1
+    par_nworker = int(len(major_bodies) // 1000 + 1)
     conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), 
                                         major_bodies.virial_radius()
                                         )
     conv_child = nbody_system.nbody_to_si(np.mean(parents.mass), 
                                           np.mean(parents.radius)
                                           )
+    dt = eta * tend
 
     # Setting up system
     nemesis = Nemesis(conv_par, conv_child, dt, code_dt, 
-                      par_n_worker, dE_track, star_evol, 
+                      par_nworker, dE_track, star_evol, 
                       gal_field
                       )
     nemesis.min_mass_evol = MIN_EVOL_MASS
@@ -121,18 +131,18 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     nemesis.test_particles = test_particles
     
     subsystems = nemesis.particles.collection_attributes.subsystems
-    min_radius = 1 | units.pc
+    min_radius = 1. | units.pc
     for parent in subsystems.keys():
         min_radius = min(min_radius, parent.radius)
     
-    typical_crosstime = 2*(min_radius/vdisp)
+    typical_crosstime = 2.*(min_radius/vdisp)
     print(f"dt= {dt.in_(units.yr)}", end="  ")
     print(f"Minimum children system radius= {min_radius.in_(units.au)}", end="  ")
     print(f"Dispersion velocity= {vdisp.in_(units.kms)}", end="  ")
     print(f"Min. system crossing time= {typical_crosstime.in_(units.kyr)}")
     if dt > 5*typical_crosstime:
         print("!!! Warning: dt > 5*Typical System Crossing Time !!!")
-        cpu_time.sleep(2)
+        sys.exit(1)
         
     if (nemesis.dE_track):
         energy_arr = [ ]
@@ -140,14 +150,15 @@ def run_simulation(sim_dir, tend, eta, code_dt,
         nemesis.E0 = E0
     
     allparts = nemesis.particles.all()
-    write_set_to_file(allparts.savepoint(0|units.Myr), 
-                      os.path.join(snapdir_path, "snap_0"), 
-                      'amuse', close_file=True, overwrite_file=True
-                      )
+    write_set_to_file(
+        allparts.savepoint(0 | units.Myr), 
+        os.path.join(snapdir_path, "snap_0"), 
+        'amuse', close_file=True, overwrite_file=True
+    )
     
     t = 0 | units.yr
     snapshot_no = 0
-    ITER_PER_SNAP = int(1/(1000*eta))
+    ITER_PER_SNAP = int(10**-3/eta)
     prev_step = nemesis.dt_step
     while t < tend:
         t += dt
@@ -156,15 +167,14 @@ def run_simulation(sim_dir, tend, eta, code_dt,
             nemesis.evolve_model(t)
             
             if nemesis.dt_step % ITER_PER_SNAP == 0:
-                print("Saving snap @ time: ", t.in_(units.yr))
+                print(f"Saving snap. T= {t.in_(units.yr)}")
                 snapshot_no += 1
                 allparts = nemesis.particles.all()
                 
                 fname = os.path.join(snapdir_path, f"snap_{nemesis.dt_step}")
                 write_set_to_file(
-                    allparts.savepoint(0|units.Myr),
-                    fname, 'amuse', close_file=True, 
-                    overwrite_file=True
+                    allparts.savepoint(0 | units.Myr),  fname, 
+                    'amuse', close_file=True, overwrite_file=True
                 )
           
         if (nemesis.dE_track) and (prev_step != nemesis.dt_step):
@@ -183,10 +193,8 @@ def run_simulation(sim_dir, tend, eta, code_dt,
         code.stop()
 
     # Store simulation statistics
-    sim_time = (cpu_time.time() - START_TIME)/60
-    fname = os.path.join(dir_path, 'simulation_stats', 
-                         f'sim_stats_{run_idx}.txt'
-                         )
+    sim_time = (cpu_time.time() - START_TIME)/60.
+    fname = os.path.join(dir_path, 'simulation_stats', f'sim_stats_{run_idx}.txt')
     with open(fname, 'w') as f:
         f.write(f"Total CPU Time: {sim_time} minutes \
                 \nEnd Time: {t.in_(units.Myr)} \
@@ -197,14 +205,14 @@ def run_simulation(sim_dir, tend, eta, code_dt,
      
 def new_option_parser():
     result = OptionParser()
-    result.add_option("-sim_dir", dest="sim_dir", type="string", default="examples/S-Stars")
-    result.add_option("-par_n_worker", dest="par_n_worker", type="int", default=1)
-    result.add_option("-tend", dest="tend", type="float", default=30.0 | units.Myr)
-    result.add_option("-eta", dest="eta", type="float", default=1e-5)
-    result.add_option("-code_dt", dest="code_dt", type="float", default=1e-1)
-    result.add_option("-gal_field", dest="gal_field", action="store_true", default=False)
-    result.add_option("-dE_track", dest="dE_track", action="store_true", default=False)
-    result.add_option("-star_evol", dest="star_evol", action="store_true", default=False)
+    result.add_option("--sim_dir", dest="sim_dir", type="string", default="examples/S-Stars")
+    result.add_option("--par_nworker", dest="par_nworker", type="int", default=1)
+    result.add_option("--tend", dest="tend", type="float", default=30. | units.Myr)
+    result.add_option("--eta", dest="eta", type="float", default=1e-5)
+    result.add_option("--code_dt", dest="code_dt", type="float", default=1e-1)
+    result.add_option("--gal_field", dest="gal_field", action="store_true", default=False)
+    result.add_option("--dE_track", dest="dE_track", action="store_true", default=False)
+    result.add_option("--star_evol", dest="star_evol", action="store_true", default=False)
     
     return result
         
@@ -225,7 +233,7 @@ if __name__ == "__main__":
     
     run_simulation(
         sim_dir=o.sim_dir, 
-        par_n_worker=o.par_n_worker, 
+        par_nworker=o.par_nworker, 
         tend=o.tend, 
         eta=o.eta,
         code_dt=o.code_dt, 

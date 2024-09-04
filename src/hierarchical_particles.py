@@ -9,7 +9,14 @@ class HierarchicalParticles(ParticlesOverlay):
         self.collection_attributes.subsystems = dict()
 
     def add_particles(self, parts):  
-        """Add particles to particle set."""
+        """
+        Add particles to particle set.
+        
+        Args:
+            parts (ParticleSet): The particle set to be added
+        Returns:
+            ParticleSet: The particle set
+        """
         _parts=ParticlesOverlay.add_particles(self,parts)
         if hasattr(parts.collection_attributes, "subsystems"):
             for parent, sys in parts.collection_attributes.subsystems.items():
@@ -17,7 +24,15 @@ class HierarchicalParticles(ParticlesOverlay):
         return _parts
     
     def add_subsystem(self, sys, recenter=True):
-        """Create a parent from particle subsytem"""
+        """
+        Create a parent from particle subsytem
+        
+        Args:
+            sys (ParticleSet):  The children particle set
+            recenter (Boolean): Flag to recenter the parent
+        Returns:
+            Particle: The parent particle
+        """
         if len(sys) == 1:
             return self.add_particles(sys)[0]
         
@@ -31,7 +46,15 @@ class HierarchicalParticles(ParticlesOverlay):
         return parent
 
     def assign_parent_attributes(self, sys, parent, relative=True, recenter=True):
-        """Create parent from subsystem attributes."""
+        """
+        Create parent from subsystem attributes
+        
+        Args:
+            sys (ParticleSet):  The children particle set
+            parent (Particle):  The parent particle
+            relative (Boolean): Flag to assign relative attributes
+            recenter (Boolean): Flag to recenter the parent
+        """
         parent.mass = np.sum(sys.mass)
         if not (relative):
             parent.position = 0.*sys[0].position
@@ -43,7 +66,15 @@ class HierarchicalParticles(ParticlesOverlay):
             sys.move_to_center()
     
     def assign_subsystem(self, sys, parent, relative=True, recenter=True):
-        """Assign a subsystem to their parent particle."""
+        """
+        Assign a subsystem to their parent particle.
+        
+        Args:
+            sys (ParticleSet):  The children particle set
+            parent (Particle):  The parent particle
+            relative (Boolean): Flag to assign relative attributes
+            recenter (Boolean): Flag to recenter the parent
+        """
         self.assign_parent_attributes(sys, parent, relative, recenter)
         self.collection_attributes.subsystems[parent] = sys
     
@@ -55,13 +86,23 @@ class HierarchicalParticles(ParticlesOverlay):
             parent.velocity += sys.center_of_mass_velocity()
 
     def remove_particles(self, parts):
-        """Remove particles from particle set."""
+        """
+        Remove particles from particle set.
+        
+        Args:
+            parts (ParticleSet): The particle to be removed
+        """
         for p in parts:
             self.collection_attributes.subsystems.pop(p, None)
         ParticlesOverlay.remove_particles(self, parts)
     
     def all(self):
-        """Get copy of complete particle set"""
+        """
+        Get copy of complete particle set.
+        
+        Returns:
+            ParticleSet: The complete particle set simulating
+        """
         parts = self.copy_to_memory()
         parts.syst_id = -1
         

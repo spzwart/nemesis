@@ -26,16 +26,27 @@ def load_gravity_library():
     return lib
 
 def system_to_cluster_frame(system, parent):
-    """Shift system particles coordinates to the parent"""
+    """
+    Shift children to parent reference frame
+    
+    Args:
+        system:  Particle set to convert
+        parent:  Parent particle to convert to
+    Returns:
+        Particle set with phase-space coordinates shifted in parent reference frame
+    """
     system = system.copy_to_memory()
     system.position += parent.position
     return system
 
 def compute_gravity(grav_lib, perturber, particles):
-    """Compute gravitational force felt by perturber particles due to externals
-    Inputs:
-    perturber:  Set of perturbing particles
-    particles:  Set of particles feeling force
+    """
+    Compute gravitational force felt by perturber particles due to externals
+    
+    Args:
+        grav_lib (library):       Library to compute gravity
+        perturber (ParticleSet):  Set of perturbing particles
+        particles (ParticleSet):  Set of particles feeling force
     """
     num_particles = len(particles)
     num_perturber = len(perturber)
@@ -61,19 +72,30 @@ def compute_gravity(grav_lib, perturber, particles):
     
 class CorrectionFromCompoundParticle(object):
     def __init__(self, particles, subsystems):
-        """Correct force vector exerted by parents on all 
-        other particles present by that of its children.
-        Inputs:
-        particles:  Parent particles to correct force of
-        subsystems:  Collection of subsystems present
+        """Correct force exerted by some parent system on 
+        other particles by that of its children.
+        
+        Args:
+            particles (ParticleSet):   Parent particles to correct force of
+            subsystems (ParticleSet):  Collection of subsystems present
         """
         self.particles = particles
         self.subsystems = subsystems
     
     def get_gravity_at_point(self, radius, x, y, z):
-        """Compute difference in gravitational acceleration felt by parents
-        due to force exerted by parents hosting children, and their children.
+        """
+        Compute difference in gravitational acceleration felt by parents
+        due to force exerted by parents which host children, and force
+        exerted by their children.
         dF = \sum_j (\sum_i F_{i} - F_{j}) where j is parent and i is children of parent j
+        
+        Args:
+            radius (Float):  Radius of parent particles
+            x (Float):       x-Cartesian coordinates of parent particles
+            y (Float):       z-Cartesian coordinates of parent particles
+            z (Float):       y-Cartesian coordinates of parent particles
+        Returns:
+            Float: Corrected acceleration for affected particles
         """
         particles = self.particles.copy_to_memory()
         acc_units = (particles.vx.unit**2/particles.x.unit)
@@ -94,13 +116,24 @@ class CorrectionFromCompoundParticle(object):
             ax_chd, ay_chd, az_chd = compute_gravity(lib, system, parts)
             ax_par, ay_par, az_par = compute_gravity(lib, temp_par, parts)
             
-            parts.ax += (ax_chd - ax_par) * (1 | units.kg*units.m**-2) * constants.G
-            parts.ay += (ay_chd - ay_par) * (1 | units.kg*units.m**-2) * constants.G
-            parts.az += (az_chd - az_par) * (1 | units.kg*units.m**-2) * constants.G
+            parts.ax += (ax_chd - ax_par) * (1. | units.kg*units.m**-2) * constants.G
+            parts.ay += (ay_chd - ay_par) * (1. | units.kg*units.m**-2) * constants.G
+            parts.az += (az_chd - az_par) * (1. | units.kg*units.m**-2) * constants.G
             
         return particles.ax, particles.ay, particles.az
     
     def get_potential_at_point(self, radius, x, y, z):
+        """
+        Get the potential at a specific location
+        
+        Args:
+            radius (Float):  Radius of the particle at that location
+            x (Float):       x-Cartesian coordinates of the location
+            y (Float):       y-Cartesian coordinates of the location
+            z (Float):       z-Cartesian coordinates of the location
+        Returns:
+            Float: The potential field at the location
+        """
         particles = self.particles.copy_to_memory()
         particles.phi = 0. | (particles.vx.unit**2)
         for parent,sys in list(self.subsystems.items()): 
@@ -108,6 +141,7 @@ class CorrectionFromCompoundParticle(object):
             code.particles.add_particles(sys.copy())
             code.particles.position += parent.position
             code.particles.velocity += parent.velocity
+            
             parts = particles - parent
             phi = code.get_potential_at_point(0.*parts.radius, 
                                               parts.x, 
@@ -133,19 +167,27 @@ class CorrectionFromCompoundParticle(object):
 class CorrectionForCompoundParticle(object):  
     def __init__(self, particles, parent, system):
         """Correct force vector exerted by global particles on childrens
-        Inputs:
-        particles:  All parent particles
-        parent:  Subsystem's parent particle
-        system:  Subsystem particle set
+        
+        Args:
+            particles (ParticleSet):  All parent particles
+            parent (Particle):        Subsystem's parent particle
+            system (ParticleSet):     Subsystem particle set
         """
         self.particles = particles
         self.parent = parent
         self.system = system
     
-    def get_gravity_at_point(self,radius,x,y,z):
-        """Compute gravitational acceleration felt by children via 
-        all other parents present in the simulation.
+    def get_gravity_at_point(self, radius, x, y, z):
+        """Compute gravitational acceleration felt by children due to parents present.
         dF_j = F_{i} - F_{j} where i is parent and j is children of parent i
+        
+        Args:
+            radius (Float):  Radius of the children particle
+            x (Float):       x Location of the children particle
+            y (Float):       y Location of the children particle
+            z (Float):       z Location of the children particle
+        Returns: 
+            Float: Gravitational acceleration felt by children particles
         """
         parent = self.parent
         parts = self.particles - parent
@@ -172,7 +214,18 @@ class CorrectionForCompoundParticle(object):
         
         return system.ax, system.ay, system.az
     
-    def get_potential_at_point(self,radius,x,y,z):
+    def get_potential_at_point(self, radius, x, y, z):
+        """
+        Get the potential at a specific location
+        
+        Args:
+            radius (Float):  Radius of the children particle
+            x (Float):       x Location of the children particle
+            y (Float):       y Location of the children particle
+            z (Float):       z Location of the children particle
+        Returns:
+            Float: The potential field at the children particle's location
+        """
         parent = self.parent
         parts = self.system - parent
         instance = CalculateFieldForParticles(gravity_constant=constants.G)
