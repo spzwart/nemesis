@@ -34,14 +34,14 @@ class Nemesis(object):
         Class setting up the simulation.
         
         Args:
-            par_conv (Converter):     Parent N-body converter
-            child_conv (Converter):   Children N-body converter
-            dt (Float):               Diagnostic time step
-            code_dt (Float):          Internal time step
-            par_nworker (Int):        Number of workers for global integrator
-            dE_track (Boolean):       Flag turning on/off energy error tracker
-            star_evol (Boolean):      Flag turning on/off stellar evolution
-            gal_field (Boolean):      Flag turning on/off galactic field
+            par_conv (Converter):  Parent N-body converter
+            child_conv (Converter):  Children N-body converter
+            dt (Float):  Diagnostic time step
+            code_dt (Float):  Internal time step
+            par_nworker (Int):  Number of workers for global integrator
+            dE_track (Boolean):  Flag turning on/off energy error tracker
+            star_evol (Boolean):  Flag turning on/off stellar evolution
+            gal_field (Boolean):  Flag turning on/off galactic field
         """
         self.code_timestep = code_dt
         self.par_nworker = par_nworker
@@ -133,7 +133,7 @@ class Nemesis(object):
         Args:
             par_conv (converter):  Converter for global integrator
         Returns:
-            Code: Gravitational integrator with particle set
+            code (Code):  Gravitational integrator with particle set
         """
         code = ph4(par_conv, number_of_workers=self.par_nworker)
         code.parameters.epsilon_squared = (0. | units.au)**2
@@ -147,7 +147,7 @@ class Nemesis(object):
         Args:
             children (ParticleSet):  Children systems
         Returns:
-            Code: Gravitational integrator with particle set
+            code (Code):  Gravitational integrator with particle set
         """
         # masses = np.sort(children.mass)
         if children.mass.min() == (0. | units.kg):
@@ -178,7 +178,7 @@ class Nemesis(object):
         Kick integrator for isolated test particles
         
         Returns:
-            Code: Gravitational integrator with particle set
+            gravity (Code):  Gravitational integrator with particle set
         """
         code = Huayno(self.child_conv)
         code.particles.add_particles(self.test_particles)
@@ -209,10 +209,10 @@ class Nemesis(object):
         
         Args:
             transfer_data (Code):  Particle set to transfer data from
-            receive_data (Code):   Particle set to update data
-            attributes (Array):    Attributes wanting to copy
+            receive_data (Code):  Particle set to update data
+            attributes (Array):  Attributes wanting to copy
         Returns:
-            Channel: Channel to communicate between two codes
+            channel (Channel): Channel to communicate between two codes
         """
         channel = transfer_data.new_channel_to(receive_data)
         channel.copy_attributes(attributes)
@@ -222,7 +222,7 @@ class Nemesis(object):
         Calculate system energy error
         
         Args:
-            Float:  Relative energy error
+            dE (Float):  Relative energy error
         """
         all_particles = self.particles.all()
         Ek = all_particles.kinetic_energy()
@@ -234,8 +234,8 @@ class Nemesis(object):
         """
         Calculate systems total energy
         
-        Args:
-            Float:  Cluster total energy
+        Returns:
+            Etot (Float):  Cluster total energy
         """
         all_parts = self.particles.all()
         Ek = all_parts.kinetic_energy()
@@ -247,7 +247,7 @@ class Nemesis(object):
         Evolve the system until tend
         
         Args:
-            tend (Float):      Time to simulate till
+            tend (Float):  Time to simulate till
             timestep (Float):  Timestep to simulate
         """
         if timestep is None:
@@ -407,11 +407,11 @@ class Nemesis(object):
         """Resolve the merging of two parent systems.
         
         Args:
-            coll_time (Float):       Time of collision
-            corr_time (Float):       Collision correction time
+            coll_time (Float):  Time of collision
+            corr_time (Float):  Collision correction time
             coll_set (ParticleSet):  Colliding particle set
         Returns:
-            ParticleSuperset:  Superset containing new parent and children
+            newparent (ParticleSuperset):  Superset containing new parent and children
         """
         par = self.particles.copy_to_memory()
         subsystems = par.collection_attributes.subsystems
@@ -478,12 +478,12 @@ class Nemesis(object):
         """Function to evolve and/or resync the final moments of collision.
         
         Args:
-            coll_set (ParticleSet):    Attributes of colliding particle
+            coll_set (ParticleSet):  Attributes of colliding particle
             collsubsys (ParticleSet):  Particle set of colliding particles with key words
-            coll_time (Float):         Time of simulation where collision occurs
+            coll_time (Float):  Time of simulation where collision occurs
         Returns:
             ParticleSet:  Particle set with merging particles \n
-            Dictionary:   Childrens of merging particles
+            Dictionary:  Childrens of merging particles
         """
         collsubset = Particles()
         collsyst = dict()
@@ -549,14 +549,14 @@ class Nemesis(object):
         
         Args:
             children (ParticleSet):  The children particle set
-            parent (Particle):       The parent particle
+            parent (Particle):  The parent particle
             enc_parti (ParticleSet): The particles in the collision
-            tcoll (Float):           The time-stamp for which the particles collide at
-            code (Code):             The integrator used
-            resolved_keys (Dict):    Dictionary holding {Collider i Key: Remnant Key}
+            tcoll (Float):  The time-stamp for which the particles collide at
+            code (Code):  The integrator used
+            resolved_keys (Dict):  Dictionary holding {Collider i Key: Remnant Key}
         Returns:
-            ParticleSuperset:  New parent particle
-            Dictionary:        Keys of merging particles
+            newparent (ParticleSuperset):  New parent particle
+            resolved_keys (Dictionary):  Keys of merging particles
         """
         # Save properties
         allparts = self.particles.all()
@@ -678,7 +678,7 @@ class Nemesis(object):
         
         Args:
             SN_detect (StoppingCondition): Detected particle set undergoing SN
-            bodies (ParticleSet):          All bodies undergoing stellar evolution
+            bodies (ParticleSet):  All bodies undergoing stellar evolution
         """
         if (self.dE_track):
             E0 = self.calculate_total_energy()
@@ -792,7 +792,7 @@ class Nemesis(object):
         Evolve parent system until dt
         
         Args:
-            dt (Float):        Time to evolve till
+            dt (Float):  Time to evolve till
             corr_time (Float): Time to correct for drift
         """
         print("...Drifting Global...")
@@ -869,7 +869,7 @@ class Nemesis(object):
             Algorithm to evolve individual children codes
             
             Args:
-                lock: Lock to prevent simultaneous access to shared resources
+                lock:  Lock to prevent simultaneous access to shared resources
             """
             try:
                 parent = parent_queue.get(timeout=1)  # Timeout to prevent blocking indefinitely
@@ -935,8 +935,8 @@ class Nemesis(object):
         
         Args:
             particles (ParticleSet):  Particles to correct accelerations of
-            corr_code (Code):         Code containing information on difference in gravitational field
-            dt (Float):               Time-step of correction kick
+            corr_code (Code):  Code containing information on difference in gravitational field
+            dt (Float):  Time-step of correction kick
         """
         parts = particles.copy_to_memory()
         ax, ay, az = corr_code.get_gravity_at_point(parts.radius,
@@ -958,7 +958,7 @@ class Nemesis(object):
         Args:
             particles (ParticleSet):  Parent particle set
             subsystems (Dictionary):  Dictionary of children system
-            dt (Float):               Time interval for applying kicks
+            dt (Float):  Time interval for applying kicks
         """
         if subsystems and len(particles) > 1:
             attributes = ["x","y","z","vx","vy","vz"]

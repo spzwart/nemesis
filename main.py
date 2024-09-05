@@ -1,4 +1,5 @@
 import glob
+import itertools
 from natsort import natsorted
 import numpy as np
 import os
@@ -46,12 +47,12 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     Run simulation and output data.
     
     Args:
-        sim_dir (String):     Path to initial conditions
-        tend (Float):         Simulation end time
-        eta (Float):          Parameter tuning diagnostic timestep
-        code_dt (Float):      Gravitational integrator internal timestep
-        par_nworker (Int):    Number of workers for parent code
-        dE_track (Boolean):   Flag turning on energy error tracker
+        sim_dir (String):  Path to initial conditions
+        tend (Float):  Simulation end time
+        eta (Float):  Parameter tuning diagnostic timestep
+        code_dt (Float):  Gravitational integrator internal timestep
+        par_nworker (Int):  Number of workers for parent code
+        dE_track (Boolean):  Flag turning on energy error tracker
         gal_field (Boolean):  Flag turning on galactic field or not
         star_evol (Boolean):  Flag turning on stellar evolution
     
@@ -69,8 +70,6 @@ def run_simulation(sim_dir, tend, eta, code_dt,
     # Load particle set
     particle_set_dir = os.path.join(sim_dir, "initial_particles", f"run_{run_idx}")
     particle_set = read_set_from_file(particle_set_dir)
-    particle_set -= particle_set[particle_set.mass == 0. | units.kg]
-    particle_set -= particle_set[particle_set.syst_id > 5]
     particle_set.coll_events = 0
 
     parent_particles = particle_set[(particle_set.type != "JMO") 
@@ -205,7 +204,6 @@ def run_simulation(sim_dir, tend, eta, code_dt,
      
 def new_option_parser():
     result = OptionParser()
-    result.add_option("--sim_dir", dest="sim_dir", type="string", default="examples/S-Stars")
     result.add_option("--par_nworker", dest="par_nworker", type="int", default=1)
     result.add_option("--tend", dest="tend", type="float", default=30. | units.Myr)
     result.add_option("--eta", dest="eta", type="float", default=1e-5)
@@ -232,7 +230,7 @@ if __name__ == "__main__":
     o, args = new_option_parser().parse_args()
     
     run_simulation(
-        sim_dir=o.sim_dir, 
+        sim_dir=config_choice, 
         par_nworker=o.par_nworker, 
         tend=o.tend, 
         eta=o.eta,
