@@ -14,10 +14,10 @@ def ejection_checker(particle_set, tidal_field):
     Find ejected systems (particles whose second nearest neighbour is separated with > DIST_THRESHOLD)
 
     Args:
-        particle_set (ParticleSet): The particle set
-        tidal_field (Boolean):      1 = Physical tidal radius 0 = hard-coded tidal radius
+        particle_set (ParticleSet):  The particle set
+        tidal_field (Boolean):  1 = Physical tidal radius 0 = hard-coded tidal radius
     Returns:
-        Array: Array of booleans flagging ejected particles
+        matrix (Array): Array of booleans flagging ejected particles
     """
     lib = ctypes.CDLL('./src/ejection.so')  # Adjust the path as necessary
     lib.find_nearest_neighbour.argtypes = [
@@ -52,15 +52,15 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz):
     Shift particle set to galactic frame
 
     Args:
-        parent_set (ParticleSet): The particle set
-        dx (Float):               x Distance of cluster to center of galaxy
-        dy (Float):               y Distance of cluster to center of galaxy
-        dz (Float):               z Distance of cluster to center of galaxy
-        dvx (Float):              x-Velocity of cluster in galactocentric frame
-        dvy (Float):              y-Velocity of cluster in galactocentric frame
-        dvz (Float):              z-Velocity of cluster in galactocentric frame
+        parent_set (ParticleSet):  The particle set
+        dx (Float):  x Distance of cluster to center of galaxy
+        dy (Float):  y Distance of cluster to center of galaxy
+        dz (Float):  z Distance of cluster to center of galaxy
+        dvx (Float):  x-Velocity of cluster in galactocentric frame
+        dvy (Float):  y-Velocity of cluster in galactocentric frame
+        dvz (Float):  z-Velocity of cluster in galactocentric frame
     Returns:
-        ParticleSet: Particle set with galactocentric coordinates
+        parent_set (ParticleSet): Particle set with galactocentric coordinates
     """
     parent_set.x += dx
     parent_set.y += dy
@@ -80,8 +80,8 @@ def set_parent_radius(tot_mass, diag_dt, pop):
 
     Args:
        tot_mass (Float):  Total mass of the system
-       diag_dt (Float):   Diagnostic timestep
-       pop (Float/Int):   Population of the system
+       diag_dt (Float):  Diagnostic timestep
+       pop (Float/Int):  Population of the system
     Returns:
        Float: Merging radius of the parent system
     """
@@ -94,7 +94,7 @@ def planet_radius(planet_mass):
     Args:
         plant_mass (Float):  Mass of the planet
     Returns:
-        Float: Planet radius
+        radius (Float):  Planet radius
     """
     mass_in_earth = planet_mass.value_in(units.MEarth)
     if planet_mass < (7.8 | units.MEarth):
@@ -113,7 +113,7 @@ def tidal_radius(parent_set):
     Args:
         parent_set (ParticleSet):  The parent particle set
     Returns:
-        Float: The tidal radius of the cluster
+        parent_set (Float):  The tidal radius of the cluster
     """
     cluster_galaxy_system = Particles(2)
     
@@ -140,7 +140,7 @@ def ZAMS_radius(star_mass):
     Args:
         star_mass (Float):  Mass of the star
     Returns:
-        Float: The ZAMS radius of the star
+        r_zams (Float):  The ZAMS radius of the star
     """
     mass_in_sun = star_mass.value_in(units.MSun)
     mass_sq = (mass_in_sun)**2
