@@ -33,7 +33,7 @@ def system_to_cluster_frame(system, parent):
         system:  Particle set to convert
         parent:  Parent particle to convert to
     Returns:
-        system (ParticleSet): Shifted phase-space coordinates of children into parent reference frame
+        system (object): Shifted phase-space coordinates of children into parent reference frame
     """
     system = system.copy_to_memory()
     system.position += parent.position
@@ -45,8 +45,8 @@ def compute_gravity(grav_lib, perturber, particles):
     
     Args:
         grav_lib (library):  Library to compute gravity
-        perturber (ParticleSet):  Set of perturbing particles
-        particles (ParticleSet):  Set of particles feeling force
+        perturber (object):  Set of perturbing particles
+        particles (object):  Set of particles feeling force
     """
     num_particles = len(particles)
     num_perturber = len(perturber)
@@ -76,8 +76,8 @@ class CorrectionFromCompoundParticle(object):
         other particles by that of its children.
         
         Args:
-            particles (ParticleSet):  Parent particles to correct force of
-            subsystems (ParticleSet):  Collection of subsystems present
+            particles (object):  Parent particles to correct force of
+            subsystems (object):  Collection of subsystems present
         """
         self.particles = particles
         self.subsystems = subsystems
@@ -169,9 +169,9 @@ class CorrectionForCompoundParticle(object):
         """Correct force vector exerted by global particles on childrens
         
         Args:
-            particles (ParticleSet):  All parent particles
+            particles (object):  All parent particles
             parent (Particle):  Subsystem's parent particle
-            system (ParticleSet):  Subsystem particle set
+            system (object):  Subsystem particle set
         """
         self.particles = particles
         self.parent = parent

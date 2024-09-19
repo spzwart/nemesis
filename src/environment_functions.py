@@ -14,7 +14,7 @@ def ejection_checker(particle_set, tidal_field):
     Find ejected systems (particles whose second nearest neighbour is separated with > DIST_THRESHOLD)
 
     Args:
-        particle_set (ParticleSet):  The particle set
+        particle_set (object):  The particle set
         tidal_field (Boolean):  1 = Physical tidal radius 0 = hard-coded tidal radius
     Returns:
         matrix (Array): Array of booleans flagging ejected particles
@@ -52,7 +52,7 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz):
     Shift particle set to galactic frame
 
     Args:
-        parent_set (ParticleSet):  The particle set
+        parent_set (object):  The particle set
         dx (Float):  x Distance of cluster to center of galaxy
         dy (Float):  y Distance of cluster to center of galaxy
         dz (Float):  z Distance of cluster to center of galaxy
@@ -60,7 +60,7 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz):
         dvy (Float):  y-Velocity of cluster in galactocentric frame
         dvz (Float):  z-Velocity of cluster in galactocentric frame
     Returns:
-        parent_set (ParticleSet): Particle set with galactocentric coordinates
+        parent_set (object): Particle set with galactocentric coordinates
     """
     parent_set.x += dx
     parent_set.y += dy
@@ -111,7 +111,7 @@ def tidal_radius(parent_set):
     Tidal radius (Spitzer 1987 eqn 5.10)
     
     Args:
-        parent_set (ParticleSet):  The parent particle set
+        parent_set (object):  The parent particle set
     Returns:
         parent_set (Float):  The tidal radius of the cluster
     """
