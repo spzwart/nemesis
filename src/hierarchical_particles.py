@@ -13,9 +13,9 @@ class HierarchicalParticles(ParticlesOverlay):
         Add particles to particle set.
         
         Args:
-            parts (ParticleSet):  The particle set to be added
+            parts (object):  The particle set to be added
         Returns:
-            _parts (ParticleSet):  The particle set
+            _parts (object):  The particle set
         """
         _parts=ParticlesOverlay.add_particles(self,parts)
         if hasattr(parts.collection_attributes, "subsystems"):
@@ -28,7 +28,7 @@ class HierarchicalParticles(ParticlesOverlay):
         Create a parent from particle subsytem
         
         Args:
-            sys (ParticleSet):  The children particle set
+            sys (object):  The children particle set
             recenter (Boolean):  Flag to recenter the parent
         Returns:
             parent (Particle):  The parent particle
@@ -50,7 +50,7 @@ class HierarchicalParticles(ParticlesOverlay):
         Create parent from subsystem attributes
         
         Args:
-            sys (ParticleSet):  The children particle set
+            sys (object):  The children particle set
             parent (Particle):  The parent particle
             relative (Boolean):  Flag to assign relative attributes
             recenter (Boolean):  Flag to recenter the parent
@@ -70,7 +70,7 @@ class HierarchicalParticles(ParticlesOverlay):
         Assign a subsystem to their parent particle.
         
         Args:
-            sys (ParticleSet):  The children particle set
+            sys (object):  The children particle set
             parent (Particle):  The parent particle
             relative (Boolean):  Flag to assign relative attributes
             recenter (Boolean):  Flag to recenter the parent
@@ -90,7 +90,7 @@ class HierarchicalParticles(ParticlesOverlay):
         Remove particles from particle set.
         
         Args:
-            parts (ParticleSet):  The particle to be removed
+            parts (object):  The particle to be removed
         """
         for p in parts:
             self.collection_attributes.subsystems.pop(p, None)
@@ -101,7 +101,7 @@ class HierarchicalParticles(ParticlesOverlay):
         Get copy of complete particle set.
         
         Returns:
-            parts (ParticleSet):  The complete particle set simulating
+            parts (object):  The complete particle set simulating
         """
         parts = self.copy_to_memory()
         parts.syst_id = -1

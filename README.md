@@ -1,4 +1,4 @@
-This project generalises the nemesis algorithm using [AMUSE](https://amuse.readthedocs.io/en/latest/).
+This project generalises the nemesis algorithm using [AMUSE](https://amuse.readthedocs.io/en/latest/). For AMUSE install see the following [GitHub repository](https://github.com/LourensVeen/amuse-course).
 
 ### Running instructions
 1. Install the required libraries: conda install --file requirements.txt <br />
@@ -29,6 +29,7 @@ main.py:
 - galactic_frame() input position and velocity coordinates.
 - ITER_PER_SNAP: Number of time steps per snapshot.
 - typical_crosstime: The typical crossing time of a parent system. Tendency is to keep diagnostic timestep below 5 times the crossing time.
+- maximum_radius: Maximum parent radius
 
 src/environment_functions.py:
 - threshold: If no second-nearest parent system is within DIST_THRESHOLD from iterated parent, it is 'isolated' and a possible ejector.
