@@ -67,9 +67,9 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     particle_set_dir = os.path.join(sim_dir, "initial_particles", "*")
     particle_sets = natsorted(glob.glob(particle_set_dir))
     particle_set = read_set_from_file(particle_sets[run_idx])
-    particle_set -= particle_set[particle_set.syst_id > 3]  # Testing purpose
+    particle_set -= particle_set[particle_set.syst_id > 5]  # Testing purpose
     particle_set.coll_events = 0
-
+    
     parent_particles = particle_set[(particle_set.type != "JMO") 
                                     & (particle_set.type != "ASTEROID") 
                                     & (particle_set.type != "PLANET")]
@@ -111,14 +111,13 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     dt = eta * tend
 
     # Setting up system
-    nemesis = Nemesis(conv_par, conv_child, dt, 
-                      code_dt, par_nworker, dE_track, 
+    nemesis = Nemesis(MIN_EVOL_MASS, conv_par, 
+                      conv_child, dt, coll_path, 
+                      ejected_dir, code_dt, 
+                      par_nworker, dE_track, 
                       star_evol, gal_field)
-    nemesis.min_mass_evol = MIN_EVOL_MASS
     nemesis.particles.add_particles(parents)
     nemesis.commit_particles()
-    nemesis.coll_dir = coll_path
-    nemesis.ejected_dir = ejected_dir
     nemesis.test_particles = test_particles
     
     min_radius = nemesis.particles.radius.min()
