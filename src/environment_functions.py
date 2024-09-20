@@ -9,12 +9,12 @@ from amuse.units import units, constants
 
 MWG = MWpotentialBovy2015()
 
-def ejection_checker(particle_set, tidal_field):
+def ejection_checker(particle_set, tidal_field) -> np.ndarray:
     """
     Find ejected systems (particles whose second nearest neighbour is separated with > DIST_THRESHOLD)
 
     Args:
-        particle_set (object):  The particle set
+        particle_set (particle set):  The particle set
         tidal_field (Boolean):  1 = Physical tidal radius 0 = hard-coded tidal radius
     Returns:
         matrix (Array): Array of booleans flagging ejected particles
@@ -47,12 +47,12 @@ def ejection_checker(particle_set, tidal_field):
     
     return ejected_idx
 
-def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz):
+def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz) -> Particles:
     """
     Shift particle set to galactic frame
 
     Args:
-        parent_set (object):  The particle set
+        parent_set (particle set):  The particle set
         dx (Float):  x Distance of cluster to center of galaxy
         dy (Float):  y Distance of cluster to center of galaxy
         dz (Float):  z Distance of cluster to center of galaxy
@@ -60,7 +60,7 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz):
         dvy (Float):  y-Velocity of cluster in galactocentric frame
         dvz (Float):  z-Velocity of cluster in galactocentric frame
     Returns:
-        parent_set (object): Particle set with galactocentric coordinates
+        parent_set (particle set): Particle set with galactocentric coordinates
     """
     parent_set.x += dx
     parent_set.y += dy
@@ -74,20 +74,21 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz):
     
     return parent_set
 
-def set_parent_radius(tot_mass, diag_dt, pop):
+def set_parent_radius(tot_mass, diag_dt, pop) -> float:
     """
     Merging radius of parent systems
 
     Args:
        tot_mass (Float):  Total mass of the system
        diag_dt (Float):  Diagnostic timestep
-       pop (Float/Int):  Population of the system
+       pop (Int):  Population of the system
     Returns:
-       Float: Merging radius of the parent system
+       radius (Float): Merging radius of the parent system
     """
-    return pop*(constants.G*tot_mass*diag_dt**2.)**(1./3.)
+    radius = pop*(constants.G*tot_mass*diag_dt**2.)**(1./3.)
+    return radius
 
-def planet_radius(planet_mass):
+def planet_radius(planet_mass) -> float:
     """
     Define planet radius (arXiv:2311.12593)
     
@@ -106,12 +107,12 @@ def planet_radius(planet_mass):
     radius = (14.3 | units.REarth)*(mass_in_earth)**(-0.02) 
     return radius
 
-def tidal_radius(parent_set):
+def tidal_radius(parent_set) -> float:
     """
     Tidal radius (Spitzer 1987 eqn 5.10)
     
     Args:
-        parent_set (object):  The parent particle set
+        parent_set (particle set):  The parent particle set
     Returns:
         parent_set (Float):  The tidal radius of the cluster
     """
@@ -133,7 +134,7 @@ def tidal_radius(parent_set):
     ecc = kepler_elements[3]
     return ((cluster_mass/enclosed_mass)/(3.+ecc))**(1./3.) * cluster_pos.length()
     
-def ZAMS_radius(star_mass):
+def ZAMS_radius(star_mass) -> float:
     """
     Define stellar radius at ZAMS
     

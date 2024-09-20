@@ -15,7 +15,7 @@ from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
 
-def create_output_directories(sim_dir, run_idx):
+def create_output_directories(sim_dir, run_idx) -> str:
     """
     Creates relevant directories for output data
     
@@ -32,8 +32,7 @@ def create_output_directories(sim_dir, run_idx):
         os.mkdir(dir_path+"/")
         subdir = ["event_data", "collision_snapshot", 
                   "data_process", "simulation_stats", 
-                  "simulation_snapshot", "ejected_particles"
-                  ]
+                  "simulation_snapshot", "ejected_particles"]
         for path in subdir:
             os.makedirs(os.path.join(dir_path, path))
             
@@ -41,8 +40,7 @@ def create_output_directories(sim_dir, run_idx):
 
 def run_simulation(sim_dir, tend, code_dt, eta, 
                    dt_diag, par_nworker, dE_track, 
-                   gal_field, star_evol
-                   ):
+                   gal_field, star_evol):
     """
     Run simulation and output data.
     
@@ -69,13 +67,12 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     particle_set_dir = os.path.join(sim_dir, "initial_particles", "*")
     particle_sets = natsorted(glob.glob(particle_set_dir))
     particle_set = read_set_from_file(particle_sets[run_idx])
-    particle_set -= particle_set[particle_set.syst_id > 3]
+    particle_set -= particle_set[particle_set.syst_id > 3]  # Testing purpose
     particle_set.coll_events = 0
 
     parent_particles = particle_set[(particle_set.type != "JMO") 
                                     & (particle_set.type != "ASTEROID") 
-                                    & (particle_set.type != "PLANET")
-                                    ]
+                                    & (particle_set.type != "PLANET")]
     Rvir = parent_particles.virial_radius()
     vdisp = np.sqrt((constants.G*parent_particles.mass.sum())/Rvir)
     
@@ -86,13 +83,12 @@ def run_simulation(sim_dir, tend, code_dt, eta,
                                       dz=17  | units.pc,
                                       dvx=11.352 | units.kms,
                                       dvy=12.25 | units.kms,
-                                      dvz=7.41 | units.kms
-                                      )
+                                      dvz=7.41 | units.kms)
     
     isolated_particles = particle_set[particle_set.syst_id < 0]
     major_bodies = isolated_particles[isolated_particles.mass != (0. | units.kg)]
     test_particles = isolated_particles - major_bodies
-    for system_id in np.unique(particle_set.syst_id): # Identify your parents
+    for system_id in np.unique(particle_set.syst_id):  # Identify parents
         if system_id > -1:
             system = particle_set[particle_set.syst_id == system_id]
             hosting_body = system[system.mass == max(system.mass)]
@@ -105,23 +101,19 @@ def run_simulation(sim_dir, tend, code_dt, eta,
         host = parents[parents.syst_id == id_][0]
         parents.assign_subsystem(children, host, 
                                  relative=True, 
-                                 recenter=False
-                                 )
+                                 recenter=False)
     
     par_nworker = int(len(major_bodies) // 1000 + 1)
     conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), 
-                                        major_bodies.virial_radius()
-                                        )
+                                        major_bodies.virial_radius())
     conv_child = nbody_system.nbody_to_si(np.mean(parents.mass), 
-                                          np.mean(parents.radius)
-                                          )
+                                          np.mean(parents.radius))
     dt = eta * tend
 
     # Setting up system
     nemesis = Nemesis(conv_par, conv_child, dt, 
                       code_dt, par_nworker, dE_track, 
-                      star_evol, gal_field
-                      )
+                      star_evol, gal_field)
     nemesis.min_mass_evol = MIN_EVOL_MASS
     nemesis.particles.add_particles(parents)
     nemesis.commit_particles()
@@ -129,11 +121,7 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     nemesis.ejected_dir = ejected_dir
     nemesis.test_particles = test_particles
     
-    subsystems = nemesis.particles.collection_attributes.subsystems
-    min_radius = 1. | units.pc
-    for parent in subsystems.keys():
-        min_radius = min(min_radius, parent.radius)
-    
+    min_radius = nemesis.particles.radius.min()
     typical_crosstime = 2.*(min_radius/vdisp)
     print(f"dt= {dt.in_(units.yr)}", end="  ")
     print(f"Minimum children system radius= {min_radius.in_(units.au)}", end="  ")
@@ -200,8 +188,7 @@ def run_simulation(sim_dir, tend, code_dt, eta,
         f.write(f"Total CPU Time: {sim_time} minutes \
                 \nEnd Time: {t.in_(units.Myr)} \
                 \nTime step: {dt.in_(units.Myr)} \
-                \nInitial Typical tcross: {typical_crosstime.in_(units.yr)}"
-                )
+                \nInitial Typical tcross: {typical_crosstime.in_(units.yr)}")
      
 def new_option_parser():
     result = OptionParser()

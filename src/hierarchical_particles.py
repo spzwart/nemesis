@@ -1,5 +1,5 @@
 import numpy as np
-from amuse.datamodel import Particle, ParticlesOverlay
+from amuse.datamodel import Particle, Particles, ParticlesOverlay
 
 
 class HierarchicalParticles(ParticlesOverlay):
@@ -8,14 +8,14 @@ class HierarchicalParticles(ParticlesOverlay):
         ParticlesOverlay.__init__(self,*args,**kwargs)
         self.collection_attributes.subsystems = dict()
 
-    def add_particles(self, parts):  
+    def add_particles(self, parts) -> ParticlesOverlay:  
         """
         Add particles to particle set.
         
         Args:
-            parts (object):  The particle set to be added
+            parts (Particle set):  The particle set to be added
         Returns:
-            _parts (object):  The particle set
+            _parts (Particle set):  The particle set
         """
         _parts=ParticlesOverlay.add_particles(self,parts)
         if hasattr(parts.collection_attributes, "subsystems"):
@@ -23,12 +23,12 @@ class HierarchicalParticles(ParticlesOverlay):
                 self.collection_attributes.subsystems[parent.as_particle_in_set(self)] = sys
         return _parts
     
-    def add_subsystem(self, sys, recenter=True):
+    def add_subsystem(self, sys, recenter=True) -> Particle:
         """
         Create a parent from particle subsytem
         
         Args:
-            sys (object):  The children particle set
+            sys (Particle set):  The children particle set
             recenter (Boolean):  Flag to recenter the parent
         Returns:
             parent (Particle):  The parent particle
@@ -50,7 +50,7 @@ class HierarchicalParticles(ParticlesOverlay):
         Create parent from subsystem attributes
         
         Args:
-            sys (object):  The children particle set
+            sys (Particle set):  The children particle set
             parent (Particle):  The parent particle
             relative (Boolean):  Flag to assign relative attributes
             recenter (Boolean):  Flag to recenter the parent
@@ -70,7 +70,7 @@ class HierarchicalParticles(ParticlesOverlay):
         Assign a subsystem to their parent particle.
         
         Args:
-            sys (object):  The children particle set
+            sys (Particle set):  The children particle set
             parent (Particle):  The parent particle
             relative (Boolean):  Flag to assign relative attributes
             recenter (Boolean):  Flag to recenter the parent
@@ -96,12 +96,12 @@ class HierarchicalParticles(ParticlesOverlay):
             self.collection_attributes.subsystems.pop(p, None)
         ParticlesOverlay.remove_particles(self, parts)
     
-    def all(self):
+    def all(self) -> Particles:
         """
         Get copy of complete particle set.
         
         Returns:
-            parts (object):  The complete particle set simulating
+            parts (Particle set):  The complete particle set simulating
         """
         parts = self.copy_to_memory()
         parts.syst_id = -1
