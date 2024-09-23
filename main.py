@@ -1,12 +1,11 @@
 import glob
-import itertools
 from natsort import natsorted
 import numpy as np
 import os
 import sys
 import time as cpu_time
 
-from amuse.lab import constants, read_set_from_file, write_set_to_file
+from amuse.lab import constants, Particles, read_set_from_file, write_set_to_file
 from amuse.units import units, nbody_system
 from amuse.units.optparse import OptionParser
 
@@ -14,6 +13,9 @@ from src.environment_functions import galactic_frame
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
+# Constants
+START_TIME = cpu_time.time()
+MIN_EVOL_MASS = 0.08 | units.MSun
 
 def create_output_directories(sim_dir, run_idx) -> str:
     """
@@ -37,6 +39,65 @@ def create_output_directories(sim_dir, run_idx) -> str:
             os.makedirs(os.path.join(dir_path, path))
             
     return dir_path
+
+def load_particle_set(sim_dir, run_idx) -> Particles:
+    """
+    Load particle set from file
+    
+    Args:
+        sim_dir (String):  Path to initial conditions
+        run_idx (Int):  Index of run
+    Returns:
+        particle_set (Particles):  The particle set
+    """
+    particle_set_dir = os.path.join(sim_dir, "initial_particles", "*")
+    particle_sets = natsorted(glob.glob(particle_set_dir))
+    particle_set = read_set_from_file(particle_sets[run_idx])
+    particle_set -= particle_set[particle_set.syst_id > 5]  # Testing purpose
+    particle_set -= particle_set[particle_set.mass < (5. | units.kg)]  # Testing purpose
+    particle_set.coll_events = 0
+    
+    return particle_set
+
+def configure_galactic_frame(particle_set, gal_field) -> Particles:
+    """
+    Shift particle set to galactic frame. Currently assumes solar orbit.
+    
+    Args:
+        particle_set (Particles):  The particle set
+    Returns:
+        particle_set (Particles): Particle set with galactocentric coordinates
+    """
+    return galactic_frame(particle_set, 
+                          dx=-8.4 | units.kpc, 
+                          dy=0.0 | units.kpc, 
+                          dz=17  | units.pc,
+                          dvx=11.352 | units.kms,
+                          dvy=12.25 | units.kms,
+                          dvz=7.41 | units.kms)
+    
+def identify_parents(particle_set) -> Particles:
+    """
+    Identify parents in particle set. These are either:
+        - Isolated particles (syst_id < 0)
+        - Hosts of children system (max mass in system)
+    
+    Args:
+        particle_set (Particles):  The particle set
+    Returns:
+        major_bodies (Particles):  Major bodies in the particle set
+        test_particles (Particles):  Test particles in the particle set
+    """
+    isolated_particles = particle_set[particle_set.syst_id < 0]
+    major_bodies = isolated_particles[isolated_particles.mass != (0. | units.kg)]
+    test_particles = isolated_particles - major_bodies
+    for system_id in np.unique(particle_set.syst_id):
+        if system_id > -1:
+            system = particle_set[particle_set.syst_id == system_id]
+            hosting_body = system[system.mass == max(system.mass)]
+            major_bodies += hosting_body
+            
+    return major_bodies, test_particles
 
 def run_simulation(sim_dir, tend, code_dt, eta, 
                    dt_diag, par_nworker, dE_track, 
@@ -63,36 +124,16 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     ejected_dir = os.path.join(dir_path, "ejected_particles")
     snapdir_path = os.path.join(dir_path, "simulation_snapshot")
 
-    # Load particle set
-    particle_set_dir = os.path.join(sim_dir, "initial_particles", "*")
-    particle_sets = natsorted(glob.glob(particle_set_dir))
-    particle_set = read_set_from_file(particle_sets[run_idx])
-    particle_set -= particle_set[particle_set.syst_id > 5]  # Testing purpose
-    particle_set.coll_events = 0
-    
+    particle_set = load_particle_set(sim_dir, run_idx)
+    if (gal_field):
+        particle_set = configure_galactic_frame(particle_set)
+        
     parent_particles = particle_set[(particle_set.type != "JMO") 
                                     & (particle_set.type != "ASTEROID") 
                                     & (particle_set.type != "PLANET")]
+    major_bodies, test_particles = identify_parents(particle_set)
     Rvir = parent_particles.virial_radius()
     vdisp = np.sqrt((constants.G*parent_particles.mass.sum())/Rvir)
-    
-    if (gal_field): # Sun's orbit
-        particle_set = galactic_frame(particle_set, 
-                                      dx=-8.4 | units.kpc, 
-                                      dy=0.0 | units.kpc, 
-                                      dz=17  | units.pc,
-                                      dvx=11.352 | units.kms,
-                                      dvy=12.25 | units.kms,
-                                      dvz=7.41 | units.kms)
-    
-    isolated_particles = particle_set[particle_set.syst_id < 0]
-    major_bodies = isolated_particles[isolated_particles.mass != (0. | units.kg)]
-    test_particles = isolated_particles - major_bodies
-    for system_id in np.unique(particle_set.syst_id):  # Identify parents
-        if system_id > -1:
-            system = particle_set[particle_set.syst_id == system_id]
-            hosting_body = system[system.mass == max(system.mass)]
-            major_bodies += hosting_body
     
     parents = HierarchicalParticles(major_bodies)
     initial_systems = parents[parents.syst_id > 0]
@@ -131,7 +172,7 @@ def run_simulation(sim_dir, tend, code_dt, eta,
         print("!!! Warning: dt > 5*Typical System Crossing Time !!!")
         sys.exit(1)
         
-    if (nemesis.dE_track):
+    if (nemesis._dE_track):
         energy_arr = [ ]
         E0 = nemesis.calculate_total_energy()
         nemesis.E0 = E0
@@ -147,25 +188,28 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     t_diag = 0. | units.yr
     snapshot_no = 0
     prev_step = nemesis.dt_step
+    snap_cpu_time = cpu_time.time()
     while t < tend:
         t += dt
         
-        while nemesis.parent_code.model_time < t:
+        while nemesis.model_time < t:
             nemesis.evolve_model(t)
             
-        if nemesis.model_time > t_diag:
+        if (nemesis.model_time > t_diag) and (nemesis.dt_step != prev_step):
             print(f"Saving snap. T= {t.in_(units.yr)}")
+            print(f"Time taken: {cpu_time.time() - snap_cpu_time}")
             t_diag += dt_diag
             snapshot_no += 1
             allparts = nemesis.particles.all()
             
-            fname = os.path.join(snapdir_path, f"snap_{nemesis.dt_step}")
+            fname = os.path.join(snapdir_path, f"snap_{snapshot_no}")
             write_set_to_file(
                 allparts.savepoint(0 | units.Myr),  fname, 
                 'amuse', close_file=True, overwrite_file=True
             )
+            snap_cpu_time = cpu_time.time()
           
-        if (nemesis.dE_track) and (prev_step != nemesis.dt_step):
+        if (nemesis._dE_track) and (prev_step != nemesis.dt_step):
             E1 = nemesis.calculate_total_energy()
             E1 += nemesis.corr_energy
             energy_arr.append(abs((E1-E0)/E0))
@@ -205,12 +249,12 @@ def new_option_parser():
     result.add_option("--eta", 
                       dest="eta", 
                       type="float", 
-                      default=1e-5 ,
+                      default=5e-5 ,
                       help="Parameter tuning dt")
     result.add_option("--code_dt", 
                       dest="code_dt", 
                       type="float", 
-                      default=0.01 ,
+                      default=0.1 ,
                       help="Gravitational integrator internal timestep")
     result.add_option("--dt_diag", 
                       dest="dt_diag", 
@@ -237,9 +281,6 @@ def new_option_parser():
     return result
         
 if __name__ == "__main__":
-    START_TIME = cpu_time.time()
-    MIN_EVOL_MASS = 0.08 | units.MSun
-    
     # data_dir = "examples/S-Stars"
     data_dir = "examples/ejecting_suns"
     config_idx = 1

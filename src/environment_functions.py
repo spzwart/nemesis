@@ -19,7 +19,11 @@ def ejection_checker(particle_set, tidal_field) -> np.ndarray:
     Returns:
         matrix (Array): Array of booleans flagging ejected particles
     """
-    lib = ctypes.CDLL('./src/ejection.so')  # Adjust the path as necessary
+    try:
+        lib = ctypes.CDLL('./src/ejection.so')
+    except OSError as err:
+        raise RuntimeError("Failed to load shared library: ./src/ejection.so") from err
+
     lib.find_nearest_neighbour.argtypes = [
         np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # xcoord
         np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # ycoord
@@ -74,18 +78,18 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz) -> Particles:
     
     return parent_set
 
-def set_parent_radius(tot_mass, diag_dt, pop) -> float:
+def set_parent_radius(tot_mass, dt, pop) -> float:
     """
     Merging radius of parent systems
 
     Args:
        tot_mass (Float):  Total mass of the system
-       diag_dt (Float):  Diagnostic timestep
+       dt (Float):  Diagnostic timestep
        pop (Int):  Population of the system
     Returns:
        radius (Float): Merging radius of the parent system
     """
-    radius = pop*(constants.G*tot_mass*diag_dt**2.)**(1./3.)
+    radius = pop*(constants.G*tot_mass*dt**2.)**(1./3.)
     return radius
 
 def planet_radius(planet_mass) -> float:
