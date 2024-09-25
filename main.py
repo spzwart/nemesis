@@ -2,7 +2,6 @@ import glob
 from natsort import natsorted
 import numpy as np
 import os
-import sys
 import time as cpu_time
 
 from amuse.lab import constants, Particles, read_set_from_file, write_set_to_file
@@ -22,11 +21,11 @@ def create_output_directories(sim_dir, run_idx) -> str:
     Creates relevant directories for output data
     
     Args:
-        sim_dir (String): Simulation directory path
-        run_idx (Int):    Index of specific run
+        sim_dir (str): Simulation directory path
+        run_idx (int):    Index of specific run
     
     Returns:
-        String: Directory path for specific run
+        dir_path (str): Directory path for specific run
     """
     config_name = f"Nrun{run_idx}"
     dir_path = os.path.join(sim_dir, config_name)
@@ -48,18 +47,28 @@ def load_particle_set(sim_dir, run_idx) -> Particles:
         sim_dir (String):  Path to initial conditions
         run_idx (Int):  Index of run
     Returns:
-        particle_set (Particles):  The particle set
+        particle_set (Particles):  Initial conditions of particle set wished to simulate
     """
     particle_set_dir = os.path.join(sim_dir, "initial_particles", "*")
     particle_sets = natsorted(glob.glob(particle_set_dir))
-    particle_set = read_set_from_file(particle_sets[run_idx])
-    particle_set -= particle_set[particle_set.syst_id > 5]  # Testing purpose
+    if run_idx >= len(particle_sets):
+        raise IndexError(f"Error: Run index {run_idx} out of range.")
+    
+    file = particle_sets[run_idx]
+    if not os.path.isfile(file):
+        raise FileNotFoundError(f"Error: No particle set found in {particle_set_dir}")
+    
+    particle_set = read_set_from_file(file)
+    particle_set -= particle_set[particle_set.syst_id > 3]  # Testing purpose
     particle_set -= particle_set[particle_set.mass < (5. | units.kg)]  # Testing purpose
     particle_set.coll_events = 0
     
+    if len(particle_set) == 0:
+        raise Exception(f"Error: Particle set {particle_set_dir} is empty.")
+    
     return particle_set
 
-def configure_galactic_frame(particle_set, gal_field) -> Particles:
+def configure_galactic_frame(particle_set) -> Particles:
     """
     Shift particle set to galactic frame. Currently assumes solar orbit.
     
@@ -94,7 +103,7 @@ def identify_parents(particle_set) -> Particles:
     for system_id in np.unique(particle_set.syst_id):
         if system_id > -1:
             system = particle_set[particle_set.syst_id == system_id]
-            hosting_body = system[system.mass == max(system.mass)]
+            hosting_body = system[system.mass.argmax()]
             major_bodies += hosting_body
             
     return major_bodies, test_particles
@@ -128,9 +137,9 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     if (gal_field):
         particle_set = configure_galactic_frame(particle_set)
         
-    parent_particles = particle_set[(particle_set.type != "JMO") 
-                                    & (particle_set.type != "ASTEROID") 
-                                    & (particle_set.type != "PLANET")]
+    parent_particles = particle_set[(particle_set.type != "JMO") &
+                                    (particle_set.type != "ASTEROID") &
+                                    (particle_set.type != "PLANET")]
     major_bodies, test_particles = identify_parents(particle_set)
     Rvir = parent_particles.virial_radius()
     vdisp = np.sqrt((constants.G*parent_particles.mass.sum())/Rvir)
@@ -144,7 +153,7 @@ def run_simulation(sim_dir, tend, code_dt, eta,
                                  relative=True, 
                                  recenter=False)
     
-    par_nworker = int(len(major_bodies) // 1000 + 1)
+    par_nworker = int(len(major_bodies) // 500 + 1)
     conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), 
                                         major_bodies.virial_radius())
     conv_child = nbody_system.nbody_to_si(np.mean(parents.mass), 
@@ -159,7 +168,7 @@ def run_simulation(sim_dir, tend, code_dt, eta,
                       star_evol, gal_field)
     nemesis.particles.add_particles(parents)
     nemesis.commit_particles()
-    nemesis.test_particles = test_particles
+    nemesis.asteroids = test_particles
     
     min_radius = nemesis.particles.radius.min()
     typical_crosstime = 2.*(min_radius/vdisp)
@@ -168,9 +177,8 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     print(f"Dispersion velocity= {vdisp.in_(units.kms)}", end="  ")
     print(f"Min. system crossing time= {typical_crosstime.in_(units.kyr)}")
     print(f"Total number of snapshots: {tend/dt_diag}")
-    if dt > 5*typical_crosstime:
-        print("!!! Warning: dt > 5*Typical System Crossing Time !!!")
-        sys.exit(1)
+    if dt > 5.*typical_crosstime:
+        raise ValueError("!!! Warning: dt > 5*Typical System Crossing Time !!!")
         
     if (nemesis._dE_track):
         energy_arr = [ ]
@@ -209,7 +217,7 @@ def run_simulation(sim_dir, tend, code_dt, eta,
             )
             snap_cpu_time = cpu_time.time()
           
-        if (nemesis._dE_track) and (prev_step != nemesis.dt_step):
+        if (dE_track) and (prev_step != nemesis.dt_step):
             E1 = nemesis.calculate_total_energy()
             E1 += nemesis.corr_energy
             energy_arr.append(abs((E1-E0)/E0))
@@ -249,7 +257,7 @@ def new_option_parser():
     result.add_option("--eta", 
                       dest="eta", 
                       type="float", 
-                      default=5e-5 ,
+                      default=1e-5 ,
                       help="Parameter tuning dt")
     result.add_option("--code_dt", 
                       dest="code_dt", 
@@ -260,12 +268,12 @@ def new_option_parser():
                       dest="dt_diag", 
                       type="int", 
                       unit=units.kyr, 
-                      default=1 | units.kyr,
+                      default=20 | units.kyr,
                       help="Diagnostic time step")
     result.add_option("--gal_field", 
                       dest="gal_field", 
                       action="store_true", 
-                      default=False,
+                      default=True,
                       help="Flag to turn on galactic field")
     result.add_option("--dE_track", 
                       dest="dE_track", 
@@ -275,7 +283,7 @@ def new_option_parser():
     result.add_option("--star_evol", 
                       dest="star_evol", 
                       action="store_true", 
-                      default=False,
+                      default=True,
                       help="Flag to turn on stellar evolution")
     
     return result
@@ -283,7 +291,7 @@ def new_option_parser():
 if __name__ == "__main__":
     # data_dir = "examples/S-Stars"
     data_dir = "examples/ejecting_suns"
-    config_idx = 1
+    config_idx = 3
     configurations = glob.glob(os.path.join(data_dir, "sim_data", "*"))
     config_choice = natsorted(configurations)[config_idx]
     
