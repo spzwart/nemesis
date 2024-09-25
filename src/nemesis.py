@@ -63,14 +63,15 @@ class Nemesis(object):
         self._kick_ast_iter = 0
         self._nejec = 0
         self._dE_track = dE_track
+        self._MWG = MWpotentialBovy2015()
       
         self._parent_code = self.__parent_worker(par_conv)
-        self._asteroids = Particles()
         self._asteroid_offset = 0. | units.yr
         self._asteroid_code = self.__test_worker()
         if (self.__star_evol):
             self._stellar_code = self.__stellar_worker()
         
+        self.asteroids = Particles()
         self.particles = HierarchicalParticles(self._parent_code.particles)
         self.subcodes = dict()
         self._time_offsets = dict()
@@ -134,17 +135,16 @@ class Nemesis(object):
         if (self.__gal_field):
             self.__setup_bridge()
         else:
-            self.evolve_code = self._parent_code
+            self._evolve_code = self._parent_code
 
     def __setup_bridge(self):
         """Embed system into galactic potential"""
-        self.MWG = MWpotentialBovy2015()
         gravity = bridge.Bridge(use_threading=True,
                                 method=SPLIT_4TH_S_M6,)
-        gravity.add_system(self._parent_code, (self.MWG, ))
+        gravity.add_system(self._parent_code, (self._MWG, ))
         gravity.timestep = self.__dt
         self.grav_bridge = gravity
-        self.evolve_code = self.grav_bridge
+        self._evolve_code = self.grav_bridge
     
     def __stellar_worker(self) -> SeBa:
         """Define stellar evolution integrator"""
@@ -210,11 +210,10 @@ class Nemesis(object):
         code.set_integrator("OK")
         
         gravity = bridge.Bridge(use_threading=False, 
-                                method=SPLIT_4TH_S_M4
-                                )
+                                method=SPLIT_4TH_S_M4)
         gravity.timestep = self.__dt
         if (self.__gal_field):
-            gravity.add_system(code, (self._parent_code, self.MWG))
+            gravity.add_system(code, (self._parent_code, self._MWG))
             
         else:
             gravity.add_system(code, (self._parent_code, ))
@@ -306,7 +305,7 @@ class Nemesis(object):
                 evolve_time + timestep/2.
             )
             self.drift_child(self.model_time)
-            if len(self._asteroids) > 0:# and (self.dt_step % self._kick_ast_iter) == 0:
+            if len(self.asteroids) > 0:# and (self.dt_step % self._kick_ast_iter) == 0:
                 self.drift_test_particles(self.model_time)
 
             if (self.__star_evol):
@@ -331,10 +330,8 @@ class Nemesis(object):
             self.ejection_remover(ejected_idx)
             
     def split_subcodes(self):
-        """
-        Track parent system dissolution. Children are removed from parent 
-        if their distance is greater than twice the parent radius
-        """
+        """Track parent system dissolution. Children are removed from parent 
+        if their distance is greater than twice the parent radius"""
         print("...Checking Splits...")
         for parent, subsys in list(self.subsystems.items()):
             radius = parent.radius
@@ -342,7 +339,7 @@ class Nemesis(object):
                 self.subcodes[parent].particles, subsys,
                 ["x","y","z","vx","vy","vz"]
             )
-            components = subsys.connected_components(threshold=2*radius)
+            components = subsys.connected_components(threshold=2.*radius)
             
             if len(components) > 1:  # Checking for dissolution of system
                 parent_pos = parent.position
@@ -357,7 +354,7 @@ class Nemesis(object):
                     if len(sys) > 1:
                         if max(sys.mass) == (0. | units.kg):
                             print("...new asteroid conglomerate...")
-                            for asteroids in [self._asteroids, self._asteroid_code.particles]:
+                            for asteroids in [self.asteroids, self._asteroid_code.particles]:
                                 asteroids.add_particles(sys)
                                 asteroids[-len(sys):].position += parent_pos
                                 asteroids[-len(sys):].velocity += parent_vel
@@ -379,7 +376,7 @@ class Nemesis(object):
                     else:
                         if sys.mass == (0. | units.kg):
                             print("...new isolated asteroid...")
-                            for asteroids in [self._asteroids, self._asteroid_code.particles]:
+                            for asteroids in [self.asteroids, self._asteroid_code.particles]:
                                 asteroids.add_particles(sys)
                                 asteroids[-len(sys):].position += parent_pos
                                 asteroids[-len(sys):].velocity += parent_vel
@@ -403,7 +400,6 @@ class Nemesis(object):
         Args:
             ejected_idx (array):  Array containing booleans flagging for particle ejections
         """
-        print("...Checking Ejections...")
         if (self._dE_track):
             E0 = self.calculate_total_energy()
         
@@ -427,10 +423,17 @@ class Nemesis(object):
                 
                 del code
         
-        self.particles.remove_particle(ejected_particles)    
-        if (self._dE_track):
-            E1 = self.calculate_total_energy()
-            self.corr_energy += E1 - E0
+        if len(ejected_particles) > 0:
+            self.particles.remove_particle(ejected_particles)
+            self.particles.synchronize_to(self._parent_code.particles)
+            self.particles.synchronize_to(self._evolve_code.particles)
+            
+            ejected_stars = ejected_particles[ejected_particles.mass > self.__min_mass_evol_evol]
+            self._stellar_code.particles.remove_particles(ejected_stars)
+            
+            if (self._dE_track):
+                E1 = self.calculate_total_energy()
+                self.corr_energy += E1 - E0
     
     def parent_merger(self, coll_time, corr_time, coll_set) -> Particle:
         """Resolve the merging of two parent systems.
@@ -491,9 +494,6 @@ class Nemesis(object):
             
         self._time_offsets[newcode] = self.model_time - newcode.model_time
         self.subcodes[newparent] = newcode
-        
-        if (self.__gal_field):
-            self.__setup_bridge()
         
         return newparent
         
@@ -687,6 +687,7 @@ class Nemesis(object):
           self._stellar_code.particles.remove_particle(coll_a)
         if coll_b.mass > self.__min_mass_evol_evol:
           self._stellar_code.particles.remove_particle(coll_b)
+          
         return newparent, resolved_keys
     
     def handle_supernova(self, SN_detect, bodies):
@@ -754,16 +755,16 @@ class Nemesis(object):
         Args:
             dt (float):  Time to drift test particles
         """
-        print(f"...Drifting {len(self._asteroids)} Asteroids...")
+        print(f"...Drifting {len(self.asteroids)} Asteroids...")
         dt = dt - self._asteroid_offset
         self._asteroid_code.evolve_model(dt)
-        self._asteroid_code.particles.new_channel_to(self._asteroids).copy()
+        self._asteroid_code.particles.new_channel_to(self.asteroids).copy()
         
         print(self._asteroid_code.model_time.in_(units.Myr))
         
         for particle in self.particles:  # Check if any asteroids lies within a parent's radius
-            distances = (self._asteroids.position - particle.position).lengths()
-            newsystem = self._asteroids[distances < 1.5*particle.radius]
+            distances = (self.asteroids.position - particle.position).lengths()
+            newsystem = self.asteroids[distances < 1.5*particle.radius]
             
             if newsystem:
                 newparts = HierarchicalParticles(Particles())
@@ -786,7 +787,7 @@ class Nemesis(object):
                     newparts.add_particle(particle)
                     newparts.add_particle(newsystem)
                     
-                self._asteroids.remove_particle(newsystem)
+                self.asteroids.remove_particle(newsystem)
                 self._asteroid_code.particles.remove_particle(newsystem)
                 self.particles.remove_particle(particle)
                 
@@ -818,16 +819,18 @@ class Nemesis(object):
         
         print(f"Goal: {dt.in_(units.Myr)}")
         timestep = dt - self._parent_code.model_time
-        while self._parent_code.model_time < dt - timestep/2.:
+        while self._evolve_code.model_time < dt - timestep/2.:
             print(f"Current: {self._parent_code.model_time.in_(units.Myr)}", end=" ")
             print(f"# Particles {len(self._parent_code.particles)}")
             
-            self.evolve_code.evolve_model(dt)
+            # CHECK IF IT IS INTEGRATING TOO MUCH. I KEEP RESETTING BRIDGE CODE AFTER COLL
+            # AND THEN EVOLVING ALL OVER AGAIN, WHEN SHOULD BE ONE STEP
+            self._evolve_code.evolve_model(dt)
             if stopping_condition.is_set():
                 if (self._dE_track):
                     E0 = self.calculate_total_energy()
                     
-                print("!!! Parent Merger !!!")
+                print("!!! Bridge: Parent Merger !!!")
                 coll_time = self._parent_code.model_time
                 coll_sets = self.find_coll_sets(stopping_condition.particles(0), 
                                                 stopping_condition.particles(1))
@@ -838,7 +841,27 @@ class Nemesis(object):
                     E1 = self.calculate_total_energy()
                     self.corr_energy += E1 - E0
                     
-        print(f"Parent code time: {self._parent_code.model_time.in_(units.Myr)}")
+        while self._parent_code.model_time < dt - timestep/2.:
+            self._parent_code.evolve_model(dt)
+            if stopping_condition.is_set():
+                if (self._dE_track):
+                    E0 = self.calculate_total_energy()
+                    
+                print("!!! Parent: Parent Merger !!!")
+                coll_time = self._parent_code.model_time
+                coll_sets = self.find_coll_sets(stopping_condition.particles(0), 
+                                                stopping_condition.particles(1))
+                for cs in coll_sets:
+                    self.parent_merger(coll_time, corr_time, cs)
+                    
+                if (self._dE_track):
+                    E1 = self.calculate_total_energy()
+                    self.corr_energy += E1 - E0
+        
+        if (1):
+            print(f"Parent code time: {self._parent_code.model_time.in_(units.Myr)}")
+            print(f"Bridge code time: {self._evolve_code.model_time.in_(units.Myr)}")
+            print(f"Stellar code time: {self._stellar_code.model_time.in_(units.Myr)}")
         
     def drift_child(self, dt):
         """

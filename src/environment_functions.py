@@ -15,15 +15,11 @@ def ejection_checker(particle_set, tidal_field) -> np.ndarray:
 
     Args:
         particle_set (particle set):  The particle set
-        tidal_field (Boolean):  1 = Physical tidal radius 0 = hard-coded tidal radius
+        tidal_field (boolean):  1 = Physical tidal radius 0 = hard-coded tidal radius
     Returns:
-        matrix (Array): Array of booleans flagging ejected particles
+        ejected_idx (Array): Array of booleans flagging ejected particles
     """
-    try:
-        lib = ctypes.CDLL('./src/ejection.so')
-    except OSError as err:
-        raise RuntimeError("Failed to load shared library: ./src/ejection.so") from err
-
+    lib = ctypes.CDLL('./src/ejection.so')  # Adjust the path as necessary
     lib.find_nearest_neighbour.argtypes = [
         np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # xcoord
         np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # ycoord
@@ -56,7 +52,7 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz) -> Particles:
     Shift particle set to galactic frame
 
     Args:
-        parent_set (particle set):  The particle set
+        parent_set (object):  The particle set
         dx (Float):  x Distance of cluster to center of galaxy
         dy (Float):  y Distance of cluster to center of galaxy
         dz (Float):  z Distance of cluster to center of galaxy
@@ -64,7 +60,7 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz) -> Particles:
         dvy (Float):  y-Velocity of cluster in galactocentric frame
         dvz (Float):  z-Velocity of cluster in galactocentric frame
     Returns:
-        parent_set (particle set): Particle set with galactocentric coordinates
+        parent_set (object): Particle set with galactocentric coordinates
     """
     parent_set.x += dx
     parent_set.y += dy
@@ -78,19 +74,18 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz) -> Particles:
     
     return parent_set
 
-def set_parent_radius(tot_mass, dt, pop) -> float:
+def set_parent_radius(tot_mass, diag_dt, pop) -> float:
     """
     Merging radius of parent systems
 
     Args:
        tot_mass (Float):  Total mass of the system
-       dt (Float):  Diagnostic timestep
-       pop (Int):  Population of the system
+       diag_dt (Float):  Diagnostic timestep
+       pop (Float/Int):  Population of the system
     Returns:
-       radius (Float): Merging radius of the parent system
+       Float: Merging radius of the parent system
     """
-    radius = pop*(constants.G*tot_mass*dt**2.)**(1./3.)
-    return radius
+    return pop*(constants.G*tot_mass*diag_dt**2.)**(1./3.)
 
 def planet_radius(planet_mass) -> float:
     """
@@ -116,7 +111,7 @@ def tidal_radius(parent_set) -> float:
     Tidal radius (Spitzer 1987 eqn 5.10)
     
     Args:
-        parent_set (particle set):  The parent particle set
+        parent_set (object):  The parent particle set
     Returns:
         parent_set (Float):  The tidal radius of the cluster
     """
