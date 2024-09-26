@@ -228,7 +228,7 @@ class Nemesis(object):
             channel = stars.new_channel_to(children.particles)
             channel.copy_attributes(["mass", "radius"])
             
-    def grav_channel_copier(self, transfer_data, receive_data, attributes):
+    def grav_channel_copier(self, transfer_data, receive_data, attributes=["x","y","z","vx","vy","vz"]):
         """
         Communicate information between grav. integrator and local particle set
         
@@ -334,14 +334,9 @@ class Nemesis(object):
         """Track parent system dissolution. Children are removed from parent 
         if their distance is greater than twice the parent radius"""
         print("...Checking Splits...")
-        subsystems = self.subsystems
-        subcodes = self.subcodes
-        particles = self.particles
-        time_offsets = self._time_offsets
             
         asteroid_batch = [ ]
-        particles_to_remove = Particles()
-        for parent, subsys in list(subsystems.items()):
+        for parent, subsys in list(self.subsystems.items()):
             
             subsys[-1].position += parent.position
             radius = parent.radius
@@ -350,13 +345,13 @@ class Nemesis(object):
                 
                 components = subsys.connected_components(threshold=2.*radius)
                 if len(components) > 1:  # Checking for dissolution of system
-                    print("rem")
                     parent_pos = parent.position
                     parent_vel = parent.velocity
                     
-                    particles_to_remove.add_particle(parent)
-                    code = subcodes.pop(parent)
-                    time_offsets.pop(code)
+                    self.particles.remove_particle(parent)
+                    code = self.subcodes.pop(parent)
+                    self._time_offsets.pop(code)
+                    
                     for c in components:
                         sys = c.copy_to_memory()
                         if sys.mass.max() == (0. | units.kg):
@@ -372,9 +367,9 @@ class Nemesis(object):
                                 newcode = self.__sub_worker(sys)
                                 newcode.particles.move_to_center()
                                 
-                                time_offsets[newcode] = self.model_time - newcode.model_time
-                                newparent = particles.add_subsystem(sys)
-                                subcodes[newparent] = newcode
+                                self._time_offsets[newcode] = self.model_time - newcode.model_time
+                                newparent = self.particles.add_subsystem(sys)
+                                self.subcodes[newparent] = newcode
                                 newparent.radius = set_parent_radius(np.sum(sys.mass), self.__dt, len(sys))
                                 if newparent.radius > self.__max_radius:
                                     newparent.radius = self.__max_radius
@@ -384,7 +379,7 @@ class Nemesis(object):
                             else:
                                 sys.position += parent_pos
                                 sys.velocity += parent_vel
-                                newparent = particles.add_subsystem(sys)
+                                newparent = self.particles.add_subsystem(sys)
                                 newparent.radius = set_parent_radius(np.sum(sys.mass), self.__dt, len(sys))
                                 if newparent.radius > self.__max_radius:
                                     newparent.radius = self.__max_radius
@@ -393,7 +388,6 @@ class Nemesis(object):
                         
                     del code, subsys, parent
         
-        particles.remove_particles(particles_to_remove)
         if asteroid_batch:
             for asteroids in [self.asteroids, self._asteroid_code.particles]:
                     asteroids.add_particles(sys)
@@ -442,6 +436,66 @@ class Nemesis(object):
                 E1 = self.calculate_total_energy()
                 self.corr_energy += E1 - E0
     
+    def create_new_children_from_mergers(self, job_queue, model_time, lock):
+        """Function to process new parent systems
+        
+        Args:
+            job_queue (Queue):  Queue of jobs, each hosting new parent systems
+            model_time (Float):  Time of simulation
+            lock (Lock):  Lock to prevent interfering communication
+        """
+        nc = job_queue.get()
+        
+        newcode = self.__sub_worker(nc)
+        newcode.particles.move_to_center()
+        with lock:
+            newparent = self.particles.add_subsystem(nc)
+            newparent.radius = set_parent_radius(np.sum(nc.mass), 
+                                                    self.__dt, 
+                                                    len(nc))
+    
+        self._time_offsets[newcode] = model_time - newcode.model_time
+        self.subcodes[newparent] = newcode
+        self.subsystems[newparent] = nc
+            
+    def process_parent_mergers(self):
+        model_time = self.model_time
+        
+        lock = threading.Lock()
+        self.grav_channel_copier(
+            self._parent_code.particles, 
+            self.particles
+        )
+        
+        new_parent_queue = queue.Queue()
+        nitems = 0
+        for new_parent, new_children in self.__new_systems.items():
+            n = self._parent_code.particles[self._parent_code.particles.key == new_parent.key]
+            pos_shift = n.position - new_parent.position
+            vel_shift = n.velocity - new_parent.velocity
+            new_children.position += pos_shift
+            new_children.velocity += vel_shift 
+            
+            new_parent_queue.put(new_children)
+            self.particles.remove_particle(new_parent)
+            nitems += 1
+        
+        threads = [ ]
+        for worker in range(nitems):
+            th = threading.Thread(target=self.create_new_children_from_mergers, 
+                                  args=(new_parent_queue, model_time, lock, ))
+            th.daemon = True
+            th.start()
+            threads.append(th)
+            
+        for th in threads:
+            th.join()
+            
+        # Modify radius
+        new_parents = self.particles[-nitems:]
+        new_parents[new_parents.radius > self.__max_radius].radius = self.__max_radius
+        new_parents[new_parents.radius < self.__min_radius].radius = self.__min_radius
+    
     def parent_merger(self, coll_time, corr_time, coll_set) -> Particle:
         """Resolve the merging of two parent systems.
         
@@ -459,10 +513,8 @@ class Nemesis(object):
         newparts = HierarchicalParticles(Particles())
         self.grav_channel_copier(
             self._parent_code.particles,
-            self.particles,
-            ["x","y","z","vx","vy","vz"]
+            self.particles
         )
-        
         for parti_ in collsubset:
             parti_ = parti_.as_particle_in_set(self.particles)
             
@@ -490,19 +542,14 @@ class Nemesis(object):
                 
             self.particles.remove_particle(parti_)
         
-        newcode = self.__sub_worker(newparts)
-        newcode.particles.move_to_center()  # Prevent energy drift
-        newparent = self.particles.add_subsystem(newparts)
-        newparent.radius = set_parent_radius(np.sum(newparts.mass), 
-                                             self.__dt, 
-                                             len(newparts))
-        if newparent.radius > self.__max_radius:
-            newparent.radius = self.__max_radius
-        elif newparent.radius < self.__min_radius:
-            newparent.radius = self.__min_radius
-            
-        self._time_offsets[newcode] = self.model_time - newcode.model_time
-        self.subcodes[newparent] = newcode
+        # Temporary new parent particle
+        newparent = Particle()
+        newparent.mass = newparts.total_mass()
+        newparent.position = newparts.center_of_mass()
+        newparent.velocity = newparts.center_of_mass_velocity()
+        
+        self.particles.add_particle(newparent)
+        self.__new_systems[newparent] = newparts
         
         return newparent
         
@@ -823,17 +870,18 @@ class Nemesis(object):
             dt (Float):  Time to evolve till
             corr_time (Float): Time to correct for drift
         """
+                
         print("...Drifting Global...")
         stopping_condition = self._parent_code.stopping_conditions.collision_detection
         stopping_condition.enable()
+        self.__new_systems = dict()
+        coll_time = None
         
         print(f"Goal: {dt.in_(units.Myr)}")
         while self._evolve_code.model_time < dt*(1. - 1.1e-12):
             print(f"Current: {self._parent_code.model_time.in_(units.Myr)}", end=" ")
             print(f"# Particles {len(self._parent_code.particles)}")
             
-            # CHECK IF IT IS INTEGRATING TOO MUCH. I KEEP RESETTING BRIDGE CODE AFTER COLL
-            # AND THEN EVOLVING ALL OVER AGAIN, WHEN SHOULD BE ONE STEP
             self._evolve_code.evolve_model(dt)
             if stopping_condition.is_set():
                 if (self._dE_track):
@@ -856,7 +904,7 @@ class Nemesis(object):
                 if stopping_condition.is_set():
                     if (self._dE_track):
                         E0 = self.calculate_total_energy()
-                        
+                    
                     print("!!! Parent: Parent Merger !!!")
                     coll_time = self._parent_code.model_time
                     coll_sets = self.find_coll_sets(stopping_condition.particles(0), 
@@ -867,7 +915,9 @@ class Nemesis(object):
                     if (self._dE_track):
                         E1 = self.calculate_total_energy()
                         self.corr_energy += E1 - E0
-        
+        if (coll_time):
+            self.process_parent_mergers()
+            
         if (1):
             print(f"Parent code time: {self._parent_code.model_time.in_(units.Myr)}")
             print(f"Bridge code time: {self._evolve_code.model_time.in_(units.Myr)}")
@@ -883,8 +933,8 @@ class Nemesis(object):
         def resolve_collisions(code, parent, stopping_condition):
             """Function to resolve collisions"""
             self.grav_channel_copier(
-                code.particles, self.subsystems[parent],
-                ["x","y","z","vx","vy","vz"]
+                code.particles, 
+                self.subsystems[parent]
             )
             coll_time = code.model_time
             coll_a_particles = stopping_condition.particles(0)
@@ -1006,14 +1056,13 @@ class Nemesis(object):
             dt (Float):  Time interval for applying kicks
         """
         if subsystems and len(particles) > 1:
-            attributes = ["x","y","z","vx","vy","vz"]
             
             # Kick parent particles
             corr_chd = CorrectionFromCompoundParticle(particles, 
                                                       subsystems)
             self.grav_channel_copier(
                 self._parent_code.particles, 
-                particles, attributes
+                particles
             )
             self.kick_particles(particles, corr_chd, dt)
             self.grav_channel_copier(
@@ -1032,7 +1081,7 @@ class Nemesis(object):
                 
                 self.grav_channel_copier(
                     self.subcodes[parent].particles, 
-                    subsyst, attributes
+                    subsyst
                 )
                 self.kick_particles(subsyst, corr_par, dt)
                 self.grav_channel_copier(
