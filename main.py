@@ -59,7 +59,7 @@ def load_particle_set(sim_dir, run_idx) -> Particles:
         raise FileNotFoundError(f"Error: No particle set found in {particle_set_dir}")
     
     particle_set = read_set_from_file(file)
-    particle_set -= particle_set[particle_set.syst_id > 0]  # Testing purpose
+    particle_set -= particle_set[particle_set.syst_id > 20]  # Testing purpose
     # particle_set -= particle_set[particle_set.mass == (0. | units.kg)]  # Testing purpose
     particle_set -= particle_set[particle_set.type == "JMO"]  # Testing purpose
     particle_set -= particle_set[particle_set.type == "JuMBO"]  # Testing purpose
