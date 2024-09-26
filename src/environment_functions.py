@@ -74,18 +74,18 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz) -> Particles:
     
     return parent_set
 
-def set_parent_radius(tot_mass, diag_dt, pop) -> float:
+def set_parent_radius(tot_mass, dt, pop) -> float:
     """
     Merging radius of parent systems
 
     Args:
        tot_mass (Float):  Total mass of the system
-       diag_dt (Float):  Diagnostic timestep
+       dt (Float):  Timestep
        pop (Float/Int):  Population of the system
     Returns:
        Float: Merging radius of the parent system
     """
-    return pop*(constants.G*tot_mass*diag_dt**2.)**(1./3.)
+    return 0.5*pop*(constants.G*tot_mass*dt**2.)**(1./3.)
 
 def planet_radius(planet_mass) -> float:
     """

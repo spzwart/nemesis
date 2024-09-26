@@ -59,8 +59,11 @@ def load_particle_set(sim_dir, run_idx) -> Particles:
         raise FileNotFoundError(f"Error: No particle set found in {particle_set_dir}")
     
     particle_set = read_set_from_file(file)
-    particle_set -= particle_set[particle_set.syst_id > 3]  # Testing purpose
-    particle_set -= particle_set[particle_set.mass < (5. | units.kg)]  # Testing purpose
+    particle_set -= particle_set[particle_set.syst_id > 18]  # Testing purpose
+    # particle_set -= particle_set[particle_set.mass == (0. | units.kg)]  # Testing purpose
+    particle_set -= particle_set[particle_set.type == "JMO"]  # Testing purpose
+    particle_set -= particle_set[particle_set.type == "JuMBO"]  # Testing purpose
+    
     particle_set.coll_events = 0
     
     if len(particle_set) == 0:
@@ -172,13 +175,13 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     
     min_radius = nemesis.particles.radius.min()
     typical_crosstime = 2.*(min_radius/vdisp)
-    print(f"dt= {dt.in_(units.yr)}", end="  ")
-    print(f"Minimum children system radius= {min_radius.in_(units.au)}", end="  ")
-    print(f"Dispersion velocity= {vdisp.in_(units.kms)}", end="  ")
+    print(f"dt= {dt.in_(units.yr)}")
+    print(f"Minimum children system radius= {min_radius.in_(units.au)}")
+    print(f"Dispersion velocity= {vdisp.in_(units.kms)}")
     print(f"Min. system crossing time= {typical_crosstime.in_(units.kyr)}")
     print(f"Total number of snapshots: {tend/dt_diag}")
-    if dt > 5.*typical_crosstime:
-        raise ValueError("!!! Warning: dt > 5*Typical System Crossing Time !!!")
+    if dt > 10.*typical_crosstime:
+        raise ValueError("!!! Warning: dt > 10*Typical System Crossing Time !!!")
         
     if (nemesis._dE_track):
         energy_arr = [ ]
@@ -257,7 +260,7 @@ def new_option_parser():
     result.add_option("--eta", 
                       dest="eta", 
                       type="float", 
-                      default=1e-5 ,
+                      default=5e-5 ,
                       help="Parameter tuning dt")
     result.add_option("--code_dt", 
                       dest="code_dt", 
@@ -268,7 +271,7 @@ def new_option_parser():
                       dest="dt_diag", 
                       type="int", 
                       unit=units.kyr, 
-                      default=20 | units.kyr,
+                      default=100 | units.kyr,
                       help="Diagnostic time step")
     result.add_option("--gal_field", 
                       dest="gal_field", 

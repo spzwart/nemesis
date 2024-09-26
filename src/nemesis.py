@@ -1,3 +1,4 @@
+import gc
 import numpy as np
 import os
 import queue
@@ -49,6 +50,7 @@ class Nemesis(object):
         
         # Private attributes
         self.__max_radius = 1000. | units.au
+        self.__min_radius = 50. | units.au
         self.__min_mass_evol_evol = min_stellar_mass
         self.__child_conv = child_conv
         self.__dt = dt
@@ -125,6 +127,7 @@ class Nemesis(object):
                 self.subsystems[parent] = sys
                 self.subcodes[parent] = code
         self.particles[self.particles.radius > self.__max_radius].radius = self.__max_radius
+        self.particles[self.particles.radius < self.__min_radius].radius = self.__min_radius
 
         if (self.__star_evol):
             parti = self.particles.all()
@@ -177,14 +180,12 @@ class Nemesis(object):
             raise ValueError("Error: No children to evolve")
         
         if children.mass.min() == (0. | units.kg):
-            print("...Integrator: Test Particle...")
             code = Huayno(self.__child_conv)
             code.particles.add_particles(children)
             code.parameters.timestep_parameter = 0.1
             code.set_integrator("OK")
         
         else:
-            print("...Integrator: Huayno...")
             code = Huayno(self.__child_conv)
             code.particles.add_particles(children)
             code.parameters.timestep_parameter = 0.1
@@ -192,7 +193,6 @@ class Nemesis(object):
             
         # TO DO: Add REBOUND integrator
         """elif masses[-1] > 100.*masses[-2]:
-            print("...Integrator: Rebound...")
             code = Rebound(self.__child_conv)
             code.particles.add_particles(children)
             code.set_integrator("WHFast")"""
@@ -328,70 +328,77 @@ class Nemesis(object):
             ejected_idx = ejection_checker(self.particles.copy(), 
                                            self.__gal_field)
             self.ejection_remover(ejected_idx)
+        gc.collect()
             
     def split_subcodes(self):
         """Track parent system dissolution. Children are removed from parent 
         if their distance is greater than twice the parent radius"""
         print("...Checking Splits...")
-        for parent, subsys in list(self.subsystems.items()):
-            radius = parent.radius
-            self.grav_channel_copier(
-                self.subcodes[parent].particles, subsys,
-                ["x","y","z","vx","vy","vz"]
-            )
-            components = subsys.connected_components(threshold=2.*radius)
+        subsystems = self.subsystems
+        subcodes = self.subcodes
+        particles = self.particles
+        time_offsets = self._time_offsets
             
-            if len(components) > 1:  # Checking for dissolution of system
-                parent_pos = parent.position
-                parent_vel = parent.velocity
+        asteroid_batch = [ ]
+        particles_to_remove = Particles()
+        for parent, subsys in list(subsystems.items()):
+            
+            subsys[-1].position += parent.position
+            radius = parent.radius
+            furthest = (subsys.position - subsys.center_of_mass()).lengths().max()
+            if furthest > radius:
                 
-                self.particles.remove_particle(parent)
-                code = self.subcodes.pop(parent)
-                self._time_offsets.pop(code)
-                
-                for c in components:
-                    sys = c.copy_to_memory()
-                    if len(sys) > 1:
-                        if max(sys.mass) == (0. | units.kg):
-                            print("...new asteroid conglomerate...")
-                            for asteroids in [self.asteroids, self._asteroid_code.particles]:
-                                asteroids.add_particles(sys)
-                                asteroids[-len(sys):].position += parent_pos
-                                asteroids[-len(sys):].velocity += parent_vel
-                                
-                        else:
-                            print("...new children system...")
-                            sys.position += parent_pos
-                            sys.velocity += parent_vel
-                            newcode = self.__sub_worker(sys)
-                            newcode.particles.move_to_center()
-                            
-                            self._time_offsets[newcode] = self.model_time - newcode.model_time
-                            newparent = self.particles.add_subsystem(sys)
-                            self.subcodes[newparent] = newcode
-                            newparent.radius = set_parent_radius(np.sum(sys.mass), self.__dt, len(sys))
-                            if newparent.radius > self.__max_radius:
-                                newparent.radius = self.__max_radius
-                        
-                    else:
-                        if sys.mass == (0. | units.kg):
-                            print("...new isolated asteroid...")
-                            for asteroids in [self.asteroids, self._asteroid_code.particles]:
-                                asteroids.add_particles(sys)
-                                asteroids[-len(sys):].position += parent_pos
-                                asteroids[-len(sys):].velocity += parent_vel
-                            
-                        else:
-                            print("...new isolated particle...")
-                            print(sys.type)
-                            sys.position += parent_pos
-                            sys.velocity += parent_vel
-                            newparent = self.particles.add_subsystem(sys)
-                            newparent.radius = set_parent_radius(np.sum(sys.mass), self.__dt, len(sys))
-                            if newparent.radius > self.__max_radius:
-                                newparent.radius = self.__max_radius
+                components = subsys.connected_components(threshold=2.*radius)
+                if len(components) > 1:  # Checking for dissolution of system
+                    print("rem")
+                    parent_pos = parent.position
+                    parent_vel = parent.velocity
                     
-                del code
+                    particles_to_remove.add_particle(parent)
+                    code = subcodes.pop(parent)
+                    time_offsets.pop(code)
+                    for c in components:
+                        sys = c.copy_to_memory()
+                        if sys.mass.max() == (0. | units.kg):
+                            print(f"Removing {len(sys)} asteroids")
+                            sys.position += parent_pos
+                            sys.velocity += parent_vel
+                            asteroid_batch.append(sys)
+                            
+                        else:
+                            if len(sys) > 1:
+                                sys.position += parent_pos
+                                sys.velocity += parent_vel
+                                newcode = self.__sub_worker(sys)
+                                newcode.particles.move_to_center()
+                                
+                                time_offsets[newcode] = self.model_time - newcode.model_time
+                                newparent = particles.add_subsystem(sys)
+                                subcodes[newparent] = newcode
+                                newparent.radius = set_parent_radius(np.sum(sys.mass), self.__dt, len(sys))
+                                if newparent.radius > self.__max_radius:
+                                    newparent.radius = self.__max_radius
+                                elif newparent.radius < self.__min_radius:
+                                    newparent.radius = self.__min_radius
+                            
+                            else:
+                                sys.position += parent_pos
+                                sys.velocity += parent_vel
+                                newparent = particles.add_subsystem(sys)
+                                newparent.radius = set_parent_radius(np.sum(sys.mass), self.__dt, len(sys))
+                                if newparent.radius > self.__max_radius:
+                                    newparent.radius = self.__max_radius
+                                elif newparent.radius < self.__min_radius:
+                                    newparent.radius = self.__min_radius
+                        
+                    del code, subsys, parent
+        
+        particles.remove_particles(particles_to_remove)
+        if asteroid_batch:
+            for asteroids in [self.asteroids, self._asteroid_code.particles]:
+                    asteroids.add_particles(sys)
+                    asteroids[-len(sys):].position += parent_pos
+                    asteroids[-len(sys):].velocity += parent_vel
                
     def ejection_remover(self, ejected_idx):
         """
@@ -424,12 +431,12 @@ class Nemesis(object):
                 del code
         
         if len(ejected_particles) > 0:
+            ejected_stars = ejected_particles[ejected_particles.mass > self.__min_mass_evol_evol]
+            self._stellar_code.particles.remove_particles(ejected_stars)
+            
             self.particles.remove_particle(ejected_particles)
             self.particles.synchronize_to(self._parent_code.particles)
             self.particles.synchronize_to(self._evolve_code.particles)
-            
-            ejected_stars = ejected_particles[ejected_particles.mass > self.__min_mass_evol_evol]
-            self._stellar_code.particles.remove_particles(ejected_stars)
             
             if (self._dE_track):
                 E1 = self.calculate_total_energy()
@@ -491,6 +498,8 @@ class Nemesis(object):
                                              len(newparts))
         if newparent.radius > self.__max_radius:
             newparent.radius = self.__max_radius
+        elif newparent.radius < self.__min_radius:
+            newparent.radius = self.__min_radius
             
         self._time_offsets[newcode] = self.model_time - newcode.model_time
         self.subcodes[newparent] = newcode
@@ -654,7 +663,7 @@ class Nemesis(object):
         for key, new_value in changes:
             resolved_keys[key] = new_value
             
-        print(f"{coll_a.name}, {coll_b.name}")
+        print(f"{coll_a.type}, {coll_b.type}")
         print(f"{coll_a.mass.in_(units.MSun)} + {coll_b.mass.in_(units.MSun)} --> {remnant.mass.in_(units.MSun)}")
         
         children.add_particles(remnant)
@@ -663,7 +672,6 @@ class Nemesis(object):
         nearest_mass = abs(children.mass - parent.mass).argmin()
         
         if remnant.key == children[nearest_mass].key:
-            print("...New parent particle...")
             children.position += parent.position
             children.velocity += parent.velocity
             
@@ -797,6 +805,8 @@ class Nemesis(object):
                 newparent.radius = set_parent_radius(np.sum(newparts.mass), self.__dt, len(newparts))
                 if newparent.radius > self.__max_radius:
                     newparent.radius = self.__max_radius
+                elif newparent.radius < self.__min_radius:
+                    newparent.radius = self.__min_radius
                     
                 self._time_offsets[newcode] = self.model_time - newcode.model_time
                 self.subcodes[newparent] = newcode
@@ -818,8 +828,7 @@ class Nemesis(object):
         stopping_condition.enable()
         
         print(f"Goal: {dt.in_(units.Myr)}")
-        timestep = dt - self._parent_code.model_time
-        while self._evolve_code.model_time < dt - timestep/2.:
+        while self._evolve_code.model_time < dt*(1. - 1.1e-12):
             print(f"Current: {self._parent_code.model_time.in_(units.Myr)}", end=" ")
             print(f"# Particles {len(self._parent_code.particles)}")
             
@@ -840,23 +849,24 @@ class Nemesis(object):
                 if (self._dE_track):
                     E1 = self.calculate_total_energy()
                     self.corr_energy += E1 - E0
-                    
-        while self._parent_code.model_time < dt - timestep/2.:
-            self._parent_code.evolve_model(dt)
-            if stopping_condition.is_set():
-                if (self._dE_track):
-                    E0 = self.calculate_total_energy()
-                    
-                print("!!! Parent: Parent Merger !!!")
-                coll_time = self._parent_code.model_time
-                coll_sets = self.find_coll_sets(stopping_condition.particles(0), 
-                                                stopping_condition.particles(1))
-                for cs in coll_sets:
-                    self.parent_merger(coll_time, corr_time, cs)
-                    
-                if (self._dE_track):
-                    E1 = self.calculate_total_energy()
-                    self.corr_energy += E1 - E0
+
+        if (self.__gal_field):
+            while self._parent_code.model_time < dt*(1. - 1.1e-12):
+                self._parent_code.evolve_model(dt)
+                if stopping_condition.is_set():
+                    if (self._dE_track):
+                        E0 = self.calculate_total_energy()
+                        
+                    print("!!! Parent: Parent Merger !!!")
+                    coll_time = self._parent_code.model_time
+                    coll_sets = self.find_coll_sets(stopping_condition.particles(0), 
+                                                    stopping_condition.particles(1))
+                    for cs in coll_sets:
+                        self.parent_merger(coll_time, corr_time, cs)
+                        
+                    if (self._dE_track):
+                        E1 = self.calculate_total_energy()
+                        self.corr_energy += E1 - E0
         
         if (1):
             print(f"Parent code time: {self._parent_code.model_time.in_(units.Myr)}")
@@ -898,8 +908,7 @@ class Nemesis(object):
                     colliding_particles = Particles(particles=[coll_a, coll_b])
                     parent, resolved_keys = self.handle_collision(self.subsystems[parent], parent, 
                                                                   colliding_particles, coll_time, 
-                                                                  code, resolved_keys
-                                                                  )
+                                                                  code, resolved_keys)
                     Nresolved += 1
             
             return parent
@@ -932,8 +941,6 @@ class Nemesis(object):
                             E0 = self.calculate_total_energy()
                             
                         parent = resolve_collisions(code, parent, stopping_condition)
-                        print("...collision resolved...")
-                        
                         if (self._dE_track):
                            E1 = self.calculate_total_energy()
                            self.corr_energy += E1 - E0
