@@ -212,6 +212,7 @@ def run_simulation(sim_dir, tend, code_dt, eta,
             t_diag += dt_diag
             snapshot_no += 1
             allparts = nemesis.particles.all()
+            allparts.add_particles(nemesis.asteroids)
             
             fname = os.path.join(snapdir_path, f"snap_{snapshot_no}")
             write_set_to_file(
