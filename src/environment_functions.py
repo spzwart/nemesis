@@ -9,7 +9,7 @@ from amuse.units import units, constants
 
 MWG = MWpotentialBovy2015()
 
-def ejection_checker(particle_set, tidal_field) -> np.ndarray:
+def ejection_checker(particle_set, tidal_radius=None) -> np.ndarray:
     """
     Find ejected systems (particles whose second nearest neighbour is separated with > DIST_THRESHOLD)
 
@@ -29,10 +29,10 @@ def ejection_checker(particle_set, tidal_field) -> np.ndarray:
         np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # ejected bool
     ]
     
-    if (tidal_field):
-        threshold = tidal_radius(particle_set).value_in(units.m)
+    if tidal_radius is None:
+        tidal_radius = (10. | units.pc)
     else:
-        threshold = (3. | units.pc).value_in(units.m)
+        tidal_radius = 2.*tidal_radius
     num_parts = len(particle_set)
     
     ejected_bools = np.zeros(len(particle_set))
@@ -40,7 +40,7 @@ def ejection_checker(particle_set, tidal_field) -> np.ndarray:
         particle_set.x.value_in(units.m),
         particle_set.y.value_in(units.m),
         particle_set.z.value_in(units.m),
-        num_parts, threshold,
+        num_parts, tidal_radius.value_in(units.m),
         ejected_bools
     )
     ejected_idx = np.where(ejected_bools == 1)[0]

@@ -32,8 +32,10 @@ In addition to the input functions needed to execute `interface.py`, the followi
 
 main.py:
 - `galactic_frame()` input position and velocity coordinates.
-- `typical_crosstime`: The typical crossing time of a parent system. Tendency is to keep diagnostic timestep below 5 times the crossing time.
+- `typical_crosstime`: The typical crossing time of a parent system. Tendency is to keep diagnostic timestep below 10 crossing times of the smallest system.
 - `maximum_radius`: Maximum parent radius
+- `minimum_radius`: Minimum parent radius
+- `kick_ast_iter`: How many iterations occur between kicking isolated asteroids
 
 src/environment_functions.py:
 - `threshold`: If no second-nearest parent system is within `DIST_THRESHOLD` from iterated parent, it is 'isolated' and a possible ejector.
