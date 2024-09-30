@@ -1,6 +1,6 @@
 # NEMESIS
 
-This project generalises the Nemesis algorithm using [AMUSE](https://amuse.readthedocs.io/en/latest/). For AMUSE install see the following [GitHub repository](https://github.com/LourensVeen/amuse-course).
+This project generalises the Nemesis algorithm using [AMUSE](https://amuse.readthedocs.io/en/latest/). A small example video is seen [here](https://youtu.be/cycIn8hDZKY). For AMUSE install see the following [GitHub repository](https://github.com/LourensVeen/amuse-course).
 
 Nemesis is a flexible and efficient multi-scale algorithm used to integrate hierarchical systems, for instance planetary systems in stellar clusters. It does so by decoupling smaller systems from one another to allow their integration to run in parallel and with the use of bridge and considers the galactic tidal field and stellar evolution.
 

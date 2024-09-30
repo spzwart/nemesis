@@ -203,6 +203,9 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     prev_step = nemesis.dt_step
     snap_cpu_time = cpu_time.time()
     while t < tend:
+        if (verbose):
+            t0 = cpu_time.time()
+        
         t += dt
         
         while nemesis.model_time < t:
@@ -231,6 +234,10 @@ def run_simulation(sim_dir, tend, code_dt, eta,
             prev_step = nemesis.dt_step
             print(f"t = {t.in_(units.Myr)}, dE = {abs((E1-E0)/E0)}")
         prev_step = nemesis.dt_step
+        
+        if (verbose):
+            t1 = cpu_time.time()
+            print(f"Step took {t1-t0} seconds")
         
     allparts = nemesis.particles.all()
     allparts.add_particles(nemesis.asteroids)
