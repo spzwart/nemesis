@@ -88,7 +88,7 @@ class CorrectionFromCompoundParticle(object):
         Compute difference in gravitational acceleration felt by parents
         due to force exerted by parents which host children, and force
         exerted by their children.
-        dF = \sum_j (\sum_i F_{i} - F_{j}) where j is parent and i is children of parent j
+        dF = sum_j (sum_i F_{i} - F_{j}) where j is parent and i is children of parent j
         
         Args:
             radius (Float):  Radius of parent particles

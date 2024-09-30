@@ -113,7 +113,7 @@ def identify_parents(particle_set) -> Particles:
 
 def run_simulation(sim_dir, tend, code_dt, eta, 
                    dt_diag, par_nworker, dE_track, 
-                   gal_field, star_evol):
+                   gal_field, star_evol, verbose) -> None:
     """
     Run simulation and output data.
     
@@ -127,6 +127,7 @@ def run_simulation(sim_dir, tend, code_dt, eta,
         dE_track (Boolean):  Flag turning on energy error tracker
         gal_field (Boolean):  Flag turning on galactic field or not
         star_evol (Boolean):  Flag turning on stellar evolution or not
+        verbose (Boolean):  Flag turning on print statements or not
     """
     run_idx = len(glob.glob(sim_dir+"/Nrun*"))
     
@@ -168,7 +169,8 @@ def run_simulation(sim_dir, tend, code_dt, eta,
                       conv_child, dt, coll_path, 
                       ejected_dir, code_dt, 
                       par_nworker, dE_track, 
-                      star_evol, gal_field)
+                      star_evol, gal_field,
+                      verbose)
     nemesis.particles.add_particles(parents)
     nemesis.commit_particles()
     nemesis.asteroids = test_particles
@@ -289,6 +291,11 @@ def new_option_parser():
                       action="store_true", 
                       default=True,
                       help="Flag to turn on stellar evolution")
+    result.add_option("--verbose", 
+                      dest="verbose", 
+                      action="store_true", 
+                      default=True,
+                      help="Flag to turn on print statements")
     
     return result
         
@@ -311,5 +318,6 @@ if __name__ == "__main__":
         gal_field=o.gal_field, 
         dE_track=o.dE_track, 
         star_evol=o.star_evol, 
+        verbose=o.verbose
     )
     
