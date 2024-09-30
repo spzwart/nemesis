@@ -1141,7 +1141,6 @@ class Nemesis(object):
         """
         if subsystems and len(particles) > 1:
             # Kick parent particles
-            print("FOR=====================================================================")
             corr_chd = CorrectionFromCompoundParticle(particles, 
                                                       subsystems)
             self.channels["from_gravity_to_parents"].copy()
