@@ -54,16 +54,15 @@ def load_particle_set(sim_dir, run_idx) -> Particles:
     if run_idx >= len(particle_sets):
         raise IndexError(f"Error: Run index {run_idx} out of range.")
     
-    file = particle_sets[run_idx]
+    file = particle_sets[0]#[run_idx]
     if not os.path.isfile(file):
         raise FileNotFoundError(f"Error: No particle set found in {particle_set_dir}")
     
     particle_set = read_set_from_file(file)
     particle_set -= particle_set[particle_set.syst_id > 18]  # Testing purpose
-    # particle_set -= particle_set[particle_set.mass == (0. | units.kg)]  # Testing purpose
+    particle_set -= particle_set[particle_set.mass == (0. | units.kg)]  # Testing purpose
     particle_set -= particle_set[particle_set.type == "JMO"]  # Testing purpose
     particle_set -= particle_set[particle_set.type == "JuMBO"]  # Testing purpose
-    
     particle_set.coll_events = 0
     
     if len(particle_set) == 0:
@@ -191,6 +190,7 @@ def run_simulation(sim_dir, tend, code_dt, eta,
         nemesis.E0 = E0
     
     allparts = nemesis.particles.all()
+    allparts.add_particles(nemesis.asteroids)
     write_set_to_file(
         allparts.savepoint(0 | units.Myr), 
         os.path.join(snapdir_path, "snap_0"), 
@@ -231,7 +231,15 @@ def run_simulation(sim_dir, tend, code_dt, eta,
             prev_step = nemesis.dt_step
             print(f"t = {t.in_(units.Myr)}, dE = {abs((E1-E0)/E0)}")
         prev_step = nemesis.dt_step
-      
+        
+    allparts = nemesis.particles.all()
+    allparts.add_particles(nemesis.asteroids)
+    write_set_to_file(
+        allparts.savepoint(0 | units.Myr), 
+        os.path.join(snapdir_path, f"snap_{snapshot_no+1}"), 
+        'amuse', close_file=True, overwrite_file=True
+    )
+    
     print("...Simulation Ended...")
     nemesis.stellar_code.stop()  
     nemesis.parent_code.stop()

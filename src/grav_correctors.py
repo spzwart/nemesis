@@ -1,5 +1,7 @@
 import ctypes
 import numpy as np
+import queue
+import threading
 
 from amuse.couple.bridge import CalculateFieldForParticles
 from amuse.lab import constants, units, Particles, VectorQuantity
@@ -24,20 +26,6 @@ def load_gravity_library() -> ctypes.CDLL:
     ]
     lib.find_gravity_at_point.restype = None
     return lib
-
-def system_to_cluster_frame(system, parent) -> Particles:
-    """
-    Shift children to parent reference frame
-    
-    Args:
-        system (particle set):  Particle set to convert
-        parent (particle):  Parent particle to convert to
-    Returns:
-        system (particle): Shifted phase-space coordinates of children into parent reference frame
-    """
-    system = system.copy_to_memory()
-    system.position += parent.position
-    return system
 
 def compute_gravity(grav_lib, perturber, particles) -> float:
     """
@@ -81,7 +69,36 @@ class CorrectionFromCompoundParticle(object):
             subsystems (particle set):  Collection of subsystems present
         """
         self.particles = particles
+        self.acc_units = (self.particles.vx.unit**2/self.particles.x.unit)
         self.subsystems = subsystems
+        
+    def correct_parents(self, job_queue, result_queue):
+        
+        particles, parent_copy, system, removed_idx = job_queue.get()
+        
+        ax = 0. | self.acc_units
+        ay = 0. | self.acc_units
+        az = 0. | self.acc_units
+        coefficient = (1. | units.kg*units.m**-2) * constants.G
+        
+        parts = particles - parent_copy
+        lib = load_gravity_library()
+        ax_chd, ay_chd, az_chd = compute_gravity(lib, system, parts)
+        ax_par, ay_par, az_par = compute_gravity(lib, parent_copy, parts)
+        
+        ax += (ax_chd - ax_par) * coefficient
+        ay += (ay_chd - ay_par) * coefficient
+        az += (az_chd - az_par) * coefficient
+        
+        ax = np.insert(ax.value_in(self.acc_units), removed_idx, 0.)
+        ay = np.insert(ay.value_in(self.acc_units), removed_idx, 0.)
+        az = np.insert(az.value_in(self.acc_units), removed_idx, 0.)
+        
+        ax = ax | self.acc_units
+        ay = ay | self.acc_units
+        az = az | self.acc_units
+            
+        result_queue.put([ax, ay, az])
     
     def get_gravity_at_point(self, radius, x, y, z) -> float:
         """
@@ -99,29 +116,38 @@ class CorrectionFromCompoundParticle(object):
             acc_array (np.ndarray):  Acceleration array of parent particles
         """
         particles = self.particles.copy_to_memory()
-        acc_units = (particles.vx.unit**2/particles.x.unit)
+        particles.ax = 0. | self.acc_units
+        particles.ay = 0. | self.acc_units
+        particles.az = 0. | self.acc_units
         
-        particles.ax = 0. | acc_units
-        particles.ay = 0. | acc_units
-        particles.az = 0. | acc_units
-        coefficient = (1. | units.kg*units.m**-2) * constants.G
-        
-        lib = load_gravity_library()
+        job_queue = queue.Queue()
+        result_queue = queue.Queue()
         for parent, sys in list(self.subsystems.items()):
-            system = sys.copy_to_memory()
-            system = system_to_cluster_frame(system, parent)
+            removed_idx = (abs(particles.mass - parent.mass)).argmin()
+            sys.position += parent.position
             
-            temp_par = Particles()
-            temp_par.add_particle(parent)
-            
-            parts = particles - parent
-            ax_chd, ay_chd, az_chd = compute_gravity(lib, system, parts)
-            ax_par, ay_par, az_par = compute_gravity(lib, temp_par, parts)
-            
-            parts.ax += (ax_chd - ax_par) * coefficient
-            parts.ay += (ay_chd - ay_par) * coefficient
-            parts.az += (az_chd - az_par) * coefficient
+            parent_copy = Particles()
+            parent_copy.add_particle(parent)
+            job_queue.put((particles, parent_copy, sys, removed_idx))
         
+        threads = [ ]
+        for worker in range(len(self.subsystems.keys())):
+            thread = threading.Thread(target=self.correct_parents, 
+                                      args=(job_queue, result_queue))
+            thread.daemon = True
+            thread.start()
+            threads.append(thread)
+        
+        for thread in threads:
+            thread.join()
+            
+        while not result_queue.empty():
+            ax, ay, az = result_queue.get()
+            particles.ax += ax
+            particles.ay += ay
+            particles.az += az
+        
+        print("Check 2: parent modified acc", particles[0].ax.in_(units.m/units.s**2))
         return particles.ax, particles.ay, particles.az
     
     def get_potential_at_point(self, radius, x, y, z) -> np.ndarray:
@@ -138,7 +164,7 @@ class CorrectionFromCompoundParticle(object):
         """
         particles = self.particles.copy_to_memory()
         particles.phi = 0. | (particles.vx.unit**2)
-        for parent,sys in list(self.subsystems.items()): 
+        for parent, sys in list(self.subsystems.items()): 
             code = CalculateFieldForParticles(gravity_constant=constants.G)
             code.particles.add_particles(sys.copy())
             code.particles.position += parent.position
@@ -195,7 +221,6 @@ class CorrectionForCompoundParticle(object):
         
         coefficient = (1 | units.kg*units.m**-2) * constants.G
         system = self.system.copy_to_memory()
-        system = system_to_cluster_frame(system, parent)
         acc_units = (system.vx.unit**2/system.x.unit)
         
         system.ax = 0. | acc_units
@@ -206,8 +231,8 @@ class CorrectionForCompoundParticle(object):
         
         temp_par = Particles()
         temp_par.add_particle(parent)
+        system.position += parent.position
         ax_chd, ay_chd, az_chd = compute_gravity(lib, parts, system)
-        
         ax_par, ay_par, az_par = compute_gravity(lib, parts, temp_par)
         
         system.ax += (ax_chd - ax_par) * coefficient

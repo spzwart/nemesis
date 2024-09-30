@@ -76,16 +76,17 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz) -> Particles:
 
 def set_parent_radius(tot_mass, dt, pop) -> float:
     """
-    Merging radius of parent systems
+    Merging radius of parent systems. Based on system crossing time.
 
     Args:
        tot_mass (Float):  Total mass of the system
        dt (Float):  Timestep
        pop (Float/Int):  Population of the system
     Returns:
-       Float: Merging radius of the parent system
+       radius (Float): Merging radius of the parent system
     """
-    return 0.5*pop*(constants.G*tot_mass*dt**2.)**(1./3.)
+    radius = 0.5*pop*(constants.G*tot_mass*dt**2.)**(1./3.)
+    return radius
 
 def planet_radius(planet_mass) -> float:
     """
@@ -97,12 +98,15 @@ def planet_radius(planet_mass) -> float:
         radius (Float):  Planet radius
     """
     mass_in_earth = planet_mass.value_in(units.MEarth)
+    
     if planet_mass < (7.8 | units.MEarth):
         radius = (1. | units.REarth)*(mass_in_earth)**0.41
         return radius
+    
     elif planet_mass < (125. | units.MEarth):
         radius = (0.55 | units.REarth)*(mass_in_earth)**0.65
         return radius
+    
     radius = (14.3 | units.REarth)*(mass_in_earth)**(-0.02) 
     return radius
 
@@ -113,7 +117,7 @@ def tidal_radius(parent_set) -> float:
     Args:
         parent_set (object):  The parent particle set
     Returns:
-        parent_set (Float):  The tidal radius of the cluster
+        tidal_radius (Float):  The tidal radius of the cluster
     """
     cluster_galaxy_system = Particles(2)
     
@@ -131,7 +135,9 @@ def tidal_radius(parent_set) -> float:
 
     kepler_elements = orbital_elements_from_binary(cluster_galaxy_system, G=constants.G)
     ecc = kepler_elements[3]
-    return ((cluster_mass/enclosed_mass)/(3.+ecc))**(1./3.) * cluster_pos.length()
+    
+    tidal_radius = ((cluster_mass/enclosed_mass)/(3.+ecc))**(1./3.) * cluster_pos.length()
+    return tidal_radius
     
 def ZAMS_radius(star_mass) -> float:
     """
@@ -145,4 +151,5 @@ def ZAMS_radius(star_mass) -> float:
     mass_in_sun = star_mass.value_in(units.MSun)
     mass_sq = (mass_in_sun)**2
     r_zams = mass_in_sun**1.25 * (0.1148 + 0.8604 * mass_sq)/(0.04651 + mass_sq)
+    
     return r_zams | units.RSun

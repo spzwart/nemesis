@@ -39,13 +39,13 @@ class Nemesis(object):
             child_conv (Converter):  Children N-body converter
             dt (Float):  Diagnostic time step
             coll_path (String):  Path to store collision data
-            __ejected_dir (String):  Path to store ejected particles
-            snapdir_path (String):  Path to store snapshots
+            ejected_dir (String):  Path to store ejected particles
             code_dt (Float):  Internal time step
             par_nworker (Int):  Number of workers for global integrator
             dE_track (Boolean):  Flag turning on/off energy error tracker
             star_evol (Boolean):  Flag turning on/off stellar evolution
             gal_field (Boolean):  Flag turning on/off galactic field
+            verbose (Boolean):  Flag turning on/off verbose output
         """
         
         # Private attributes
@@ -63,7 +63,7 @@ class Nemesis(object):
         # Protected attributes
         self._max_radius = 1000. | units.au
         self._min_radius = 50. | units.au
-        self._kick_ast_iter = 10
+        self._kick_ast_iter = 1  # Kick isolated asteroids every 10th iteration
         self._nejec = 0
         self._dE_track = dE_track
         self._MWG = MWpotentialBovy2015()
@@ -85,21 +85,22 @@ class Nemesis(object):
         self._major_channel_maker()
         self._validate_initialization()
 
-    def _validate_initialization(self):
+    def _validate_initialization(self) -> None:
+        """Validation initialised variables of the class"""
         if self.__dt is None or self.__dt <= 0 | units.s:
             raise ValueError("Error: dt must be a positive float")
         if not isinstance(self.__code_dt, (int, float)) or self.__code_dt <= 0:
             raise ValueError("Error: code_dt must be a positive float")
         if not isinstance(self.__par_nworker, int) or self.__par_nworker <= 0:
             raise ValueError("Error: par_nworker must be a positive integer")
-        if self.__min_mass_evol_evol is None or self.__min_mass_evol_evol <= 0 | units.kg:
-            raise ValueError("Error: __min_mass_evol_evol must be a positive float")
+        if not isinstance(self.__min_mass_evol_evol.value_in(units.MSun), float) or self.__min_mass_evol_evol <= 0 | units.kg:
+            raise ValueError(f"Error: minimum stellar mass {self.__min_mass_evol_evol} must be a positive float")
         if not isinstance(self.__coll_dir, str):
             raise ValueError("Error: coll_dir must be a string")
         if not isinstance(self.__ejected_dir, str):
             raise ValueError("Error: ejected_dir must be a string")
 
-    def commit_particles(self):
+    def commit_particles(self) -> None:
         """Commit particle system by:
             - recentering the system
             - setting the parent radius
@@ -150,7 +151,7 @@ class Nemesis(object):
         self.__tidal_radius = tidal_radius(self.particles)
         print(f"Tidal radius: {self.__tidal_radius.in_(units.pc)}")
         
-    def _setup_bridge(self):
+    def _setup_bridge(self) -> None:
         """Embed system into galactic potential"""
         gravity = bridge.Bridge(use_threading=True,
                                 method=SPLIT_4TH_S_M6,)
@@ -187,7 +188,7 @@ class Nemesis(object):
             code (Code):  Gravitational integrator with particle set
         """
         if len(children) == 0:
-            raise ValueError("Error: No children to evolve")
+            raise ValueError("Error: No children provided.")
         
         if (0. | units.kg) in children.mass:
             code = Huayno(self.__child_conv)
@@ -241,7 +242,11 @@ class Nemesis(object):
                          "from_gravity_to_parents":
                           parent_particles.new_channel_to(self.particles,
                           attributes=["x","y","z","vx","vy","vz"],
-                          target_names=["x","y","z","vx","vy","vz"])}
+                          target_names=["x","y","z","vx","vy","vz"]),
+                          "from_parents_to_gravity":
+                          self.particles.new_channel_to(parent_particles,
+                          attributes=["vx","vy","vz"],
+                          target_names=["vx","vy","vz"])}
     
     def _calculate_total_energy(self) -> float:
         """
@@ -276,16 +281,15 @@ class Nemesis(object):
             channel = stars.new_channel_to(children.particles)
             channel.copy_attributes(["mass", "radius"])
             
-    def _grav_channel_copier(self, transfer_data, receive_data, attributes=["x","y","z","vx","vy","vz"]):
+    def _grav_channel_copier(self, transfer_data, receive_data, 
+                             attributes=["x","y","z","vx","vy","vz"]) -> None:
         """
         Communicate information between grav. integrator and local particle set
         
         Args:
-            transfer_data (Code):  Particle set to transfer data from
-            receive_data (Code):  Particle set to update data
+            transfer_data (Particle set):  Particle set to transfer data from
+            receive_data (Particle set):  Particle set to update data
             attributes (Array):  Attributes wanting to copy
-        Returns:
-            channel (Channel): Channel to communicate between two codes
         """
         channel = transfer_data.new_channel_to(receive_data)
         channel.copy_attributes(attributes)
@@ -314,13 +318,6 @@ class Nemesis(object):
             
             if (self._dE_track):
                 E0 = self._calculate_total_energy()
-            if self.model_time != (0. | units.s):
-                self._correction_kicks(
-                    self.particles, 
-                    self.subsystems,
-                    timestep/2.
-                )
-                tkick += timestep/2.
             if (self._dE_track):
                 E1 = self._calculate_total_energy()
                 self.corr_energy += E1 - E0
@@ -342,13 +339,11 @@ class Nemesis(object):
             if (self._dE_track):
                 E0 = self._calculate_total_energy()
             
-            kick_dt = self.model_time - updated_step - timestep/2.
             self._correction_kicks(
                 self.particles, 
                 self.subsystems,
-                kick_dt
+                self.model_time - evolve_time
             )
-            tkick += kick_dt
             if (self._dE_track):
                 E1 = self._calculate_total_energy()
                 self.corr_energy += E1 - E0
@@ -503,7 +498,7 @@ class Nemesis(object):
         self.channels["from_gravity_to_parents"].copy()
         
         lock = threading.Lock()
-        new_parent_queue = queue.Queue()
+        job_queue = queue.Queue()
         nitems = 0
         for new_parent, new_children in self.__new_systems.items():
             n = self._parent_code.particles[self._parent_code.particles.key == new_parent.key]
@@ -513,14 +508,14 @@ class Nemesis(object):
             new_children.velocity += vel_shift 
             time_offset = self.__new_offsets[new_parent]
             
-            new_parent_queue.put((new_children, time_offset))
+            job_queue.put((new_children, time_offset))
             self.particles.remove_particle(new_parent)
             nitems += 1
         
         threads = [ ]
         for worker in range(nitems):
             th = threading.Thread(target=self._create_new_children_from_mergers, 
-                                  args=(new_parent_queue, lock))
+                                  args=(job_queue, lock))
             th.daemon = True
             th.start()
             threads.append(th)
@@ -1047,7 +1042,7 @@ class Nemesis(object):
         def evolve_code():
             """Algorithm to evolve individual children codes"""
             try:
-                parent = parent_queue.get(timeout=1)  # Timeout to prevent blocking indefinitely
+                parent = job_queue.get(timeout=1)  # Timeout to prevent blocking indefinitely
             except queue.Empty:
                 raise ValueError("Error: No children in system")
                 
@@ -1072,12 +1067,12 @@ class Nemesis(object):
                            E1 = self._calculate_total_energy()
                            self.corr_energy += E1 - E0
                                 
-            parent_queue.task_done()
+            job_queue.task_done()
         
         print("...Drifting Children...")
-        parent_queue = queue.Queue()
+        job_queue = queue.Queue()
         for parent in self.subcodes.keys():
-            parent_queue.put(parent)
+            job_queue.put(parent)
             self.key = parent.key
             
         lock = threading.Lock()
@@ -1122,6 +1117,18 @@ class Nemesis(object):
         
         channel = parts.new_channel_to(particles)
         channel.copy_attributes(["vx","vy","vz"])
+        
+    def _correct_children(self, job_queue, dt, lock):
+        
+        particles, parent, subsyst = job_queue.get()
+        
+        corr_par = CorrectionForCompoundParticle(particles, parent, subsyst)
+        with lock:
+            self._kick_particles(subsyst, corr_par, dt)
+        self._grav_channel_copier(
+            subsyst, self.subcodes[parent].particles, 
+            ["vx","vy","vz"]
+        )
 
     def _correction_kicks(self, particles, subsystems, dt):
         """
@@ -1134,33 +1141,33 @@ class Nemesis(object):
         """
         if subsystems and len(particles) > 1:
             # Kick parent particles
+            print("FOR=====================================================================")
             corr_chd = CorrectionFromCompoundParticle(particles, 
                                                       subsystems)
             self.channels["from_gravity_to_parents"].copy()
             self._kick_particles(particles, corr_chd, dt)
-            self._grav_channel_copier(
-                particles, 
-                self._parent_code.particles,
-                ["vx","vy","vz"]
-            )
+            self.channels["from_parents_to_gravity"].copy()
             
             # Kick children
-            corr_par = CorrectionForCompoundParticle(particles, 
-                                                     parent=None, 
-                                                     system=None)
+            job_queue = queue.Queue()
+            lock = threading.Lock()
             for parent, subsyst in subsystems.items():
-                corr_par.parent = parent
-                corr_par.system = subsyst
-                
                 self._grav_channel_copier(
                     self.subcodes[parent].particles, 
                     subsyst
                 )
-                self._kick_particles(subsyst, corr_par, dt)
-                self._grav_channel_copier(
-                    subsyst, self.subcodes[parent].particles, 
-                    ["vx","vy","vz"]
-                )
+                job_queue.put((particles.copy(), parent, subsyst))
+                
+            threads = [ ]
+            for worker in range(len(subsystems.keys())):
+                thread = threading.Thread(target=self._correct_children,
+                                          args=(job_queue, dt, lock))
+                thread.daemon = True
+                thread.start()
+                threads.append(thread)
+                
+            for thread in threads:
+                thread.join()
     
     @property
     def model_time(self):  
