@@ -272,6 +272,11 @@ def run_simulation(sim_dir, tend, code_dt, eta,
                 \nEnd Time: {t.in_(units.Myr)} \
                 \nTime step: {dt.in_(units.Myr)} \
                 \nInitial Typical tcross: {typical_crosstime.in_(units.yr)}")
+    f.close()
+    
+    with open(os.path.join(dir_path, "energy_error.txt"), 'w') as f:
+        f.write(f"Energy error: {energy_arr}")
+    f.close()
      
 def new_option_parser():
     result = OptionParser()
@@ -294,7 +299,7 @@ def new_option_parser():
     result.add_option("--code_dt", 
                       dest="code_dt", 
                       type="float", 
-                      default=0.1 ,
+                      default=2.**-3. ,
                       help="Gravitational integrator internal timestep")
     result.add_option("--dt_diag", 
                       dest="dt_diag", 
