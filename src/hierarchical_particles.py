@@ -55,15 +55,16 @@ class HierarchicalParticles(ParticlesOverlay):
             relative (Boolean):  Flag to assign relative attributes
             recenter (Boolean):  Flag to recenter the parent
         """
-        parent.mass = np.sum(sys.mass)
         if not (relative):
             parent.position = 0.*sys[0].position
             parent.velocity = 0.*sys[0].velocity
-            
+        
         if (recenter):
             parent.position += sys.center_of_mass()
             parent.velocity += sys.center_of_mass_velocity()
             sys.move_to_center()
+            
+        parent.mass = np.sum(sys.mass)
     
     def assign_subsystem(self, sys, parent, relative=True, recenter=True) -> None:
         """
@@ -80,10 +81,14 @@ class HierarchicalParticles(ParticlesOverlay):
     
     def recenter_subsystems(self) -> None:
         """Recenter parents to children components"""
-        for parent, sys in self.collection_attributes.subsystems.items(): 
-            sys.move_to_center()
-            parent.position += sys.center_of_mass()
-            parent.velocity += sys.center_of_mass_velocity()
+        for parent, sys in self.collection_attributes.subsystems.items():
+            center_of_mass = sys.center_of_mass()
+            center_of_mass_velocity = sys.center_of_mass_velocity()
+            
+            parent.position += center_of_mass
+            parent.velocity += center_of_mass_velocity
+            sys.position -= center_of_mass
+            sys.velocity -= center_of_mass_velocity
 
     def remove_particles(self, parts) -> None:
         """
@@ -111,9 +116,8 @@ class HierarchicalParticles(ParticlesOverlay):
             parts.remove_particle(parent)
             subsys = parts.add_particles(sys)
             subsys.sub_worker_radius = subsys.radius
-            
             subsys.position += parent.position
             subsys.velocity += parent.velocity
             subsys.syst_id = system_id 
-
+        
         return parts
