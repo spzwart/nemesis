@@ -8,7 +8,7 @@ from amuse.lab import constants, Particles, read_set_from_file, write_set_to_fil
 from amuse.units import units, nbody_system
 from amuse.units.optparse import OptionParser
 
-from src.environment_functions import galactic_frame
+from src.environment_functions import galactic_frame, set_parent_radius
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
@@ -23,7 +23,6 @@ def create_output_directories(sim_dir, run_idx) -> str:
     Args:
         sim_dir (str): Simulation directory path
         run_idx (int):    Index of specific run
-    
     Returns:
         dir_path (str): Directory path for specific run
     """
@@ -54,16 +53,13 @@ def load_particle_set(sim_dir, run_idx) -> Particles:
     if run_idx >= len(particle_sets):
         raise IndexError(f"Error: Run index {run_idx} out of range.")
     
-    file = particle_sets[0]#[run_idx]
+    file = particle_sets[run_idx]
     if not os.path.isfile(file):
         raise FileNotFoundError(f"Error: No particle set found in {particle_set_dir}")
     
     particle_set = read_set_from_file(file)
-    particle_set -= particle_set[particle_set.syst_id > 18]  # Testing purpose
-    particle_set -= particle_set[particle_set.mass == (0. | units.kg)]  # Testing purpose
-    particle_set -= particle_set[particle_set.type == "JMO"]  # Testing purpose
-    particle_set -= particle_set[particle_set.type == "JuMBO"]  # Testing purpose
     particle_set.coll_events = 0
+    particle_set.move_to_center()
     
     if len(particle_set) == 0:
         raise Exception(f"Error: Particle set {particle_set_dir} is empty.")
@@ -99,11 +95,11 @@ def identify_parents(particle_set) -> Particles:
         major_bodies (Particles):  Major bodies in the particle set
         test_particles (Particles):  Test particles in the particle set
     """
-    isolated_particles = particle_set[particle_set.syst_id < 0]
+    isolated_particles = particle_set[particle_set.syst_id <= 0]
     major_bodies = isolated_particles[isolated_particles.mass != (0. | units.kg)]
     test_particles = isolated_particles - major_bodies
     for system_id in np.unique(particle_set.syst_id):
-        if system_id > -1:
+        if system_id > 0:
             system = particle_set[particle_set.syst_id == system_id]
             hosting_body = system[system.mass.argmax()]
             major_bodies += hosting_body
@@ -129,6 +125,8 @@ def run_simulation(sim_dir, tend, code_dt, eta,
         verbose (Boolean):  Flag turning on print statements or not
     """
     run_idx = len(glob.glob(sim_dir+"/Nrun*"))
+    EPS = 1.e-8
+    dt = eta * tend
     
     # Setup directory paths
     dir_path = create_output_directories(sim_dir, run_idx)
@@ -143,24 +141,32 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     parent_particles = particle_set[(particle_set.type != "JMO") &
                                     (particle_set.type != "ASTEROID") &
                                     (particle_set.type != "PLANET")]
-    major_bodies, test_particles = identify_parents(particle_set)
     Rvir = parent_particles.virial_radius()
     vdisp = np.sqrt((constants.G*parent_particles.mass.sum())/Rvir)
+    conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), Rvir)
+    conv_child = nbody_system.nbody_to_si(1. | units.MSun, 100. | units.au)
     
-    parents = HierarchicalParticles(major_bodies)
-    initial_systems = parents[parents.syst_id > 0]
-    for id_ in np.unique(initial_systems.syst_id):
+    major_bodies, test_particles = identify_parents(particle_set)
+    isolated_systems = major_bodies[major_bodies.syst_id <= 0]
+    bounded_systems = major_bodies[major_bodies.syst_id > 0]
+    parents = HierarchicalParticles(isolated_systems)
+    
+    # Setting up system
+    nemesis = Nemesis(MIN_EVOL_MASS, conv_par, 
+                      conv_child, dt, coll_path, 
+                      ejected_dir, code_dt, EPS,
+                      par_nworker, dE_track, 
+                      star_evol, gal_field,
+                      verbose)
+    for id_ in np.unique(bounded_systems.syst_id):
         children = particle_set[particle_set.syst_id == id_]
-        host = parents[parents.syst_id == id_][0]
-        parents.assign_subsystem(children, host, 
-                                 relative=True, 
-                                 recenter=False)
+        newparent = nemesis.particles.add_subsystem(children)
+        
+    nemesis.particles.add_particles(parents)
+    nemesis.asteroids = test_particles
+    nemesis.commit_particles()
     
     par_nworker = int(len(major_bodies) // 500 + 1)
-    conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), 
-                                        major_bodies.virial_radius())
-    conv_child = nbody_system.nbody_to_si(np.mean(parents.mass), 
-                                          np.mean(parents.radius))
     dt = eta * tend
 
     # Setting up system
@@ -170,24 +176,26 @@ def run_simulation(sim_dir, tend, code_dt, eta,
                       par_nworker, dE_track, 
                       star_evol, gal_field,
                       verbose)
+    for id_ in np.unique(bounded_systems.syst_id):
+        children = particle_set[particle_set.syst_id == id_]
+        newparent = nemesis.particles.add_subsystem(children)
     nemesis.particles.add_particles(parents)
-    nemesis.commit_particles()
     nemesis.asteroids = test_particles
+    nemesis.commit_particles()
     
     min_radius = nemesis.particles.radius.min()
     typical_crosstime = 2.*(min_radius/vdisp)
-    print(f"dt= {dt.in_(units.yr)}")
-    print(f"Minimum children system radius= {min_radius.in_(units.au)}")
-    print(f"Dispersion velocity= {vdisp.in_(units.kms)}")
-    print(f"Min. system crossing time= {typical_crosstime.in_(units.kyr)}")
-    print(f"Total number of snapshots: {tend/dt_diag}")
+    if (verbose):
+        print(f"dt= {dt.in_(units.yr)}")
+        print(f"Minimum children system radius= {min_radius.in_(units.au)}")
+        print(f"Dispersion velocity= {vdisp.in_(units.kms)}")
+        print(f"Min. system crossing time= {typical_crosstime.in_(units.kyr)}")
+        print(f"Total number of snapshots: {tend/dt_diag}")
     if dt > 10.*typical_crosstime:
         raise ValueError("!!! Warning: dt > 10*Typical System Crossing Time !!!")
         
     if (nemesis._dE_track):
         energy_arr = [ ]
-        E0 = nemesis.calculate_total_energy()
-        nemesis.E0 = E0
     
     allparts = nemesis.particles.all()
     allparts.add_particles(nemesis.asteroids)
@@ -198,7 +206,7 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     )
     
     t = 0. | units.yr
-    t_diag = 0. | units.yr
+    t_diag = dt_diag
     snapshot_no = 0
     prev_step = nemesis.dt_step
     snap_cpu_time = cpu_time.time()
@@ -207,11 +215,13 @@ def run_simulation(sim_dir, tend, code_dt, eta,
             t0 = cpu_time.time()
         
         t += dt
+        if t == dt and (dE_track):
+            E0 = nemesis._calculate_total_energy()
         
-        while nemesis.model_time < t:
+        while nemesis.model_time < t*(1. - EPS):
             nemesis.evolve_model(t)
             
-        if (nemesis.model_time > t_diag) and (nemesis.dt_step != prev_step):
+        if (nemesis.model_time >= t_diag) and (nemesis.dt_step != prev_step):
             print(f"Saving snap. T= {t.in_(units.yr)}")
             print(f"Time taken: {cpu_time.time() - snap_cpu_time}")
             t_diag += dt_diag
@@ -233,6 +243,7 @@ def run_simulation(sim_dir, tend, code_dt, eta,
             
             prev_step = nemesis.dt_step
             print(f"t = {t.in_(units.Myr)}, dE = {abs((E1-E0)/E0)}")
+            
         prev_step = nemesis.dt_step
         
         if (verbose):
@@ -248,8 +259,8 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     )
     
     print("...Simulation Ended...")
-    nemesis.stellar_code.stop()  
-    nemesis.parent_code.stop()
+    nemesis._stellar_code.stop()  
+    nemesis._parent_code.stop()
     for code in nemesis.subcodes.values():
         code.stop()
 
@@ -278,7 +289,7 @@ def new_option_parser():
     result.add_option("--eta", 
                       dest="eta", 
                       type="float", 
-                      default=5e-5 ,
+                      default=2.5e-5 ,
                       help="Parameter tuning dt")
     result.add_option("--code_dt", 
                       dest="code_dt", 

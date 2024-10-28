@@ -4,25 +4,25 @@ import queue
 import threading
 
 from amuse.couple.bridge import CalculateFieldForParticles
-from amuse.lab import constants, units, Particles, VectorQuantity
-
+from amuse.lab import constants, units, Particles
+from numpy.ctypeslib import ndpointer
 
 def load_gravity_library() -> ctypes.CDLL:
     """Setup library to allow Python and C++ communication"""
     lib = ctypes.CDLL('./src/gravity.so')  # Adjust the path as necessary
     lib.find_gravity_at_point.argtypes = [
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # perturbing mass
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # recipient xpos
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # recipient ypos
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # recipient zpos
-        ctypes.c_int,  # num_particles
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # ax array
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # ay array
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # az array
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # perturbing xpos
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # perturbing ypos
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # perturbing zpos
-        ctypes.c_int   # num_points
+        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
+        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
+        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
+        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
+        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
+        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
+        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
+        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
+        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
+        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
+        ctypes.c_int,
+        ctypes.c_int
     ]
     lib.find_gravity_at_point.restype = None
     return lib
@@ -41,20 +41,19 @@ def compute_gravity(grav_lib, perturber, particles) -> float:
     num_particles = len(particles)
     num_perturber = len(perturber)
 
-    result_ax = np.zeros(num_particles)
-    result_ay = np.zeros(num_particles)
-    result_az = np.zeros(num_particles)
-    
+    result_ax = np.zeros(num_particles, dtype=np.float128)
+    result_ay = np.zeros(num_particles, dtype=np.float128)
+    result_az = np.zeros(num_particles, dtype=np.float128)
     grav_lib.find_gravity_at_point(
-        perturber.mass.value_in(units.kg),
-        particles.x.value_in(units.m),
-        particles.y.value_in(units.m),
-        particles.z.value_in(units.m),
-        num_particles,
+        perturber.mass.value_in(units.kg).astype(np.float128),
+        particles.x.value_in(units.m).astype(np.float128),
+        particles.y.value_in(units.m).astype(np.float128),
+        particles.z.value_in(units.m).astype(np.float128),
+        perturber.x.value_in(units.m).astype(np.float128),
+        perturber.y.value_in(units.m).astype(np.float128),
+        perturber.z.value_in(units.m).astype(np.float128),
         result_ax, result_ay, result_az,
-        perturber.x.value_in(units.m),
-        perturber.y.value_in(units.m),
-        perturber.z.value_in(units.m),
+        num_particles,
         num_perturber
     )
     return result_ax, result_ay, result_az
@@ -79,10 +78,11 @@ class CorrectionFromCompoundParticle(object):
         ax = 0. | self.acc_units
         ay = 0. | self.acc_units
         az = 0. | self.acc_units
-        coefficient = (1. | units.kg*units.m**-2) * constants.G
+        coefficient = (1. | units.kg/units.m**2) * constants.G
         
         parts = particles - parent_copy
         lib = load_gravity_library()
+        
         ax_chd, ay_chd, az_chd = compute_gravity(lib, system, parts)
         ax_par, ay_par, az_par = compute_gravity(lib, parent_copy, parts)
         
@@ -90,9 +90,9 @@ class CorrectionFromCompoundParticle(object):
         ay += (ay_chd - ay_par) * coefficient
         az += (az_chd - az_par) * coefficient
         
-        ax = np.insert(ax.value_in(self.acc_units), removed_idx, 0.)
-        ay = np.insert(ay.value_in(self.acc_units), removed_idx, 0.)
-        az = np.insert(az.value_in(self.acc_units), removed_idx, 0.)
+        ax = np.insert(ax.value_in(self.acc_units).astype(np.float128), removed_idx, 0.)
+        ay = np.insert(ay.value_in(self.acc_units).astype(np.float128), removed_idx, 0.)
+        az = np.insert(az.value_in(self.acc_units).astype(np.float128), removed_idx, 0.)
         
         ax = ax | self.acc_units
         ay = ay | self.acc_units
@@ -123,12 +123,13 @@ class CorrectionFromCompoundParticle(object):
         job_queue = queue.Queue()
         result_queue = queue.Queue()
         for parent, sys in list(self.subsystems.items()):
+            copied_child = sys.copy()
             removed_idx = (abs(particles.mass - parent.mass)).argmin()
-            sys.position += parent.position
+            copied_child.position += parent.position
             
             parent_copy = Particles()
             parent_copy.add_particle(parent)
-            job_queue.put((particles, parent_copy, sys, removed_idx))
+            job_queue.put((particles, parent_copy, copied_child, removed_idx))
         
         threads = [ ]
         for worker in range(len(self.subsystems.keys())):
@@ -147,7 +148,6 @@ class CorrectionFromCompoundParticle(object):
             particles.ay += ay
             particles.az += az
         
-        print("Check 2: parent modified acc", particles[0].ax.in_(units.m/units.s**2))
         return particles.ax, particles.ay, particles.az
     
     def get_potential_at_point(self, radius, x, y, z) -> np.ndarray:
@@ -181,9 +181,9 @@ class CorrectionFromCompoundParticle(object):
             code = CalculateFieldForParticles(gravity_constant=constants.G)
             code.particles.add_particle(parent)
             phi = code.get_potential_at_point(0.*parts.radius,
-                                             parts.x,
-                                             parts.y,
-                                             parts.z)
+                                              parts.x,
+                                              parts.y,
+                                              parts.z)
             parts.phi -= phi
             code.cleanup_code()
             
@@ -229,11 +229,12 @@ class CorrectionForCompoundParticle(object):
         
         lib = load_gravity_library()
         
-        temp_par = Particles()
-        temp_par.add_particle(parent)
+        parent_copy = Particles()
+        parent_copy.add_particle(parent)
         system.position += parent.position
+        
         ax_chd, ay_chd, az_chd = compute_gravity(lib, parts, system)
-        ax_par, ay_par, az_par = compute_gravity(lib, parts, temp_par)
+        ax_par, ay_par, az_par = compute_gravity(lib, parts, parent_copy)
         
         system.ax += (ax_chd - ax_par) * coefficient
         system.ay += (ay_chd - ay_par) * coefficient
@@ -254,7 +255,10 @@ class CorrectionForCompoundParticle(object):
             parent.phi (Float):  The potential field at the children particle's location
         """
         parent = self.parent
-        parts = self.system - parent
+        system = self.system.copy_to_memory()
+        system.position += parent.position
+        parts = self.system
+        
         instance = CalculateFieldForParticles(gravity_constant=constants.G)
         instance.particles.add_particles(parts)
         phi = instance.get_potential_at_point(0.*radius,

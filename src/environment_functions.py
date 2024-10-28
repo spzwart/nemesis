@@ -74,9 +74,16 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz) -> Particles:
     
     return parent_set
 
-def set_parent_radius(tot_mass, dt, pop) -> float:
+def set_parent_radius(tot_mass) -> float:
     """
     Merging radius of parent systems. Based on system crossing time.
+    
+    Too large a radius:
+        - Poor conservation of angular momentum
+        - Center of mass approximation is poor due to low resolution
+    Too small a radius:
+        - Slow down the simulation due to shared timesteps. 
+        - System crossing time << internal time-step and violent interactions are missed.
 
     Args:
        tot_mass (Float):  Total mass of the system
@@ -85,7 +92,7 @@ def set_parent_radius(tot_mass, dt, pop) -> float:
     Returns:
        radius (Float): Merging radius of the parent system
     """
-    radius = 0.5*pop*(constants.G*tot_mass*dt**2.)**(1./3.)
+    radius = 100. * (tot_mass.value_in(units.MSun))**(1./3.) | units.AU
     return radius
 
 def planet_radius(planet_mass) -> float:

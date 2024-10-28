@@ -33,15 +33,15 @@ In addition to the input functions needed to execute `interface.py`, the followi
 main.py:
 - `galactic_frame()` input position and velocity coordinates.
 - `typical_crosstime`: The typical crossing time of a parent system. Tendency is to keep diagnostic timestep below 10 crossing times of the smallest system.
-- `maximum_radius`: Maximum parent radius
-- `minimum_radius`: Minimum parent radius
-- `kick_ast_iter`: How many iterations occur between kicking isolated asteroids
 
 src/environment_functions.py:
 - `threshold`: If no second-nearest parent system is within `DIST_THRESHOLD` from iterated parent, it is 'isolated' and a possible ejector.
+- In `set_parent_radius`, there is a pre-factor influencing the parent system radius.
 
 src/nemesis.py:
+- In `__init__`, `maximum_radius`: Maximum parent radius
+- In `__init__`, `minimum_radius`: Minimum parent radius
+- In `__init__`, `kick_ast_iter`: How many iterations occur between kicking isolated asteroids
 - In `commit_particles()`, particles flagged for stellar evolution depend on their 'type' attribute.
-- `parent_worker()` time step parameter. Make sure it is small enough that the parent worker's model time ~ required time step.
-- If `test particles` are present, they are drifted every 10 steps.
+- `parent_worker()` time step parameter.
 - In `split_subcodes()`, there is a coefficient influencing the parent radius to detect 'dettached' objects.
