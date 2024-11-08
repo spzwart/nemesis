@@ -16,15 +16,16 @@ from src.nemesis import Nemesis
 START_TIME = cpu_time.time()
 MIN_EVOL_MASS = 0.08 | units.MSun
 
+
 def create_output_directories(sim_dir, run_idx) -> str:
     """
     Creates relevant directories for output data
     
     Args:
         sim_dir (str): Simulation directory path
-        run_idx (int):    Index of specific run
+        run_idx (int):  Index of specific run
     Returns:
-        dir_path (str): Directory path for specific run
+        String: Directory path for specific run
     """
     config_name = f"Nrun{run_idx}"
     dir_path = os.path.join(sim_dir, config_name)
@@ -46,7 +47,7 @@ def load_particle_set(sim_dir, run_idx) -> Particles:
         sim_dir (String):  Path to initial conditions
         run_idx (Int):  Index of run
     Returns:
-        particle_set (Particles):  Initial conditions of particle set wished to simulate
+        Particles:  Initial conditions of particle set wished to simulate
     """
     particle_set_dir = os.path.join(sim_dir, "initial_particles", "*")
     particle_sets = natsorted(glob.glob(particle_set_dir))
@@ -73,7 +74,7 @@ def configure_galactic_frame(particle_set) -> Particles:
     Args:
         particle_set (Particles):  The particle set
     Returns:
-        particle_set (Particles): Particle set with galactocentric coordinates
+        Particles: Particle set with galactocentric coordinates
     """
     return galactic_frame(particle_set, 
                           dx=-8.4 | units.kpc, 
@@ -83,7 +84,7 @@ def configure_galactic_frame(particle_set) -> Particles:
                           dvy=12.25 | units.kms,
                           dvz=7.41 | units.kms)
     
-def identify_parents(particle_set) -> Particles:
+def identify_parents(particle_set) -> list:
     """
     Identify parents in particle set. These are either:
         - Isolated particles (syst_id < 0)
@@ -92,8 +93,7 @@ def identify_parents(particle_set) -> Particles:
     Args:
         particle_set (Particles):  The particle set
     Returns:
-        major_bodies (Particles):  Major bodies in the particle set
-        test_particles (Particles):  Test particles in the particle set
+        List:  Index 0 contains major bodies, index 1 test particles
     """
     isolated_particles = particle_set[particle_set.syst_id <= 0]
     major_bodies = isolated_particles[isolated_particles.mass != (0. | units.kg)]
@@ -104,9 +104,9 @@ def identify_parents(particle_set) -> Particles:
             hosting_body = system[system.mass.argmax()]
             major_bodies += hosting_body
             
-    return major_bodies, test_particles
+    return [major_bodies, test_particles]
 
-def run_simulation(sim_dir, tend, code_dt, eta, 
+def run_simulation(sim_dir, tend, code_dt, dtbridge, 
                    dt_diag, par_nworker, dE_track, 
                    gal_field, star_evol, verbose) -> None:
     """
@@ -116,7 +116,7 @@ def run_simulation(sim_dir, tend, code_dt, eta,
         sim_dir (String):  Path to initial conditions
         tend (Float):  Simulation end time
         code_dt (Float):  Gravitational integrator internal timestep
-        eta (Float):  Parameter tuning dt
+        dtbridge (Float):  Bridge timestep
         dt_diag (Float):  Diagnostic time step
         par_nworker (Int):  Number of workers for parent code
         dE_track (Boolean):  Flag turning on energy error tracker
@@ -126,7 +126,6 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     """
     run_idx = len(glob.glob(sim_dir+"/Nrun*"))
     EPS = 1.e-8
-    dt = eta * tend
     
     # Setup directory paths
     dir_path = create_output_directories(sim_dir, run_idx)
@@ -144,16 +143,15 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     Rvir = parent_particles.virial_radius()
     vdisp = np.sqrt((constants.G*parent_particles.mass.sum())/Rvir)
     conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), Rvir)
-    conv_child = nbody_system.nbody_to_si(1. | units.MSun, 100. | units.au)
     
     major_bodies, test_particles = identify_parents(particle_set)
-    isolated_systems = major_bodies[major_bodies.syst_id <= 0]
+    isolated_systems = major_bodies[major_bodies.syst_id < 0]
     bounded_systems = major_bodies[major_bodies.syst_id > 0]
     parents = HierarchicalParticles(isolated_systems)
     
     # Setting up system
     nemesis = Nemesis(MIN_EVOL_MASS, conv_par, 
-                      conv_child, dt, coll_path, 
+                      dtbridge, coll_path, 
                       ejected_dir, code_dt, EPS,
                       par_nworker, dE_track, 
                       star_evol, gal_field,
@@ -161,38 +159,23 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     for id_ in np.unique(bounded_systems.syst_id):
         children = particle_set[particle_set.syst_id == id_]
         newparent = nemesis.particles.add_subsystem(children)
-        
+        newparent.radius = set_parent_radius(newparent.mass)
     nemesis.particles.add_particles(parents)
     nemesis.asteroids = test_particles
     nemesis.commit_particles()
     
     par_nworker = int(len(major_bodies) // 500 + 1)
-    dt = eta * tend
-
-    # Setting up system
-    nemesis = Nemesis(MIN_EVOL_MASS, conv_par, 
-                      conv_child, dt, coll_path, 
-                      ejected_dir, code_dt, 
-                      par_nworker, dE_track, 
-                      star_evol, gal_field,
-                      verbose)
-    for id_ in np.unique(bounded_systems.syst_id):
-        children = particle_set[particle_set.syst_id == id_]
-        newparent = nemesis.particles.add_subsystem(children)
-    nemesis.particles.add_particles(parents)
-    nemesis.asteroids = test_particles
-    nemesis.commit_particles()
-    
     min_radius = nemesis.particles.radius.min()
     typical_crosstime = 2.*(min_radius/vdisp)
     if (verbose):
-        print(f"dt= {dt.in_(units.yr)}")
+        print(f"dt= {dtbridge.in_(units.yr)}")
+        print(f"Number of steps= {tend/dtbridge}")
         print(f"Minimum children system radius= {min_radius.in_(units.au)}")
         print(f"Dispersion velocity= {vdisp.in_(units.kms)}")
         print(f"Min. system crossing time= {typical_crosstime.in_(units.kyr)}")
         print(f"Total number of snapshots: {tend/dt_diag}")
-    if dt > 10.*typical_crosstime:
-        raise ValueError("!!! Warning: dt > 10*Typical System Crossing Time !!!")
+    if dtbridge > (10/code_dt)*typical_crosstime:
+        raise ValueError("!!! Warning: dt > (10/code_dt)*Typical System Crossing Time !!!")
         
     if (nemesis._dE_track):
         energy_arr = [ ]
@@ -214,8 +197,8 @@ def run_simulation(sim_dir, tend, code_dt, eta,
         if (verbose):
             t0 = cpu_time.time()
         
-        t += dt
-        if t == dt and (dE_track):
+        t += dtbridge
+        if t == dtbridge and (dE_track):
             E0 = nemesis._calculate_total_energy()
         
         while nemesis.model_time < t*(1. - EPS):
@@ -224,6 +207,8 @@ def run_simulation(sim_dir, tend, code_dt, eta,
         if (nemesis.model_time >= t_diag) and (nemesis.dt_step != prev_step):
             print(f"Saving snap. T= {t.in_(units.yr)}")
             print(f"Time taken: {cpu_time.time() - snap_cpu_time}")
+            snap_cpu_time = cpu_time.time()
+            
             t_diag += dt_diag
             snapshot_no += 1
             allparts = nemesis.particles.all()
@@ -234,7 +219,6 @@ def run_simulation(sim_dir, tend, code_dt, eta,
                 allparts.savepoint(0 | units.Myr),  fname, 
                 'amuse', close_file=True, overwrite_file=True
             )
-            snap_cpu_time = cpu_time.time()
           
         if (dE_track) and (prev_step != nemesis.dt_step):
             E1 = nemesis.calculate_total_energy()
@@ -270,11 +254,10 @@ def run_simulation(sim_dir, tend, code_dt, eta,
     with open(fname, 'w') as f:
         f.write(f"Total CPU Time: {sim_time} minutes \
                 \nEnd Time: {t.in_(units.Myr)} \
-                \nTime step: {dt.in_(units.Myr)} \
-                \nInitial Typical tcross: {typical_crosstime.in_(units.yr)}")
+                \nTime step: {dtbridge.in_(units.Myr)}")
     f.close()
     
-    with open(os.path.join(dir_path, "energy_error.txt"), 'w') as f:
+    with open(os.path.join(dir_path, "energy_error.csv"), 'w') as f:
         f.write(f"Energy error: {energy_arr}")
     f.close()
      
@@ -291,11 +274,12 @@ def new_option_parser():
                       unit=units.Myr, 
                       default=20. | units.Myr,
                       help="End time of simulation")
-    result.add_option("--eta", 
-                      dest="eta", 
+    result.add_option("--tbridge", 
+                      dest="tbridge", 
                       type="float", 
-                      default=2.5e-5 ,
-                      help="Parameter tuning dt")
+                      unit=units.yr, 
+                      default=1000. | units.yr,
+                      help="Bridge timestep")
     result.add_option("--code_dt", 
                       dest="code_dt", 
                       type="float", 
@@ -342,7 +326,7 @@ if __name__ == "__main__":
     run_simulation(
         sim_dir=config_choice, 
         tend=o.tend, 
-        eta=o.eta,
+        dtbridge=o.tbridge,
         code_dt=o.code_dt,
         dt_diag=o.dt_diag,
         par_nworker=o.par_nworker, 

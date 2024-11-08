@@ -15,7 +15,7 @@ class HierarchicalParticles(ParticlesOverlay):
         Args:
             parts (Particle set):  The particle set to be added
         Returns:
-            _parts (Particle set):  The particle set
+            ParticlesOverlay:  The particle set
         """
         _parts=ParticlesOverlay.add_particles(self,parts)
         if hasattr(parts.collection_attributes, "subsystems"):
@@ -31,7 +31,7 @@ class HierarchicalParticles(ParticlesOverlay):
             sys (Particle set):  The children particle set
             recenter (Boolean):  Flag to recenter the parent
         Returns:
-            parent (Particle):  The parent particle
+            Particle:  The parent particle
         """
         if len(sys) == 1:
             return self.add_particles(sys)[0]
@@ -66,19 +66,6 @@ class HierarchicalParticles(ParticlesOverlay):
             
         parent.mass = np.sum(sys.mass)
     
-    def assign_subsystem(self, sys, parent, relative=True, recenter=True) -> None:
-        """
-        Assign a subsystem to their parent particle.
-        
-        Args:
-            sys (Particle set):  The children particle set
-            parent (Particle):  The parent particle
-            relative (Boolean):  Flag to assign relative attributes
-            recenter (Boolean):  Flag to recenter the parent
-        """
-        self.assign_parent_attributes(sys, parent, relative, recenter)
-        self.collection_attributes.subsystems[parent] = sys
-    
     def recenter_subsystems(self) -> None:
         """Recenter parents to children components"""
         for parent, sys in self.collection_attributes.subsystems.items():
@@ -103,10 +90,11 @@ class HierarchicalParticles(ParticlesOverlay):
     
     def all(self) -> Particles:
         """
-        Get copy of complete particle set.
+        Get copy of complete particle set in galactocentric 
+        or cluster frame of reference.
         
         Returns:
-            parts (Particle set):  The complete particle set simulating
+            Particles:  The complete particle set simulating
         """
         parts = self.copy_to_memory()
         parts.syst_id = -1
@@ -118,6 +106,6 @@ class HierarchicalParticles(ParticlesOverlay):
             subsys.sub_worker_radius = subsys.radius
             subsys.position += parent.position
             subsys.velocity += parent.velocity
-            subsys.syst_id = system_id 
+            subsys.syst_id = system_id + 1
         
         return parts

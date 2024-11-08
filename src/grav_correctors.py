@@ -1,31 +1,10 @@
-import ctypes
 import numpy as np
 import queue
 import threading
 
 from amuse.couple.bridge import CalculateFieldForParticles
 from amuse.lab import constants, units, Particles
-from numpy.ctypeslib import ndpointer
 
-def load_gravity_library() -> ctypes.CDLL:
-    """Setup library to allow Python and C++ communication"""
-    lib = ctypes.CDLL('./src/gravity.so')  # Adjust the path as necessary
-    lib.find_gravity_at_point.argtypes = [
-        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
-        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
-        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
-        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
-        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
-        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
-        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
-        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
-        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
-        ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
-        ctypes.c_int,
-        ctypes.c_int
-    ]
-    lib.find_gravity_at_point.restype = None
-    return lib
 
 def compute_gravity(grav_lib, perturber, particles) -> float:
     """
@@ -36,7 +15,7 @@ def compute_gravity(grav_lib, perturber, particles) -> float:
         perturber (particle set):  Set of perturbing particles
         particles (particle set):  Set of particles feeling force
     Returns:
-        acc_array (np.ndarray):  Acceleration array of particles
+        Array:  Acceleration array of particles
     """
     num_particles = len(particles)
     num_perturber = len(perturber)
@@ -59,20 +38,28 @@ def compute_gravity(grav_lib, perturber, particles) -> float:
     return result_ax, result_ay, result_az
     
 class CorrectionFromCompoundParticle(object):
-    def __init__(self, particles, subsystems):
+    def __init__(self, particles, subsystems, library):
         """Correct force exerted by some parent system on 
         other particles by that of its children.
         
         Args:
             particles (particle set):  Parent particles to correct force of
             subsystems (particle set):  Collection of subsystems present
+            library (Library):  Python to C++ communication library
         """
         self.particles = particles
         self.acc_units = (self.particles.vx.unit**2/self.particles.x.unit)
         self.subsystems = subsystems
+        self.lib = library
         
-    def correct_parents(self, job_queue, result_queue):
+    def correct_parents(self, job_queue, result_queue) -> None:
+        """
+        Compute difference in gravitational acceleration exerted onto parents
         
+        Args:
+            job_queue (queue):  Queue of jobs to perform
+            result_queue (queue):  Queue of results to return
+        """
         particles, parent_copy, system, removed_idx = job_queue.get()
         
         ax = 0. | self.acc_units
@@ -81,10 +68,9 @@ class CorrectionFromCompoundParticle(object):
         coefficient = (1. | units.kg/units.m**2) * constants.G
         
         parts = particles - parent_copy
-        lib = load_gravity_library()
         
-        ax_chd, ay_chd, az_chd = compute_gravity(lib, system, parts)
-        ax_par, ay_par, az_par = compute_gravity(lib, parent_copy, parts)
+        ax_chd, ay_chd, az_chd = compute_gravity(self.lib, system, parts)
+        ax_par, ay_par, az_par = compute_gravity(self.lib, parent_copy, parts)
         
         ax += (ax_chd - ax_par) * coefficient
         ay += (ay_chd - ay_par) * coefficient
@@ -105,7 +91,9 @@ class CorrectionFromCompoundParticle(object):
         Compute difference in gravitational acceleration felt by parents
         due to force exerted by parents which host children, and force
         exerted by their children.
-        dF = sum_j (sum_i F_{i} - F_{j}) where j is parent and i is children of parent j
+        .. math:: 
+            dF = \sum_j (\sum_i F_{i} - F_{j}) 
+        where j is parent and i is children of parent j
         
         Args:
             radius (Float):  Radius of parent particles
@@ -113,7 +101,7 @@ class CorrectionFromCompoundParticle(object):
             y (Float):  z-Cartesian coordinates of parent particles
             z (Float):  y-Cartesian coordinates of parent particles
         Returns:
-            acc_array (np.ndarray):  Acceleration array of parent particles
+            Array:  Acceleration array of parent particles
         """
         particles = self.particles.copy_to_memory()
         particles.ax = 0. | self.acc_units
@@ -135,7 +123,6 @@ class CorrectionFromCompoundParticle(object):
         for worker in range(len(self.subsystems.keys())):
             thread = threading.Thread(target=self.correct_parents, 
                                       args=(job_queue, result_queue))
-            thread.daemon = True
             thread.start()
             threads.append(thread)
         
@@ -147,6 +134,10 @@ class CorrectionFromCompoundParticle(object):
             particles.ax += ax
             particles.ay += ay
             particles.az += az
+            
+        job_queue.queue.clear()
+        result_queue.queue.clear()
+        del job_queue, result_queue
         
         return particles.ax, particles.ay, particles.az
     
@@ -160,7 +151,7 @@ class CorrectionFromCompoundParticle(object):
             y (Float):  y-Cartesian coordinates of the location
             z (Float):  z-Cartesian coordinates of the location
         Returns:
-            particles.phi (Array): The potential field at the location
+            Array:  The potential field at the location
         """
         particles = self.particles.copy_to_memory()
         particles.phi = 0. | (particles.vx.unit**2)
@@ -181,9 +172,9 @@ class CorrectionFromCompoundParticle(object):
             code = CalculateFieldForParticles(gravity_constant=constants.G)
             code.particles.add_particle(parent)
             phi = code.get_potential_at_point(0.*parts.radius,
-                                              parts.x,
-                                              parts.y,
-                                              parts.z)
+                                             parts.x,
+                                             parts.y,
+                                             parts.z)
             parts.phi -= phi
             code.cleanup_code()
             
@@ -191,21 +182,26 @@ class CorrectionFromCompoundParticle(object):
     
   
 class CorrectionForCompoundParticle(object):  
-    def __init__(self, particles, parent, system):
+    def __init__(self, particles, parent, system, library):
         """Correct force vector exerted by global particles on childrens
         
         Args:
             particles (particle set):  All parent particles
             parent (particle):  Subsystem's parent particle
             system (particle set):  Subsystem particle set
+            library (Library):  Python to C++ communication library
         """
         self.particles = particles
         self.parent = parent
         self.system = system
+        self.lib = library
     
     def get_gravity_at_point(self, radius, x, y, z) -> float:
-        """Compute gravitational acceleration felt by children due to parents present.
-        dF_j = F_{i} - F_{j} where i is parent and j is children of parent i
+        """
+        Compute gravitational acceleration felt by children due to parents present.
+        .. math::
+            dF_j = F_{i} - F_{j} 
+        where i is parent and j is children of parent i
         
         Args:
             radius (Float):  Radius of the children particle
@@ -213,7 +209,7 @@ class CorrectionForCompoundParticle(object):
             y (Float):  y Location of the children particle
             z (Float):  z Location of the children particle
         Returns: 
-            acc_array (np.ndarray):  Acceleration array of children particles
+            Array:  Acceleration array of children particles
         """
         parent = self.parent
         parts = self.particles - parent
@@ -227,14 +223,12 @@ class CorrectionForCompoundParticle(object):
         system.ay = 0. | acc_units
         system.az = 0. | acc_units
         
-        lib = load_gravity_library()
-        
         parent_copy = Particles()
         parent_copy.add_particle(parent)
         system.position += parent.position
         
-        ax_chd, ay_chd, az_chd = compute_gravity(lib, parts, system)
-        ax_par, ay_par, az_par = compute_gravity(lib, parts, parent_copy)
+        ax_chd, ay_chd, az_chd = compute_gravity(self.lib, parts, system)
+        ax_par, ay_par, az_par = compute_gravity(self.lib, parts, parent_copy)
         
         system.ax += (ax_chd - ax_par) * coefficient
         system.ay += (ay_chd - ay_par) * coefficient
@@ -252,7 +246,7 @@ class CorrectionForCompoundParticle(object):
             y (Float):  y Location of the children particle
             z (Float):  z Location of the children particle
         Returns:
-            parent.phi (Float):  The potential field at the children particle's location
+            Array:  The potential field at the children particle's location
         """
         parent = self.parent
         system = self.system.copy_to_memory()
