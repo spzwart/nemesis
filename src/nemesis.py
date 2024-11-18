@@ -104,7 +104,7 @@ class Nemesis(object):
 
     def _load_grav_lib(self) -> ctypes.CDLL:
         """Setup library to allow Python and C++ communication"""
-        lib = ctypes.CDLL('./src/gravity.so')  # Adjust the path as necessary
+        lib = ctypes.CDLL('./src/build/kick_particles_worker.so')
         lib.find_gravity_at_point.argtypes = [
             ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
             ndpointer(dtype=np.float128, ndim=1, flags='C_CONTIGUOUS'),
@@ -143,7 +143,7 @@ class Nemesis(object):
             self._time_offsets.pop(code)
             del code
         
-        particles.radius = set_parent_radius(particles.mass, self.__dt)
+        particles.radius = set_parent_radius(particles.mass)
         for parent, sys in self.subsystems.items():
             sys.move_to_center()
             if parent not in self.subcodes:
@@ -1157,7 +1157,7 @@ class Nemesis(object):
         """
         particles, parent, subsyst = job_queue.get()
         
-        corr_par = CorrectionForCompoundParticle(particles, parent, subsyst)
+        corr_par = CorrectionForCompoundParticle(particles, parent, subsyst, self.lib)
         with lock:
             self._kick_particles(subsyst, corr_par, dt)
         self._grav_channel_copier(
@@ -1184,7 +1184,8 @@ class Nemesis(object):
             
         if subsystems and len(particles) > 1:                    
             corr_chd = CorrectionFromCompoundParticle(particles, 
-                                                      subsystems)
+                                                      subsystems,
+                                                      self.lib)
             self._kick_particles(particles, corr_chd, dt)
             self.channels["from_parents_to_gravity"].copy()
             

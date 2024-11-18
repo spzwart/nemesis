@@ -140,16 +140,17 @@ def run_simulation(sim_dir, tend, code_dt, dtbridge,
     parent_particles = particle_set[(particle_set.type != "JMO") &
                                     (particle_set.type != "ASTEROID") &
                                     (particle_set.type != "PLANET")]
-    Rvir = parent_particles.virial_radius()
-    vdisp = np.sqrt((constants.G*parent_particles.mass.sum())/Rvir)
-    conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), Rvir)
     
     major_bodies, test_particles = identify_parents(particle_set)
     isolated_systems = major_bodies[major_bodies.syst_id < 0]
     bounded_systems = major_bodies[major_bodies.syst_id > 0]
-    parents = HierarchicalParticles(isolated_systems)
+    
+    Rvir = parent_particles.virial_radius()
+    vdisp = np.sqrt((constants.G*parent_particles.mass.sum())/Rvir)
+    conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), Rvir)
     
     # Setting up system
+    parents = HierarchicalParticles(isolated_systems)
     nemesis = Nemesis(MIN_EVOL_MASS, conv_par, 
                       dtbridge, coll_path, 
                       ejected_dir, code_dt, EPS,
@@ -317,9 +318,10 @@ def new_option_parser():
 if __name__ == "__main__":
     # data_dir = "examples/S-Stars"
     data_dir = "examples/ejecting_suns"
-    config_idx = 3
+    config_idx = 1
     configurations = glob.glob(os.path.join(data_dir, "sim_data", "*"))
     config_choice = natsorted(configurations)[config_idx]
+    print(f"...Running simulation in {config_choice}...")
     
     o, args = new_option_parser().parse_args()
     
@@ -335,4 +337,3 @@ if __name__ == "__main__":
         star_evol=o.star_evol, 
         verbose=o.verbose
     )
-    

@@ -19,7 +19,7 @@ def ejection_checker(particle_set, tidal_radius=None) -> np.ndarray:
     Returns:
         Array: Array of booleans flagging ejected particles
     """
-    lib = ctypes.CDLL('./src/ejection.so')  # Adjust the path as necessary
+    lib = ctypes.CDLL('./src/build/find_ejection_worker.so')  # Adjust the path as necessary
     lib.find_nearest_neighbour.argtypes = [
         np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # xcoord
         np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # ycoord

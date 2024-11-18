@@ -9,10 +9,9 @@ Nemesis is a flexible and efficient multi-scale algorithm used to integrate hier
     ```conda install --file requirements.txt``` <br />
     or <br />
     ```pip install -r requirements.txt```
-2. Compile cpp for gravitational kicks: <br />
-    ```g++ -shared -o src/gravity.so -g -fPIC src/grav_kicks.cpp```
-3. Compile cpp file tracking ejections: <br />
-    ```g++ -shared -o src/ejection.so -g -fPIC src/ejector_calc.cpp``` <br />
+2. Compile C++ files: <br />
+    ```cd src/cpp``` <br />
+    ```make```
 4. Execute script from the root directory. To run with default values execute: <br />
     ```python main.py```
 
