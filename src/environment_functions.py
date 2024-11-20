@@ -93,7 +93,7 @@ def set_parent_radius(tot_mass) -> float:
     Returns:
        Float: Merging radius of the parent system
     """
-    radius = 75. * (tot_mass.value_in(units.MSun))**(1./3.) | units.AU
+    radius = 100 * (tot_mass.value_in(units.MSun))**(1./3.) | units.AU
     return radius
 
 def planet_radius(planet_mass) -> float:
