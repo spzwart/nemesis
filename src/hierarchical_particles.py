@@ -55,6 +55,7 @@ class HierarchicalParticles(ParticlesOverlay):
             relative (Boolean):  Flag to assign relative attributes
             recenter (Boolean):  Flag to recenter the parent
         """
+        parent.mass = np.sum(sys.mass)
         if not (relative):
             parent.position = 0.*sys[0].position
             parent.velocity = 0.*sys[0].velocity
@@ -64,8 +65,6 @@ class HierarchicalParticles(ParticlesOverlay):
             parent.velocity += sys.center_of_mass_velocity()
             sys.move_to_center()
             
-        parent.mass = np.sum(sys.mass)
-    
     def recenter_subsystems(self) -> None:
         """Recenter parents to children components"""
         for parent, sys in self.collection_attributes.subsystems.items():

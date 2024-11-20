@@ -7,7 +7,7 @@ import queue
 import threading
 
 from amuse.community.huayno.interface import Huayno
-from amuse.community.ph4.interface import ph4
+from amuse.community.ph4.interface import Ph4
 from amuse.community.rebound.interface import Rebound
 from amuse.community.seba.interface import SeBa
 
@@ -29,17 +29,17 @@ from src.hierarchical_particles import HierarchicalParticles
 
 class Nemesis(object):
     def __init__(self, min_stellar_mass, par_conv, 
-                 dt, coll_path, ejected_dir, eps=1.e-8, 
+                 dtbridge, coll_dir, ejected_dir, eps=1.e-8, 
                  code_dt=0.03, par_nworker=1, dE_track=False, 
-                 star_evol=False, gal_field=False, verbose=True):
+                 star_evol=False, gal_field=True, verbose=True):
         """
         Class setting up the simulation.
         
         Args:
             min_stellar_mass (Float):  Minimum stellar mass for stellar evolution
             par_conv (Converter):  Parent N-body converter
-            dt (Float):  Diagnostic time step
-            coll_path (String):  Path to store collision data
+            dtbridge (Float):  Diagnostic time step
+            coll_dir (String):  Path to store collision data
             ejected_dir (String):  Path to store ejected particles
             eps (Float):  Threshold for evolution time
             code_dt (Float):  Internal time step
@@ -53,8 +53,8 @@ class Nemesis(object):
         # Private attributes
         self.__child_conv = nbody_system.nbody_to_si(1. | units.MSun, 100. | units.au)
         self.__min_mass_evol_evol = min_stellar_mass
-        self.__dt = dt
-        self.__coll_dir = coll_path
+        self.__dt = dtbridge
+        self.__coll_dir = coll_dir
         self.__ejected_dir = ejected_dir
         self.__code_dt = code_dt
         self.__par_nworker = par_nworker
@@ -64,7 +64,7 @@ class Nemesis(object):
         self.__eps = eps
         
         # Protected attributes
-        self._max_radius = 120. | units.au
+        self._max_radius = 200. | units.au
         self._min_radius = 10. | units.au
         self._kick_ast_iter = 1  # Kick isolated asteroids every step
         self._nejec = 0
@@ -95,8 +95,9 @@ class Nemesis(object):
             raise ValueError("Error: code_dt must be a positive float")
         if not isinstance(self.__par_nworker, int) or self.__par_nworker <= 0:
             raise ValueError("Error: par_nworker must be a positive integer")
-        if not isinstance(self.__min_mass_evol_evol.value_in(units.MSun), float) or self.__min_mass_evol_evol <= 0 | units.kg:
-            raise ValueError(f"Error: minimum stellar mass {self.__min_mass_evol_evol} must be a positive float")
+        if not isinstance(self.__min_mass_evol_evol.value_in(units.MSun), float) \
+            or self.__min_mass_evol_evol <= 0 | units.kg:
+                raise ValueError(f"Error: minimum stellar mass {self.__min_mass_evol_evol} must be a positive float")
         if not isinstance(self.__coll_dir, str):
             raise ValueError("Error: coll_dir must be a string")
         if not isinstance(self.__ejected_dir, str):
@@ -146,6 +147,7 @@ class Nemesis(object):
         particles.radius = set_parent_radius(particles.mass)
         for parent, sys in self.subsystems.items():
             sys.move_to_center()
+            parent.radius = set_parent_radius(np.sum(sys.mass))
             if parent not in self.subcodes:
                 code = self._sub_worker(sys)
                 code.particles.move_to_center()
@@ -153,7 +155,6 @@ class Nemesis(object):
                 self._time_offsets[code] = self.model_time
                 self.subsystems[parent] = sys
                 self.subcodes[parent] = code
-            parent.radius = set_parent_radius(np.sum(sys.mass))
         particles[particles.radius > self._max_radius].radius = self._max_radius
         particles[particles.radius < self._min_radius].radius = self._min_radius
 
@@ -182,14 +183,13 @@ class Nemesis(object):
                                 method=SPLIT_4TH_S_M6,)
         gravity.add_system(self._parent_code, (self._MWG, ))
         gravity.timestep = self.__dt
-        self.grav_bridge = gravity
-        self._evolve_code = self.grav_bridge
+        self._evolve_code = gravity
     
     def _stellar_worker(self) -> SeBa:
         """Define stellar evolution integrator"""
         return SeBa()
 
-    def _parent_worker(self, par_conv) -> ph4:
+    def _parent_worker(self, par_conv):
         """
         Define global integrator
         
@@ -198,7 +198,9 @@ class Nemesis(object):
         Returns:
             Code:  Gravitational integrator with particle set
         """
-        code = ph4(par_conv, number_of_workers=self.__par_nworker)
+        from amuse.community.hermite.interface import Hermite
+        code = Ph4(par_conv, number_of_workers=self.__par_nworker)
+        #code = Hermite(par_conv)
         code.parameters.epsilon_squared = (0. | units.au)**2
         code.parameters.timestep_parameter = self.__code_dt
         return code
@@ -214,14 +216,17 @@ class Nemesis(object):
         """
         if len(children) == 0:
             raise ValueError("Error: No children provided.")
-        
         if (0. | units.kg) in children.mass:
+            if (self.__verbose):
+                print("...Asteroid System Detected...")
             code = Huayno(self.__child_conv)
             code.particles.add_particles(children)
             code.parameters.timestep_parameter = self.__code_dt
             code.set_integrator("OK")
         
         else:
+            if (self.__verbose):
+                print("...Only Massive Children...")
             code = Huayno(self.__child_conv)
             code.particles.add_particles(children)
             code.parameters.timestep_parameter = self.__code_dt
@@ -525,8 +530,9 @@ class Nemesis(object):
         job_queue = queue.Queue()
         
         no_new_parents = 0
+        parent_particles = self._parent_code.particles
         for new_parent, new_children in self.__new_systems.items():
-            n = next((p for p in self._parent_code.particles if p.key == new_parent.key), None)
+            n = parent_particles[parent_particles.key == new_parent.key]
             time_offset = self.__new_offsets[new_parent]
                     
             # Synchronise children with updated parent phase-space coordinates
@@ -629,8 +635,7 @@ class Nemesis(object):
             if parti_ in self.__new_systems:  
                 collsubset.remove_particle(parti_)
 
-                # TO CHECK IF THIS IS THE SAME
-                evolved_parent = next((p for p in self._parent_code.particles if p.key == parti_.key), None)
+                evolved_parent = parti_.as_particle_in_set(self._parent_code.particles)
                 children = self.__new_systems[parti_]
                 offset = self.__new_offsets[parti_]
                 
@@ -733,9 +738,12 @@ class Nemesis(object):
             'amuse', close_file=True, overwrite_file=True
         )
         
-        coll_a = next((p for p in children if p.key == enc_parti[0].key), None)
-        coll_b = next((p for p in children if p.key == enc_parti[1].key), None)
-        collider = coll_a + coll_b
+        coll_a = children[children.key == enc_parti[0].key]
+        coll_b = children[children.key == enc_parti[1].key]
+        
+        collider = Particles()
+        collider.add_particle(coll_a)
+        collider.add_particle(coll_b)
         
         kepler_elements = orbital_elements(collider, G=constants.G)
         sem = kepler_elements[2]
@@ -966,16 +974,11 @@ class Nemesis(object):
         """
         if (self.__verbose):
             print("...Drifting Global...")
-            dist = (self._parent_code.particles[0].position - self._parent_code.particles[1].position).lengths()
-            print(f"# Parents {len(self._parent_code.particles)}, Distance {dist.in_(units.au)}")
-            for p, c in self.subsystems.items():
-                print(f"# Kids {len(c)}")
         stopping_condition = self._parent_code.stopping_conditions.collision_detection
         stopping_condition.enable()
         self.__new_systems = dict()
         self.__new_offsets = dict()
         coll_time = None
-        
         while self._evolve_code.model_time < dt*(1. - self.__eps):
             self._evolve_code.evolve_model(dt)
             
@@ -1205,6 +1208,9 @@ class Nemesis(object):
                 
             for thread in threads:
                 thread.join()
+                
+            job_queue.queue.clear()
+            del job_queue
                 
         self.particles.recenter_subsystems()
         for parent, subsyst in subsystems.items():

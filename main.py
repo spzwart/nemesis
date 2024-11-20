@@ -129,7 +129,7 @@ def run_simulation(sim_dir, tend, code_dt, dtbridge,
     
     # Setup directory paths
     dir_path = create_output_directories(sim_dir, run_idx)
-    coll_path = os.path.join(dir_path, "collision_snapshot")
+    coll_dir = os.path.join(dir_path, "collision_snapshot")
     ejected_dir = os.path.join(dir_path, "ejected_particles")
     snapdir_path = os.path.join(dir_path, "simulation_snapshot")
 
@@ -151,12 +151,18 @@ def run_simulation(sim_dir, tend, code_dt, dtbridge,
     
     # Setting up system
     parents = HierarchicalParticles(isolated_systems)
-    nemesis = Nemesis(MIN_EVOL_MASS, conv_par, 
-                      dtbridge, coll_path, 
-                      ejected_dir, code_dt, EPS,
-                      par_nworker, dE_track, 
-                      star_evol, gal_field,
-                      verbose)
+    nemesis = Nemesis(min_stellar_mass=MIN_EVOL_MASS, 
+                      par_conv=conv_par, 
+                      dtbridge=dtbridge, 
+                      coll_dir=coll_dir, 
+                      ejected_dir=ejected_dir, 
+                      eps=EPS, 
+                      code_dt=code_dt, 
+                      par_nworker=par_nworker, 
+                      dE_track=dE_track, 
+                      star_evol=star_evol, 
+                      gal_field=gal_field,
+                      verbose=verbose)
     for id_ in np.unique(bounded_systems.syst_id):
         children = particle_set[particle_set.syst_id == id_]
         newparent = nemesis.particles.add_subsystem(children)
@@ -165,7 +171,6 @@ def run_simulation(sim_dir, tend, code_dt, dtbridge,
     nemesis.asteroids = test_particles
     nemesis.commit_particles()
     
-    par_nworker = int(len(major_bodies) // 500 + 1)
     min_radius = nemesis.particles.radius.min()
     typical_crosstime = 2.*(min_radius/vdisp)
     if (verbose):
