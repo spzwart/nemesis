@@ -1,5 +1,7 @@
 import numpy as np
 from amuse.datamodel import Particle, Particles, ParticlesOverlay
+import threading
+import queue
 
 
 class HierarchicalParticles(ParticlesOverlay):
@@ -55,7 +57,6 @@ class HierarchicalParticles(ParticlesOverlay):
             relative (Boolean):  Flag to assign relative attributes
             recenter (Boolean):  Flag to recenter the parent
         """
-        parent.mass = np.sum(sys.mass)
         if not (relative):
             parent.position = 0.*sys[0].position
             parent.velocity = 0.*sys[0].velocity
@@ -65,16 +66,58 @@ class HierarchicalParticles(ParticlesOverlay):
             parent.velocity += sys.center_of_mass_velocity()
             sys.move_to_center()
             
+        parent.mass = np.sum(sys.mass)
+
     def recenter_subsystems(self) -> None:
-        """Recenter parents to children components"""
+        def calculate_com(result_queue):
+            try:
+                parent_copy, system_copy = job_queue.get(timeout=1)
+            except queue.Empty:
+                raise ValueError("Error: No children system")
+
+            center_of_mass = system_copy.center_of_mass()
+            center_of_mass_velocity = system_copy.center_of_mass_velocity()
+            system_copy.position -= center_of_mass
+            system_copy.velocity -= center_of_mass_velocity
+            parent_copy.position += center_of_mass
+            parent_copy.velocity += center_of_mass_velocity
+
+            result_queue.put((system_copy[0].syst_id, parent_copy))
+            job_queue.task_done()
+
+        import time as cpu_time
+        t0 = cpu_time.time()
+
+        result_queue = queue.Queue()
+        job_queue = queue.Queue()
+        threads = [ ]
+
+        nworkers = 0
         for parent, sys in self.collection_attributes.subsystems.items():
-            center_of_mass = sys.center_of_mass()
-            center_of_mass_velocity = sys.center_of_mass_velocity()
-            
-            parent.position += center_of_mass
-            parent.velocity += center_of_mass_velocity
-            sys.position -= center_of_mass
-            sys.velocity -= center_of_mass_velocity
+            nworkers += 1
+            sys.syst_id = nworkers
+            job_queue.put((parent.copy(), sys))
+
+        for worker in range(nworkers):
+            th = threading.Thread(target=calculate_com, args=(result_queue, ))
+            th.start()
+            threads.append(th)
+
+        for th in threads:
+            th.join()
+        
+        changes = np.asarray([ ])
+        while not result_queue.empty():
+            system_id, parent_copy = result_queue.get()
+            changes = np.concatenate((changes, parent_copy), axis=None)
+         
+        for parent in self.collection_attributes.subsystems.keys():
+            updated_parent = changes[changes == parent]
+            parent.position = updated_parent[0].position
+            parent.velocity = updated_parent[0].velocity
+
+        job_queue.queue.clear()
+        del job_queue
 
     def remove_particles(self, parts) -> None:
         """
