@@ -69,6 +69,7 @@ class HierarchicalParticles(ParticlesOverlay):
         parent.mass = np.sum(sys.mass)
 
     def recenter_subsystems(self) -> None:
+        """Recenter the children subsystems"""
         def calculate_com(result_queue):
             try:
                 parent_copy, system_copy = job_queue.get(timeout=1)
@@ -82,20 +83,15 @@ class HierarchicalParticles(ParticlesOverlay):
             parent_copy.position += center_of_mass
             parent_copy.velocity += center_of_mass_velocity
 
-            result_queue.put((system_copy[0].syst_id, parent_copy))
+            result_queue.put((parent_copy))
             job_queue.task_done()
-
-        import time as cpu_time
-        t0 = cpu_time.time()
 
         result_queue = queue.Queue()
         job_queue = queue.Queue()
         threads = [ ]
-
         nworkers = 0
         for parent, sys in self.collection_attributes.subsystems.items():
             nworkers += 1
-            sys.syst_id = nworkers
             job_queue.put((parent.copy(), sys))
 
         for worker in range(nworkers):
@@ -108,7 +104,7 @@ class HierarchicalParticles(ParticlesOverlay):
         
         changes = np.asarray([ ])
         while not result_queue.empty():
-            system_id, parent_copy = result_queue.get()
+            parent_copy = result_queue.get()
             changes = np.concatenate((changes, parent_copy), axis=None)
          
         for parent in self.collection_attributes.subsystems.keys():

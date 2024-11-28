@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 import ctypes
 import gc
 import numpy as np
@@ -62,6 +63,7 @@ class Nemesis(object):
         self.__gal_field = gal_field
         self.__verbose = verbose
         self.__eps = eps
+        self.__child_workers = os.cpu_count() - 2 - par_nworker
         
         # Protected attributes
         self._max_radius = 200. | units.au
@@ -219,7 +221,7 @@ class Nemesis(object):
         if (0. | units.kg) in children.mass:
             if (self.__verbose):
                 print("...Asteroid System Detected...")
-            code = Huayno(self.__child_conv)
+            code = Huayno(self.__child_conv, channel_type="sockets")
             code.particles.add_particles(children)
             code.parameters.timestep_parameter = self.__code_dt
             code.set_integrator("OK")
@@ -227,7 +229,7 @@ class Nemesis(object):
         else:
             if (self.__verbose):
                 print("...Only Massive Children...")
-            code = Huayno(self.__child_conv)
+            code = Huayno(self.__child_conv, channel_type="sockets")
             code.particles.add_particles(children)
             code.parameters.timestep_parameter = self.__code_dt
             code.set_integrator("SHARED8_COLLISIONS")
@@ -535,7 +537,6 @@ class Nemesis(object):
             n = parent_particles[parent_particles.key == new_parent.key]
             time_offset = self.__new_offsets[new_parent]
                     
-            # Synchronise children with updated parent phase-space coordinates
             pos_shift = n.position - new_parent.position
             vel_shift = n.velocity - new_parent.velocity
             new_children.position += pos_shift
@@ -1067,52 +1068,38 @@ class Nemesis(object):
             
             return parent
         
-        def evolve_code():
-            """Algorithm to evolve individual children codes"""
+        def evolve_code(parent):
             try:
-                parent = job_queue.get(timeout=1)  # Timeout to prevent blocking indefinitely
-            except queue.Empty:
-                raise ValueError("Error: No children in system")
+                code = self.subcodes[parent]
+                evol_time = dt - self._time_offsets[code]
+                stopping_condition = code.stopping_conditions.collision_detection
+                stopping_condition.enable()
+                print("...evolving...")
                 
-            code = self.subcodes[parent]
-            evol_time = dt - self._time_offsets[code]
-            stopping_condition = code.stopping_conditions.collision_detection
-            stopping_condition.enable()
-            
-            while code.model_time < evol_time*(1. - self.__eps):
-                code.evolve_model(evol_time)
-                
-                if stopping_condition.is_set():
-                    with lock:  # All threads stop until resolve collision
-                        if (self._dE_track):
-                            E0 = self._calculate_total_energy()
-                        
-                        parent = resolve_collisions(code, 
-                                                    parent, 
-                                                    evol_time, 
-                                                    stopping_condition)
-                        if (self._dE_track):
-                           E1 = self._calculate_total_energy()
-                           self.corr_energy += E1 - E0
+                while code.model_time < evol_time*(1. - self.__eps):
+                    code.evolve_model(evol_time)
+                    if stopping_condition.is_set():
+                        with lock:  # All threads stop until resolve collision
+                            if (self._dE_track):
+                                E0 = self._calculate_total_energy()
                                 
-            job_queue.task_done()
-        
-        if (self.__verbose):
-            print("...Drifting Children...")
-        job_queue = queue.Queue()
-        for parent in self.subcodes.keys():
-            job_queue.put(parent)
-            self.key = parent.key
+                            print("...collision...")
+                            parent = resolve_collisions(
+                                        code, parent, 
+                                        evol_time, 
+                                        stopping_condition
+                                        )
+                            if (self._dE_track):
+                                E1 = self._calculate_total_energy()
+                                self.corr_energy += E1 - E0
+                
+            except Exception as e:
+                print(f"Error while evolving parent {parent}: {e}")
             
         lock = threading.Lock()
-        threads = []
-        for worker in range(len(self.subcodes.values())):
-            th = threading.Thread(target=evolve_code)
-            th.start()
-            threads.append(th)
-        
-        for th in threads:
-            th.join()  # Wait for all threads to finish
+        with ThreadPoolExecutor(max_workers=self.__child_workers) as executor:
+            for parent in self.subcodes.keys():
+                executor.submit(evolve_code, parent)
         
         changes = [ ]
         for parent in self.subcodes.keys(): # Remove single children systems:
