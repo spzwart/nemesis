@@ -563,7 +563,7 @@ class Nemesis(object):
         new_parents = self.particles[-no_new_parents:]
         new_parents[new_parents.radius > self._max_radius].radius = self._max_radius
         new_parents[new_parents.radius < self._min_radius].radius = self._min_radius
-        self.particles.recenter_subsystems()
+        self.particles.recenter_subsystems(max_workers=self.__child_workers)
     
     def _parent_merger(self, coll_time, coll_set) -> Particle:
         """
@@ -1072,6 +1072,9 @@ class Nemesis(object):
             try:
                 code = self.subcodes[parent]
                 evol_time = dt - self._time_offsets[code]
+                if evol_time <= 0 | units.s:
+                    raise ValueError("Error: subcode dt must be positive")
+                
                 stopping_condition = code.stopping_conditions.collision_detection
                 stopping_condition.enable()
                 print("...evolving...")
@@ -1180,26 +1183,11 @@ class Nemesis(object):
             self.channels["from_parents_to_gravity"].copy()
             
             # Kick children
-            job_queue = queue.Queue()
-            lock = threading.Lock()
-            for parent, subsyst in subsystems.items():
-                p = particles.copy()
-                job_queue.put((p, parent, subsyst))
+            with ThreadPoolExecutor(max_workers=self.__child_workers) as executor:
+                for parent, subsyst in subsystems.items():
+                    executor.submit(self._correct_children, parent, subsyst, dt)
                 
-            threads = [ ]
-            for worker in range(len(subsystems.keys())):
-                thread = threading.Thread(target=self._correct_children,
-                                          args=(job_queue, dt, lock))
-                thread.start()
-                threads.append(thread)
-                
-            for thread in threads:
-                thread.join()
-                
-            job_queue.queue.clear()
-            del job_queue
-                
-        self.particles.recenter_subsystems()
+        self.particles.recenter_subsystems(max_workers=self.__child_workers)
         for parent, subsyst in subsystems.items():
             self._grav_channel_copier(
                 subsyst,

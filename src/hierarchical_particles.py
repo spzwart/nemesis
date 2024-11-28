@@ -1,7 +1,7 @@
+from concurrent.futures import ThreadPoolExecutor
 import numpy as np
+
 from amuse.datamodel import Particle, Particles, ParticlesOverlay
-import threading
-import queue
 
 
 class HierarchicalParticles(ParticlesOverlay):
@@ -68,52 +68,32 @@ class HierarchicalParticles(ParticlesOverlay):
             
         parent.mass = np.sum(sys.mass)
 
-    def recenter_subsystems(self) -> None:
+    def recenter_subsystems(self, max_workers) -> None:
         """Recenter the children subsystems"""
-        def calculate_com(result_queue):
-            try:
-                parent_copy, system_copy = job_queue.get(timeout=1)
-            except queue.Empty:
-                raise ValueError("Error: No children system")
-
-            center_of_mass = system_copy.center_of_mass()
-            center_of_mass_velocity = system_copy.center_of_mass_velocity()
-            system_copy.position -= center_of_mass
-            system_copy.velocity -= center_of_mass_velocity
+        def calculate_com(parent_copy, system):
+            """Calculate and shift system relative to center of mass"""
+            
+            center_of_mass = system.center_of_mass()
+            center_of_mass_velocity = system.center_of_mass_velocity()
+            system.position -= center_of_mass
+            system.velocity -= center_of_mass_velocity
             parent_copy.position += center_of_mass
             parent_copy.velocity += center_of_mass_velocity
-
-            result_queue.put((parent_copy))
-            job_queue.task_done()
-
-        result_queue = queue.Queue()
-        job_queue = queue.Queue()
-        threads = [ ]
-        nworkers = 0
-        for parent, sys in self.collection_attributes.subsystems.items():
-            nworkers += 1
-            job_queue.put((parent.copy(), sys))
-
-        for worker in range(nworkers):
-            th = threading.Thread(target=calculate_com, args=(result_queue, ))
-            th.start()
-            threads.append(th)
-
-        for th in threads:
-            th.join()
-        
-        changes = np.asarray([ ])
-        while not result_queue.empty():
-            parent_copy = result_queue.get()
-            changes = np.concatenate((changes, parent_copy), axis=None)
-         
-        for parent in self.collection_attributes.subsystems.keys():
-            updated_parent = changes[changes == parent]
-            parent.position = updated_parent[0].position
-            parent.velocity = updated_parent[0].velocity
-
-        job_queue.queue.clear()
-        del job_queue
+            
+            return parent_copy
+                 
+        updated_parents = dict()
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                parent: executor.submit(calculate_com, parent.copy(), sys)
+                for parent, sys in self.collection_attributes.subsystems.items()
+            }
+            for parent, future in futures.items():
+                updated_parents[parent] = future.result()
+            
+        for parent, updated_parent in updated_parents.items():
+            parent.position = updated_parent.position
+            parent.velocity = updated_parent.velocity
 
     def remove_particles(self, parts) -> None:
         """
