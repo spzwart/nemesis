@@ -12,8 +12,12 @@ Nemesis is a flexible and efficient multi-scale algorithm used to integrate hier
 2. Compile C++ files: <br />
     ```cd src/cpp``` <br />
     ```make```
-4. Execute script from the root directory. To run with default values execute: <br />
+3. Create a cluster particle set. For instance, in ```examples/``` execite: <br />
+    ```python basic_cluster/particle_initialiser.py```
+    This will create a particle set with several planetary systems. The particle set are always saved in a folder ```initial_particles/```.
+4. Execute script from the root directory. Make sure that the ```initial_particles``` in the main directs the code to the target ```initial_particles/``` directory.To run with default values execute: <br />
     ```python main.py```
+Data will be saved in the directory hosting ```initialise_particles/```. With folders containing ejection+collision events, snapshots every user-defined time-frame, and statistics on the time taken.
 
 
 ### Script contents

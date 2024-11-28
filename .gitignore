@@ -161,7 +161,7 @@ cython_debug/
 #.idea/
 
 
-examples/realistic_cluster/initial_particles/shuo_data_set/*
+examples/*/sim_data/
 examples/realistic_cluster/sim_data/*
 examples/realistic_cluster/initial_particles/data_files/*
 examples/realistic_cluster/Nrun*

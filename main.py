@@ -4,7 +4,8 @@ import numpy as np
 import os
 import time as cpu_time
 
-from amuse.lab import constants, Particles, read_set_from_file, write_set_to_file
+from amuse.io import read_set_from_file, write_set_to_file
+from amuse.lab import Particles
 from amuse.units import units, nbody_system
 from amuse.units.optparse import OptionParser
 
@@ -59,6 +60,7 @@ def load_particle_set(sim_dir, run_idx) -> Particles:
         raise FileNotFoundError(f"Error: No particle set found in {particle_set_dir}")
     
     particle_set = read_set_from_file(file)
+    particle_set -= particle_set[particle_set.syst_id > 20]
     particle_set.coll_events = 0
     particle_set.move_to_center()
     
@@ -106,14 +108,14 @@ def identify_parents(particle_set) -> list:
             
     return [major_bodies, test_particles]
 
-def run_simulation(sim_dir, tend, code_dt, dtbridge, 
+def run_simulation(particle_set, tend, code_dt, dtbridge, 
                    dt_diag, par_nworker, dE_track, 
                    gal_field, star_evol, verbose) -> None:
     """
     Run simulation and output data.
     
     Args:
-        sim_dir (String):  Path to initial conditions
+        particle_set (String):  Path to initial conditions
         tend (Float):  Simulation end time
         code_dt (Float):  Gravitational integrator internal timestep
         dtbridge (Float):  Bridge timestep
@@ -124,8 +126,8 @@ def run_simulation(sim_dir, tend, code_dt, dtbridge,
         star_evol (Boolean):  Flag turning on stellar evolution or not
         verbose (Boolean):  Flag turning on print statements or not
     """
-    run_idx = len(glob.glob(sim_dir+"/Nrun*"))
     EPS = 1.e-8
+    sim_dir = particle_set.split("initial_particles/")[0]
     
     # Setup directory paths
     dir_path = create_output_directories(sim_dir, run_idx)
@@ -136,17 +138,11 @@ def run_simulation(sim_dir, tend, code_dt, dtbridge,
     particle_set = load_particle_set(sim_dir, run_idx)
     if (gal_field):
         particle_set = configure_galactic_frame(particle_set)
-        
-    parent_particles = particle_set[(particle_set.type != "JMO") &
-                                    (particle_set.type != "ASTEROID") &
-                                    (particle_set.type != "PLANET")]
+    Rvir = particle_set.virial_radius()
     
     major_bodies, test_particles = identify_parents(particle_set)
     isolated_systems = major_bodies[major_bodies.syst_id < 0]
     bounded_systems = major_bodies[major_bodies.syst_id > 0]
-    
-    Rvir = parent_particles.virial_radius()
-    vdisp = np.sqrt((constants.G*parent_particles.mass.sum())/Rvir)
     conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), Rvir)
     
     # Setting up system
@@ -170,18 +166,6 @@ def run_simulation(sim_dir, tend, code_dt, dtbridge,
     nemesis.particles.add_particles(parents)
     nemesis.asteroids = test_particles
     nemesis.commit_particles()
-    
-    min_radius = nemesis.particles.radius.min()
-    typical_crosstime = 2.*(min_radius/vdisp)
-    if (verbose):
-        print(f"dt= {dtbridge.in_(units.yr)}")
-        print(f"Number of steps= {tend/dtbridge}")
-        print(f"Minimum children system radius= {min_radius.in_(units.au)}")
-        print(f"Dispersion velocity= {vdisp.in_(units.kms)}")
-        print(f"Min. system crossing time= {typical_crosstime.in_(units.kyr)}")
-        print(f"Total number of snapshots: {tend/dt_diag}")
-    if dtbridge > (10/code_dt)*typical_crosstime:
-        raise ValueError("!!! Warning: dt > (10/code_dt)*Typical System Crossing Time !!!")
         
     if (nemesis._dE_track):
         energy_arr = [ ]
@@ -321,17 +305,14 @@ def new_option_parser():
     return result
         
 if __name__ == "__main__":
-    # data_dir = "examples/S-Stars"
-    data_dir = "examples/ejecting_suns"
-    config_idx = 1
-    configurations = glob.glob(os.path.join(data_dir, "sim_data", "*"))
-    config_choice = natsorted(configurations)[config_idx]
-    print(f"...Running simulation in {config_choice}...")
-    
     o, args = new_option_parser().parse_args()
     
+    run_idx = 0
+    initial_particles = natsorted(glob.glob("examples/basic_cluster/initial_particles/*"))
+    particle_set = initial_particles[run_idx]
+    
     run_simulation(
-        sim_dir=config_choice, 
+        particle_set=particle_set, 
         tend=o.tend, 
         dtbridge=o.tbridge,
         code_dt=o.code_dt,
