@@ -161,12 +161,6 @@ cython_debug/
 #.idea/
 
 
-examples/*/sim_data/
-examples/realistic_cluster/sim_data/*
-examples/realistic_cluster/initial_particles/data_files/*
-examples/realistic_cluster/Nrun*
-examples/runaway_bh/data/*
-examples/runaway_bh/data_nosim/*
-examples/S-Stars/sim_data/*
-examples/ejecting_suns/sim_data/*
+examples/asteroid_cluster/N*
+examples/*/initial_particles
 plotters/*
