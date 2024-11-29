@@ -69,9 +69,22 @@ class HierarchicalParticles(ParticlesOverlay):
         parent.mass = np.sum(sys.mass)
 
     def recenter_subsystems(self, max_workers) -> None:
-        """Recenter the children subsystems"""
+        """
+        Recenter the children subsystems
+        
+        Args:
+            max_workers (int):  The number of cores to use
+        """
         def calculate_com(parent_copy, system):
-            """Calculate and shift system relative to center of mass"""
+            """
+            Calculate and shift system relative to center of mass
+            
+            Args:
+                parent_copy (Particle):  The copied parent particle
+                system (Particle set):  The children particle set
+            Returns:
+                Particle:  The updated (copied) parent particle
+            """
             
             center_of_mass = system.center_of_mass()
             center_of_mass_velocity = system.center_of_mass_velocity()

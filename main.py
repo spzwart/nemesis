@@ -30,7 +30,7 @@ def create_output_directories(sim_dir, run_idx) -> str:
     """
     config_name = f"Nrun{run_idx}"
     dir_path = os.path.join(sim_dir, config_name)
-    if not os.path.exists(os.path.join(dir_path, "*")):
+    if not os.path.exists(dir_path):
         os.mkdir(dir_path+"/")
         subdir = ["event_data", "collision_snapshot", 
                   "data_process", "simulation_stats", 
@@ -206,8 +206,9 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
             
             fname = os.path.join(snapdir_path, f"snap_{snapshot_no}")
             write_set_to_file(
-                allparts.savepoint(0 | units.Myr),  fname, 
-                'amuse', close_file=True, overwrite_file=True
+                allparts,  fname, 'amuse', 
+                close_file=True, 
+                overwrite_file=True
             )
           
         if (dE_track) and (prev_step != nemesis.dt_step):
@@ -309,6 +310,7 @@ if __name__ == "__main__":
     
     run_idx = 0
     initial_particles = natsorted(glob.glob("examples/basic_cluster/initial_particles/*"))
+    initial_particles = natsorted(glob.glob("examples/asteroid_cluster/initial_particles/*"))
     particle_set = initial_particles[run_idx]
     
     run_simulation(
