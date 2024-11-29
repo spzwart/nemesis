@@ -24,9 +24,10 @@ def ejection_checker(particle_set, tidal_radius=None) -> np.ndarray:
         np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # xcoord
         np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # ycoord
         np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # zcoord
+        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # cluster com
         ctypes.c_int,  # num_particles
         ctypes.c_double,  # NN threshold distance
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # ejected bool
+        np.ctypeslib.ndpointer(dtype=np.int32, ndim=1, flags='C_CONTIGUOUS'),  # ejected bool
     ]
     
     if tidal_radius is None:
@@ -34,12 +35,14 @@ def ejection_checker(particle_set, tidal_radius=None) -> np.ndarray:
     else:
         tidal_radius = 2.*tidal_radius
     num_parts = len(particle_set)
+    com_pos = particle_set.center_of_mass()
     
-    ejected_bools = np.zeros(len(particle_set))
+    ejected_bools = np.zeros(len(particle_set), dtype=np.int32)
     lib.find_nearest_neighbour(
         particle_set.x.value_in(units.m),
         particle_set.y.value_in(units.m),
         particle_set.z.value_in(units.m),
+        com_pos.value_in(units.m),
         num_parts, 
         tidal_radius.value_in(units.m),
         ejected_bools

@@ -5,11 +5,11 @@ from numpy import random
 
 from amuse.community.fractalcluster.interface import new_fractal_cluster_model
 from amuse.datamodel import Particles
+from amuse.ext.orbital_elements import orbital_elements
 from amuse.ext.protodisk import ProtoPlanetaryDisk
-from amuse.ext import solarsystem
-from amuse.lab import new_kroupa_mass_distribution
-from amuse.lab import new_plummer_model
-from amuse.lab import nbody_system, write_set_to_file 
+from amuse.ic import make_planets_oligarch
+from amuse.lab import new_kroupa_mass_distribution, new_plummer_model
+from amuse.lab import nbody_system, write_set_to_file, constants 
 from amuse.units import units
 
 
@@ -73,9 +73,10 @@ def setup_cluster(Nstars, cluster_type, Rvir, Qvir):
         Rvir (float):  Virial radius
         Qvir (float):  Virial ratio
     """
-    NUM_ASTEROID = 100  # Number of asteroids per planetary system
-    Min_nchildren = 10  # Number of planetary systems wished
-    MODEL_NAME = f"N{Nstars}_model{cluster_type}_rvir{Rvir.value_in(units.pc)}pc_Qvir_{Qvir}"
+    NUM_ASTEROID = 1000
+    MODEL_NAME = f"OrionLike_{cluster_type}_Qvir_{Qvir}"
+    MAX_HOST_MASS = 3 | units.MSun 
+    MIN_HOST_MASS = 0.2 | units.MSun
                  
     # Creating output directories
     configuration = os.path.join("asteroid_cluster", MODEL_NAME)
@@ -98,30 +99,42 @@ def setup_cluster(Nstars, cluster_type, Rvir, Qvir):
         bodies = new_fractal_cluster_model(Nstars, 
                                            fractal_dimension=1.6, 
                                            convert_nbody=converter)
-        
     bodies.mass = masses
     bodies.syst_id = -1
     bodies.type = "STAR"
     bodies.radius = ZAMS_radius(bodies.mass)
     
+    host_masses = (bodies.mass < MAX_HOST_MASS) & (bodies.mass > MIN_HOST_MASS)
+    host_stars = bodies[host_masses]
+    
     particle_set = Particles()
     nsyst = 0
-    for host in bodies:
+    for host in host_stars:
         nsyst += 1
-        host.mass = 1 | units.MSun
         host.radius = ZAMS_radius(host.mass)
         host.syst_id = nsyst
-        host.name = "HOST"
         host.type = "HOST"
         
     converter = nbody_system.nbody_to_si(np.sum(bodies.mass), Rvir)
     bodies.scale_to_standard(convert_nbody=converter, virial_ratio=Qvir)
-    for host in bodies[bodies.syst_id >= 0]:
-        planets = solarsystem.new_solar_system()
-        orb_planets = planets[3:-1]
-        orb_planets.type = "PLANET"
-        orb_planets.syst_id = host.syst_id
-        particle_set.add_particle(orb_planets)
+    for host in bodies[bodies.syst_id >= 1300]:
+        disk_mass = np.random.uniform(0.005, 0.03) | units.MSun
+        nplanets = np.random.randint(2, 6)
+        if host.mass < 0.7 | units.MSun:
+            nplanets = np.random.randint(1, 4)
+        
+        print(f"System {host.syst_id}: Mhost= {host.mass.in_(units.MSun)}, Np={nplanets}")
+        host_star = make_planets_oligarch.new_system(star_mass=host.mass,
+                                                     star_radius=host.radius,
+                                                     disk_minumum_radius=1. | units.au,
+                                                     disk_maximum_radius=100. | units.au,
+                                                     disk_mass=disk_mass)
+        planets = host_star.planets[0]
+        planets = planets.random_sample(nplanets)
+        planets.type = "PLANET"
+        planets.syst_id = host.syst_id
+        particle_set.add_particle(host)
+        particle_set.add_particle(planets)
         
         local_converter = nbody_system.nbody_to_si(host.mass, 1|units.au)
         asteroids = ProtoPlanetaryDisk(NUM_ASTEROID, densitypower=1.5, 
@@ -144,40 +157,43 @@ def setup_cluster(Nstars, cluster_type, Rvir, Qvir):
 
         # Rotate planets and asteroids
         current_system = particle_set[particle_set.syst_id == host.syst_id]
+        current_system[1:].position += current_system[0].position
+        current_system[1:].velocity += current_system[0].velocity
         for body in current_system:
             body.position, body.velocity = rotate(body.position, 
                                                   body.velocity, 
                                                   phi, theta, psi)
-            body.position += host.position
-            body.velocity += host.velocity
         
-        particle_set.add_particle(host)
         bodies -= host
-
+        
+    particle_set.remove_attribute_from_store("eccentricity")
+    particle_set.remove_attribute_from_store("semimajor_axis")
+    particle_set.remove_attribute_from_store("u")
+    
     isol = bodies[bodies.syst_id == -1]
     isol.radius = ZAMS_radius(isol.mass)
     particle_set.add_particles(isol)
-    if nsyst > Min_nchildren:
-        print("!!! SAVING !!!")
-        output_dir = os.path.join(initial_set_dir, "run_"+str(N_CONFIG))
-        write_set_to_file(particle_set, output_dir, "amuse", 
-                          close_file=True, overwrite_file=True
-                          )
-        nsyst_run = 1
-        return nsyst_run
     
-    nsyst_run = 0
+    print("!!! SAVING !!!")
+    print(f"Total number of particles: {len(particle_set)}, Nsyst: {nsyst}")
+    output_dir = os.path.join(initial_set_dir, "run_"+str(N_CONFIG))
+    write_set_to_file(
+        particle_set, output_dir, "amuse", 
+        close_file=True, overwrite_file=True
+    )
+    nsyst_run = 1
     return nsyst_run
-    
+
+# Orion-like cluster
+Rvir = 0.5 | units.pc
+Qvir = [0.25, 0.5, 0.75]
+Nstars = 2500
 cluster_type = ["Plummer", "Fractal"]
-Rvir = [0.5 | units.pc, 1 | units.pc]
-Ratio_vir = [0.25, 0.5, 1]
-Nstars = [100, 1000]
-succesful_conds = 0
-while succesful_conds < 10:
-    print("...Attempt...")
-    nsyst = setup_cluster(Nstars=Nstars[0],
-                          cluster_type=cluster_type[1], 
-                          Rvir=Rvir[0],
-                          Qvir=Ratio_vir[0])
-    succesful_conds += nsyst
+
+for cluster in cluster_type:
+    for q in Qvir:
+        succesful_conds = 0
+        while succesful_conds < 5:
+            print("...Attempt...")
+            nsyst = setup_cluster(Nstars, cluster, Rvir, q)
+            succesful_conds += nsyst
