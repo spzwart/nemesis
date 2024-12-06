@@ -1,6 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
 import numpy as np
-import queue
-import threading
 
 from amuse.couple.bridge import CalculateFieldForParticles
 from amuse.lab import constants, units, Particles
@@ -38,7 +37,7 @@ def compute_gravity(grav_lib, perturber, particles) -> float:
     return result_ax, result_ay, result_az
     
 class CorrectionFromCompoundParticle(object):
-    def __init__(self, particles, subsystems, library):
+    def __init__(self, particles, subsystems, library, max_workers):
         """Correct force exerted by some parent system on 
         other particles by that of its children.
         
@@ -46,11 +45,13 @@ class CorrectionFromCompoundParticle(object):
             particles (particle set):  Parent particles to correct force of
             subsystems (particle set):  Collection of subsystems present
             library (Library):  Python to C++ communication library
+            max_workers (int):  Number of cores to use
         """
         self.particles = particles
-        self.acc_units = (self.particles.vx.unit**2/self.particles.x.unit)
+        self.acc_units = (self.particles.vx.unit**2./self.particles.x.unit)
         self.subsystems = subsystems
         self.lib = library
+        self.max_workers = max_workers
         
     def correct_parents(self, job_queue, result_queue) -> None:
         """
@@ -84,7 +85,7 @@ class CorrectionFromCompoundParticle(object):
         ay = ay | self.acc_units
         az = az | self.acc_units
             
-        result_queue.put([ax, ay, az])
+        return [ax, ay, az]
     
     def get_gravity_at_point(self, radius, x, y, z) -> float:
         """
@@ -108,36 +109,25 @@ class CorrectionFromCompoundParticle(object):
         particles.ay = 0. | self.acc_units
         particles.az = 0. | self.acc_units
         
-        job_queue = queue.Queue()
-        result_queue = queue.Queue()
-        for parent, sys in list(self.subsystems.items()):
-            copied_child = sys.copy()
-            removed_idx = (abs(particles.mass - parent.mass)).argmin()
-            copied_child.position += parent.position
+        acc = [0, 0, 0] | self.acc_units
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            for parent, sys in list(self.subsystems.items()):
+                copied_child = sys.copy()
+                copied_child = copied_child[copied_child.mass > (0 | units.kg)]
+                
+                removed_idx = (abs(particles.mass - parent.mass)).argmin()
+                copied_child.position += parent.position
+                
+                parent_copy = Particles()
+                parent_copy.add_particle(parent)
             
-            parent_copy = Particles()
-            parent_copy.add_particle(parent)
-            job_queue.put((particles, parent_copy, copied_child, removed_idx))
-        
-        threads = [ ]
-        for worker in range(len(self.subsystems.keys())):
-            thread = threading.Thread(target=self.correct_parents, 
-                                      args=(job_queue, result_queue))
-            thread.start()
-            threads.append(thread)
-        
-        for thread in threads:
-            thread.join()
+                future = executor.submit(self.correct_parents, particles, parent_copy, copied_child, removed_idx)
+                ax, ay, az = future.result()
+                acc += [ax, ay, az]
             
-        while not result_queue.empty():
-            ax, ay, az = result_queue.get()
-            particles.ax += ax
-            particles.ay += ay
-            particles.az += az
-            
-        job_queue.queue.clear()
-        result_queue.queue.clear()
-        del job_queue, result_queue
+        particles.ax += acc[0]
+        particles.ay += acc[1]
+        particles.az += acc[2]
         
         return particles.ax, particles.ay, particles.az
     
@@ -162,19 +152,23 @@ class CorrectionFromCompoundParticle(object):
             code.particles.velocity += parent.velocity
             
             parts = particles - parent
-            phi = code.get_potential_at_point(0.*parts.radius, 
-                                              parts.x, 
-                                              parts.y, 
-                                              parts.z)
+            phi = code.get_potential_at_point(
+                            0.*parts.radius, 
+                            parts.x, 
+                            parts.y, 
+                            parts.z
+                            )
             parts.phi += phi
             code.cleanup_code()
             
             code = CalculateFieldForParticles(gravity_constant=constants.G)
             code.particles.add_particle(parent)
-            phi = code.get_potential_at_point(0.*parts.radius,
-                                             parts.x,
-                                             parts.y,
-                                             parts.z)
+            phi = code.get_potential_at_point(
+                            0.*parts.radius, 
+                            parts.x, 
+                            parts.y, 
+                            parts.z
+                            )
             parts.phi -= phi
             code.cleanup_code()
             
@@ -255,13 +249,17 @@ class CorrectionForCompoundParticle(object):
         
         instance = CalculateFieldForParticles(gravity_constant=constants.G)
         instance.particles.add_particles(parts)
-        phi = instance.get_potential_at_point(0.*radius,
-                                              parent.x + x,
-                                              parent.y + y,
-                                              parent.z + z)
-        _phi = instance.get_potential_at_point([0.*parent.radius],
-                                               [parent.x],
-                                               [parent.y],
-                                               [parent.z])
+        phi = instance.get_potential_at_point(
+                        0.*radius,
+                        parent.x + x,
+                        parent.y + y,
+                        parent.z + z
+                        )
+        _phi = instance.get_potential_at_point(
+                        [0.*parent.radius],
+                        [parent.x],
+                        [parent.y],
+                        [parent.z]
+                        )
         instance.cleanup_code()
         return (phi-_phi[0])

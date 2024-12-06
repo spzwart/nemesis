@@ -60,7 +60,6 @@ def load_particle_set(sim_dir, run_idx) -> Particles:
         raise FileNotFoundError(f"Error: No particle set found in {particle_set_dir}")
     
     particle_set = read_set_from_file(file)
-    particle_set -= particle_set[particle_set.syst_id > 20]
     particle_set.coll_events = 0
     particle_set.move_to_center()
     
@@ -138,7 +137,7 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
     particle_set = load_particle_set(sim_dir, run_idx)
     if (gal_field):
         particle_set = configure_galactic_frame(particle_set)
-    Rvir = particle_set.virial_radius()
+    Rvir = particle_set[particle_set.mass > (0. | units.kg)].virial_radius()
     
     major_bodies, test_particles = identify_parents(particle_set)
     isolated_systems = major_bodies[major_bodies.syst_id < 0]
@@ -166,6 +165,15 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
     nemesis.particles.add_particles(parents)
     nemesis.asteroids = test_particles
     nemesis.commit_particles()
+    
+    if (verbose):
+        print("...Simulation Params...")
+        print(f"Total number of particles: {len(particle_set)}")
+        print(f"Total number of initial children: {id_}")
+        print(f"Bridge timestep: {dtbridge.in_(units.yr)}")
+        print(f"End time: {tend.in_(units.Myr)}")
+        print(f"Galactic field: {gal_field}")
+        print(f"............................................")
         
     if (nemesis._dE_track):
         energy_arr = [ ]
@@ -236,7 +244,9 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
     print("...Simulation Ended...")
     nemesis._stellar_code.stop()  
     nemesis._parent_code.stop()
-    for code in nemesis.subcodes.values():
+    for parent, code in nemesis.subcodes.items():
+        pid = nemesis.__pid_workers[parent]
+        nemesis.resume_worker(pid)
         code.stop()
 
     # Store simulation statistics
@@ -247,10 +257,10 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
                 \nEnd Time: {t.in_(units.Myr)} \
                 \nTime step: {dtbridge.in_(units.Myr)}")
     f.close()
-    
-    with open(os.path.join(dir_path, "energy_error.csv"), 'w') as f:
-        f.write(f"Energy error: {energy_arr}")
-    f.close()
+    if (dE_track):
+        with open(os.path.join(dir_path, "energy_error.csv"), 'w') as f:
+            f.write(f"Energy error: {energy_arr}")
+        f.close()
      
 def new_option_parser():
     result = OptionParser()

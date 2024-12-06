@@ -88,6 +88,7 @@ class HierarchicalParticles(ParticlesOverlay):
             
             center_of_mass = system.center_of_mass()
             center_of_mass_velocity = system.center_of_mass_velocity()
+            
             system.position -= center_of_mass
             system.velocity -= center_of_mass_velocity
             parent_copy.position += center_of_mass
