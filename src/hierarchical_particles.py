@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 
 from amuse.datamodel import Particle, Particles, ParticlesOverlay
+from amuse.units import units
 
 
 class HierarchicalParticles(ParticlesOverlay):
@@ -85,9 +86,10 @@ class HierarchicalParticles(ParticlesOverlay):
             Returns:
                 Particle:  The updated (copied) parent particle
             """
+            massives = system[system.mass != (0. | units.kg)]
             
-            center_of_mass = system.center_of_mass()
-            center_of_mass_velocity = system.center_of_mass_velocity()
+            center_of_mass = massives.center_of_mass()
+            center_of_mass_velocity = massives.center_of_mass_velocity()
             
             system.position -= center_of_mass
             system.velocity -= center_of_mass_velocity

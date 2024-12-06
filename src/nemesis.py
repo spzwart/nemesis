@@ -8,6 +8,7 @@ import queue
 import psutil
 import signal
 import threading
+import traceback
 
 from amuse.community.huayno.interface import Huayno
 from amuse.community.ph4.interface import Ph4
@@ -415,8 +416,13 @@ class Nemesis(object):
             
     def _split_subcodes(self) -> None:
         """Remove child from system if object is isolated by rij > 1.5*radius"""
-        def split_algorithm(job_queue):
-            parent, subsys = job_queue.get()
+        def split_algorithm(parent, subsys):
+            """Check for splitting subsystems
+            
+            Args:
+                parent (Particle):  Parent particle
+                subsys (Particle set):  Subsystem of parent
+            """
             radius = parent.radius
             furthest = (subsys.position - subsys.center_of_mass()).lengths().max()
             
@@ -438,9 +444,6 @@ class Nemesis(object):
                         for c in components:
                             sys = c.copy_to_memory()
                             if sys.mass.max() == (0. | units.kg):
-                                if (self.__verbose):
-                                    print(f"Removing {len(sys)} asteroids")
-                                
                                 sys.position += parent_pos
                                 sys.velocity += parent_vel
                                 sys.syst_id = -1
@@ -487,22 +490,10 @@ class Nemesis(object):
             print("...Checking Splits...")
         
         asteroid_batch = [ ]
-        job_queue = queue.Queue()
-        for nsyst, (host, subsystem) in enumerate(self.subsystems.items()):
-            job_queue.put((host.copy(), subsystem))
-        
-        threads = [ ]
-        for worker in range(nsyst):
-            th = threading.Thread(target=split_algorithm, 
-                                  args=(job_queue, ))
-            th.start()
-            threads.append(th)
-        
-        for th in threads:
-            th.join()
-            
-        job_queue.queue.clear()
-        del job_queue
+        nworkers = min(3.*self.avail_cpus, len(self.subsystems))
+        with ThreadPoolExecutor(max_workers=nworkers) as executor:
+            for parent, subsystem in list(self.subsystems.items()):
+                executor.submit(split_algorithm, parent.copy(), subsystem)
                     
         if asteroid_batch:
             for isolated_asteroids in asteroid_batch:
@@ -570,15 +561,15 @@ class Nemesis(object):
             if (self._dE_track):
                 E1 = self._calculate_total_energy()
                 self.corr_energy += E1 - E0
-    
-    def _create_new_children(self, job_queue) -> None:
+      
+    def _create_new_children(self, new_children, time_offset) -> None:
         """
         Create new children systems based on parent mergers.
         
         Args:
-            job_queue (Queue):  Queue of jobs, each hosting new parent systems
+            new_children (Particle set):  New children systems
+            time_offset (Float):  Time offset for new children
         """
-        new_children, time_offset = job_queue.get()
         
         no_radius = new_children[new_children.radius == 0. | units.au]
         planets = no_radius[no_radius.mass <= self.__min_mass_evol_evol]
@@ -604,38 +595,24 @@ class Nemesis(object):
     def _process_parent_mergers(self) -> None:
         """Process merging of parents from previous timestep in parallel"""
         self.channels["from_gravity_to_parents"].copy()
-        job_queue = queue.Queue()
         
-        no_new_parents = 0
         parent_particles = self._parent_code.particles
-        for new_parent, new_children in self.__new_systems.items():
-            n = parent_particles[parent_particles.key == new_parent.key]
-            time_offset = self.__new_offsets[new_parent]
-                    
-            pos_shift = n.position - new_parent.position
-            vel_shift = n.velocity - new_parent.velocity
-            new_children.position += pos_shift
-            new_children.velocity += vel_shift 
-            
-            job_queue.put((new_children, time_offset))
-            self.particles.remove_particle(new_parent)
-            no_new_parents += 1
-        
-        threads = [ ]
-        for worker in range(no_new_parents):
-            th = threading.Thread(target=self._create_new_children, 
-                                  args=(job_queue, ))
-            th.start()
-            threads.append(th)
-            
-        for th in threads:
-            th.join()
-            
-        job_queue.queue.clear()
-        del job_queue
+        nworkers = min(3.*self.avail_cpus, len(self.subsystems))
+        with ThreadPoolExecutor(max_workers=nworkers) as executor:
+            for new_parent, new_children in self.__new_systems.items():
+                n = parent_particles[parent_particles.key == new_parent.key]
+                time_offset = self.__new_offsets[new_parent]
+                        
+                pos_shift = n.position - new_parent.position
+                vel_shift = n.velocity - new_parent.velocity
+                new_children.position += pos_shift
+                new_children.velocity += vel_shift 
+                
+                executor.submit(self._create_new_children, new_children, time_offset)
+                self.particles.remove_particle(new_parent)
         
         # Modify radius
-        new_parents = self.particles[-no_new_parents:]
+        new_parents = self.particles[-len(self.__new_systems.keys()):]
         new_parents[new_parents.radius > self._max_radius].radius = self._max_radius
         new_parents[new_parents.radius < self._min_radius].radius = self._min_radius
         self.particles.recenter_subsystems(max_workers=self.avail_cpus)
@@ -852,14 +829,14 @@ class Nemesis(object):
             f.write(f"\nInclination: {inc} deg")
         
         # Create merger remnant
-        if min(collider.mass) == 0 | units.kg:
+        if min(collider.mass) == (0. | units.kg):
             most_massive = collider[collider.mass.argmax()]
 
             # Create a new particle set with one particle
             remnant = Particles() 
             remnant.add_particle(most_massive)
             
-        elif max(collider.mass) > 0 | units.kg:
+        elif max(collider.mass) > (0 | units.kg):
             remnant  = Particles(1)
             remnant.mass = collider.total_mass()
             remnant.position = collider.center_of_mass()
@@ -1194,7 +1171,6 @@ class Nemesis(object):
                 parent (Particle):  Parent particle
             """
             try:
-                self.resume_workers(self.__pid_workers[parent])
                 code = self.subcodes[parent]
                 evol_time = dt - self._time_offsets[code]
                 if evol_time <= 0 | units.s:
@@ -1208,16 +1184,22 @@ class Nemesis(object):
                     if stopping_condition.is_set():
                         with self.__lock:
                             if (self._dE_track):
-                                E0 = self._calculate_total_energy()
+                                KE = code.particles.kinetic_energy() 
+                                PE = code.particles.potential_energy()
+                                E0 = KE + PE
                                 
                             parent = resolve_collisions(
                                         code, parent, 
                                         evol_time, 
                                         stopping_condition
                                         )
+                            
                             if (self._dE_track):
-                                E1 = self._calculate_total_energy()
+                                KE = code.particles.kinetic_energy() 
+                                PE = code.particles.potential_energy()
+                                E1 = KE + PE
                                 self.corr_energy += E1 - E0
+                                
                 self.hybernate_workers(self.__pid_workers[parent])
                 
             except Exception as e:
@@ -1227,7 +1209,10 @@ class Nemesis(object):
             print("...Drifting Children...")
         
         with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
-            for parent in self.subcodes.keys():
+            for parent in list(self.subcodes.keys()):
+                if parent not in self.subcodes:
+                    raise ValueError(f"Error: Parent {parent.key} not in subcodes")
+                self.resume_workers(self.__pid_workers[parent])
                 executor.submit(evolve_code, parent)
         
         changes = [ ]
@@ -1308,7 +1293,8 @@ class Nemesis(object):
             self.resume_workers(self.__pid_workers[parent])             
             corr_chd = CorrectionFromCompoundParticle(particles, 
                                                       subsystems,
-                                                      self.lib)
+                                                      self.lib,
+                                                      self.avail_cpus)
             self._kick_particles(particles, corr_chd, dt)
             self.channels["from_parents_to_gravity"].copy()
             self.hybernate_workers(self.__pid_workers[parent])   
@@ -1339,7 +1325,7 @@ class Nemesis(object):
                 subsyst,
                 self.subcodes[parent].particles
             )
-            self.hybernate_workers(self.__pid_workers[parent])   
+            self.hybernate_workers(self.__pid_workers[parent])
         
     @property
     def model_time(self) -> float:  

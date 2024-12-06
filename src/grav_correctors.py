@@ -53,16 +53,16 @@ class CorrectionFromCompoundParticle(object):
         self.lib = library
         self.max_workers = max_workers
         
-    def correct_parents(self, job_queue, result_queue) -> None:
+    def correct_parents(self, particles, parent_copy, system, removed_idx) -> None:
         """
         Compute difference in gravitational acceleration exerted onto parents
         
         Args:
-            job_queue (queue):  Queue of jobs to perform
-            result_queue (queue):  Queue of results to return
+            particles (particle set):  All parent particles
+            parent_copy (particle set):  Copy of parent particle
+            system (particle set):  Copy of selected parent's children
+            removed_idx (int):  Index of parent particle
         """
-        particles, parent_copy, system, removed_idx = job_queue.get()
-        
         ax = 0. | self.acc_units
         ay = 0. | self.acc_units
         az = 0. | self.acc_units
@@ -109,7 +109,6 @@ class CorrectionFromCompoundParticle(object):
         particles.ay = 0. | self.acc_units
         particles.az = 0. | self.acc_units
         
-        acc = [0, 0, 0] | self.acc_units
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             for parent, sys in list(self.subsystems.items()):
                 copied_child = sys.copy()
@@ -121,13 +120,16 @@ class CorrectionFromCompoundParticle(object):
                 parent_copy = Particles()
                 parent_copy.add_particle(parent)
             
-                future = executor.submit(self.correct_parents, particles, parent_copy, copied_child, removed_idx)
+                future = executor.submit(self.correct_parents, 
+                                         particles, 
+                                         parent_copy, 
+                                         copied_child, 
+                                         removed_idx)
                 ax, ay, az = future.result()
-                acc += [ax, ay, az]
-            
-        particles.ax += acc[0]
-        particles.ay += acc[1]
-        particles.az += acc[2]
+                
+                particles.ax += ax
+                particles.ay += ay
+                particles.az += az
         
         return particles.ax, particles.ay, particles.az
     
