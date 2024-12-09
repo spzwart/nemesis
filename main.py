@@ -220,7 +220,7 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
             )
           
         if (dE_track) and (prev_step != nemesis.dt_step):
-            E1 = nemesis.calculate_total_energy()
+            E1 = nemesis._calculate_total_energy()
             E1 += nemesis.corr_energy
             energy_arr.append(abs((E1-E0)/E0))
             
@@ -245,9 +245,12 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
     nemesis._stellar_code.stop()  
     nemesis._parent_code.stop()
     for parent, code in nemesis.subcodes.items():
-        pid = nemesis.__pid_workers[parent]
+        pid = nemesis.__pid_workers.pop(parent)
+        subsys = nemesis.particles.pop(parent)
+        
         nemesis.resume_worker(pid)
         code.stop()
+        del pid, subsys
 
     # Store simulation statistics
     sim_time = (cpu_time.time() - START_TIME)/60.
