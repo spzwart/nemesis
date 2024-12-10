@@ -209,9 +209,8 @@ class CorrectionForCompoundParticle(object):
         """
         parent = self.parent
         parts = self.particles - parent
-        parts = parts[parts.mass > (0 | units.kg)]  # Test particles exert no force
         
-        coefficient = (1 | units.kg*units.m**-2) * constants.G
+        coefficient = (1. | units.kg*units.m**-2.) * constants.G
         system = self.system.copy_to_memory()
         acc_units = (system.vx.unit**2/system.x.unit)
         

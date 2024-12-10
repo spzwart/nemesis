@@ -72,6 +72,7 @@ class Nemesis(object):
         self.__pid_workers = dict()
         self.__lock = threading.Lock()
         self.__main_process = psutil.Process(os.getpid())
+        self.__nmerge = 0
         
         # Protected attributes
         self._max_radius = 200. | units.au
@@ -164,13 +165,13 @@ class Nemesis(object):
                 self.subsystems[parent] = sys
                 self.subcodes[parent] = code
                 
-                # Store children PID to allow hybernation
+                # Store children PID to allow hibernation
                 worker_pid = self.get_child_pid()
                 self.__pid_workers[parent] = worker_pid
                 self.hibernate_workers(worker_pid)
                 
             if (self.__verbose):
-                print(f"System {nsyst}/{ntotal}, radius: {parent.radius.in_(units.au)}")
+                print(f"System {nsyst+1}/{ntotal}, radius: {parent.radius.in_(units.au)}")
                 
         particles[particles.radius > self._max_radius].radius = self._max_radius
         particles[particles.radius < self._min_radius].radius = self._min_radius
@@ -420,92 +421,93 @@ class Nemesis(object):
             
     def _split_subcodes(self) -> None:
         """Remove child from system if object is isolated by rij > 1.5*radius"""
-        def split_algorithm(parent, subsys):
-            """
-            Detect any isolated children
-            
-            Args:
-                parent (Particle):  Parent particle
-                subsys (Particle set):  Children particle set
-            Returns:
-                Particle:  Parent particle
-                Particle set:  Isolated children particle set
-            """
+        def split_algorithm(job_queue):
+            parent, subsys = job_queue.get()
             radius = parent.radius
             host = subsys[subsys.mass.argmax()]
             furthest = (subsys.position - host.position).lengths().max()
             
             if furthest > 0.75*radius:
                 components = subsys.connected_components(threshold=1.5*radius)
-                return parent, components
-            return parent, [ ]
+                
+                if len(components) > 1:  # Checking for dissolution of system
+                    if (self.__verbose):
+                        print("...Split Detected...")
+                    parent_pos = parent.position
+                    parent_vel = parent.velocity
+                    
+                    with self.__lock:
+                        self.resume_workers(self.__pid_workers[parent])
+                        self.particles.remove_particle(parent)
+                        code = self.subcodes.pop(parent)
+                        self._time_offsets.pop(code)
+                    
+                        for c in components:
+                            sys = c.copy_to_memory()
+                            if sys.mass.max() == (0. | units.kg):
+                                sys.position += parent_pos
+                                sys.velocity += parent_vel
+                                sys.syst_id = -1
+                                
+                                asteroid_batch.append(sys)
+                                
+                            else:
+                                if len(sys) > 1:
+                                    sys.position += parent_pos
+                                    sys.velocity += parent_vel
+                                    
+                                    newparent = self.particles.add_subsystem(sys)
+                                    newparent.radius = set_parent_radius(np.sum(sys.mass))
+                                    if newparent.radius > self._max_radius:
+                                        newparent.radius = self._max_radius
+                                    elif newparent.radius < self._min_radius:
+                                        newparent.radius = self._min_radius
+                                        
+                                    sys.move_to_center()
+                                    newcode = self._sub_worker(sys)
+                                    self.subcodes[newparent] = newcode
+                                    self._time_offsets[newcode] = self.model_time
+                                    
+                                    worker_pid = self.get_child_pid()
+                                    self.__pid_workers[newparent] = worker_pid
+                                    self.hibernate_workers(worker_pid)
+                                    
+                                else:
+                                    sys.position += parent_pos
+                                    sys.velocity += parent_vel
+                                    
+                                    newparent = self.particles.add_subsystem(sys)
+                                    newparent.radius = set_parent_radius(np.sum(sys.mass))
+                                    if newparent.radius > self._max_radius:
+                                        newparent.radius = self._max_radius
+                                    elif newparent.radius < self._min_radius:
+                                        newparent.radius = self._min_radius
+                            
+                        code.cleanup_code()
+                        code.stop()
+                        del code, subsys, parent
                     
         if (self.__verbose):
             print("...Checking Splits...")
         
         asteroid_batch = [ ]
-        split_results = [ ]
-        parent_and_children = [(p.copy(), s) for p, s in self.subsystems.items()]
-        with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
-            split_results = list(executor.map(lambda x: split_algorithm(*x), parent_and_children))
-                
-        for parent, components in split_results:                
-            if len(components) > 1:  # Checking for dissolution of system
-                if (self.__verbose):
-                    print("...Split Detected...")
-                parent_pos = parent.position
-                parent_vel = parent.velocity
-                subsys = self.subsystems[parent]
-                
-                self.resume_workers(self.__pid_workers[parent])
-                self.particles.remove_particle(parent)
-                code = self.subcodes.pop(parent)
-                self._time_offsets.pop(code)
+        job_queue = queue.Queue()
+        for nsyst, (host, subsystem) in enumerate(self.subsystems.items()):
+            job_queue.put((host.copy(), subsystem))
+        
+        threads = [ ]
+        for _ in range(nsyst):
+            th = threading.Thread(target=split_algorithm, 
+                                  args=(job_queue, ))
+            th.start()
+            threads.append(th)
+        
+        for th in threads:
+            th.join()
             
-                for c in components:
-                    sys = c.copy_to_memory()
-                    if sys.mass.max() == (0. | units.kg):
-                        sys.position += parent_pos
-                        sys.velocity += parent_vel
-                        sys.syst_id = -1
-                        asteroid_batch.append(sys)
-                        
-                    else:
-                        if len(sys) > 1:
-                            sys.position += parent_pos
-                            sys.velocity += parent_vel
-                            
-                            newparent = self.particles.add_subsystem(sys)
-                            newparent.radius = set_parent_radius(np.sum(sys.mass))
-                            if newparent.radius > self._max_radius:
-                                newparent.radius = self._max_radius
-                            elif newparent.radius < self._min_radius:
-                                newparent.radius = self._min_radius
-                                
-                            sys.move_to_center()
-                            newcode = self._sub_worker(sys)
-                            self.subcodes[newparent] = newcode
-                            self._time_offsets[newcode] = self.model_time
-                            
-                            worker_pid = self.get_child_pid()
-                            self.__pid_workers[newparent] = worker_pid
-                            self.hibernate_workers(worker_pid)
-                            
-                        else:
-                            sys.position += parent_pos
-                            sys.velocity += parent_vel
-                            
-                            newparent = self.particles.add_subsystem(sys)
-                            newparent.radius = set_parent_radius(np.sum(sys.mass))
-                            if newparent.radius > self._max_radius:
-                                newparent.radius = self._max_radius
-                            elif newparent.radius < self._min_radius:
-                                newparent.radius = self._min_radius
+        job_queue.queue.clear()
+        del job_queue
                     
-                code.cleanup_code()
-                code.stop()
-                del code, subsys, parent
-                
         if asteroid_batch:
             for isolated_asteroids in asteroid_batch:
                 self.asteroids.add_particles(isolated_asteroids)
@@ -517,16 +519,15 @@ class Nemesis(object):
         Remove ejected particles from system. Save their properties to a file.
         
         Args:
-            parent_systems (Particle set):  Parent particle set
             ejected_idx (array):  Array containing booleans flagging for particle ejections
         """
+        #TO DO: FUNCTION STILL REQUIRES TESTING
         if (self._dE_track):
             E0 = self._calculate_total_energy()
         
         ejected_particles = parent_systems[ejected_idx]
-        massive_filter = ejected_particles.mass > (0. | units.kg)
-        n_massive = massive_filter.sum()
-        n_massless = (~massive_filter).sum()
+        n_massive = len(ejected_particles[ejected_particles.mass > (0. | units.kg)])
+        n_massless = len(ejected_particles[ejected_particles.mass == 0. | units.kg])
         print(f"# Ejected Massive: {n_massive}, # Ejected Massless: {n_massless}")
         
         ejected_asteroids = Particles()
@@ -563,6 +564,7 @@ class Nemesis(object):
                 elif ejected_particle in self._stellar_code.particles:
                     ejected_stars.add_particle(ejected_particle)
                     
+        
         if len(ejected_particles) > 0:
             self._stellar_code.particles.remove_particles(ejected_stars)
             self.particles.remove_particle(ejected_massive)
@@ -640,7 +642,7 @@ class Nemesis(object):
         new_parents = self.particles[-no_new_parents:]
         new_parents[new_parents.radius > self._max_radius].radius = self._max_radius
         new_parents[new_parents.radius < self._min_radius].radius = self._min_radius
-        self.particles.recenter_subsystems(max_workers=self.avail_cpus)
+        self.particles.recenter_subsystems(max_workers=2.*self.avail_cpus)
     
     def _parent_merger(self, coll_time, coll_set) -> Particle:
         """
@@ -820,9 +822,8 @@ class Nemesis(object):
             Particles:  New parent particle alongside dictionary of merging particles keys
         """
         # Save properties
-        allparts = self.particles.all()
-        nmerge = np.sum(allparts.coll_events) + 1
-        print(f"...Collision #{nmerge} Detected...")
+        self.__nmerge += 1
+        print(f"...Collision #{self.__nmerge} Detected...")
         
         output_dir = os.path.join(self.__coll_dir, f"merger_Step{self.dt_step}_SystemID{parent.key}.hdf5")
         write_set_to_file(
@@ -842,7 +843,7 @@ class Nemesis(object):
         inc = kepler_elements[4]
         
         tcoll = code.model_time + self._time_offsets[code]
-        with open(os.path.join(self.__coll_dir, "output", f"merger{nmerge}.txt"), 'w') as f:
+        with open(os.path.join(self.__coll_dir, "output", f"merger{self.__nmerge}.txt"), 'w') as f:
             f.write(f"Tcoll: {tcoll.in_(units.yr)}")
             f.write(f"\nKey1: {enc_parti[0].key}")
             f.write(f"\nKey2: {enc_parti[1].key}")
@@ -1135,7 +1136,7 @@ class Nemesis(object):
             print(f"Parent code time: {self._parent_code.model_time.in_(units.Myr)}")
             print(f"Bridge code time: {self._evolve_code.model_time.in_(units.Myr)}")
             print(f"Stellar code time: {self._stellar_code.model_time.in_(units.Myr)}")
-    
+            
     def _drift_child(self, dt) -> None:
         """
         Evolve children system until dt.
@@ -1192,6 +1193,7 @@ class Nemesis(object):
                 parent (Particle):  Parent particle
             """
             try:
+                self.resume_workers(self.__pid_workers[parent])
                 code = self.subcodes[parent]
                 evol_time = dt - self._time_offsets[code]
                 if evol_time <= 0 | units.s:
@@ -1231,28 +1233,30 @@ class Nemesis(object):
             print("...Drifting Children...")
 
         with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
-            for parent in list(self.subcodes.keys()):
-                if parent not in self.subcodes:
-                    raise ValueError(f"Error: Parent {parent.key} not in subcodes")
-                else:
-                    self.resume_workers(self.__pid_workers[parent])
-                    executor.submit(evolve_code, parent)
-        
-        changes = [ ]
+            futures = {executor.submit(evolve_code, parent): 
+                       parent for parent in list(self.subcodes.keys())
+                       }
+            for future in as_completed(futures):  #Iterate over to ensure no silent failures
+                parent = futures[future]
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"Error while evolving parent {parent.key}: {e}")
+
         for parent in self.subcodes.keys(): # Remove single children systems:
             self.resume_workers(self.__pid_workers[parent])
             if len(self.subcodes[parent].particles) == 1:
-                changes.append(parent)
-        
-        for parent in changes:
-            old_subcode = self.subcodes.pop(parent)
-            old_offset = self._time_offsets.pop(old_subcode)
-            
-            old_subcode.cleanup_code()
-            old_subcode.stop()
-            del old_subcode
-            del old_offset
+                old_subcode = self.subcodes.pop(parent)
+                old_offset = self._time_offsets.pop(old_subcode)
                 
+                old_subcode.cleanup_code()
+                old_subcode.stop()
+                del old_subcode
+                del old_offset
+                
+            else:
+                self.hibernate_workers(self.__pid_workers[parent])
+        
     def _kick_particles(self, particles, corr_code, dt) -> None:
         """
         Apply correction kicks onto target particles
@@ -1324,14 +1328,14 @@ class Nemesis(object):
                                                       self.avail_cpus)
             self._kick_particles(particles, corr_chd, dt)
             self.channels["from_parents_to_gravity"].copy()
-        
-        with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
-            futures = [executor.submit(self._correct_children, particles.copy(), parent.copy(), subsystem, dt)
-                    for parent, subsystem in subsystems.items()]
-            for future in as_completed(futures):
-                future.result()
+
+            with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
+                futures = [executor.submit(self._correct_children, particles.copy(), parent.copy(), subsystem, dt)
+                           for parent, subsystem in subsystems.items()]
+                for future in as_completed(futures):
+                    future.result()
                     
-        self.particles.recenter_subsystems(max_workers=self.avail_cpus)
+        self.particles.recenter_subsystems(max_workers=2.*self.avail_cpus)
         for parent, subsyst in subsystems.items():
             self.resume_workers(self.__pid_workers[parent])
             self._grav_channel_copier(
