@@ -109,30 +109,34 @@ class CorrectionFromCompoundParticle(object):
         particles.ay = 0. | self.acc_units
         particles.az = 0. | self.acc_units
         
+        parent_idx = {parent.key: i for i, parent in enumerate(particles)}
+        futures = []
+
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             for parent, sys in list(self.subsystems.items()):
                 copied_child = sys.copy()
                 copied_child = copied_child[copied_child.mass > (0 | units.kg)]
-                
-                removed_idx = (abs(particles.mass - parent.mass)).argmin()
+
+                removed_idx = parent_idx[parent.key]
                 copied_child.position += parent.position
-                
-                parent_copy = Particles()
-                parent_copy.add_particle(parent)
-            
-                future = executor.submit(self.correct_parents, 
-                                         particles, 
-                                         parent_copy, 
-                                         copied_child, 
-                                         removed_idx)
+
+                future = executor.submit(
+                             self.correct_parents,
+                             particles,
+                             Particles(particles=[parent]),
+                             copied_child,
+                             removed_idx
+                         )
+                futures.append(future)
+
+            for future in futures:
                 ax, ay, az = future.result()
-                
                 particles.ax += ax
                 particles.ay += ay
                 particles.az += az
-        
+
         return particles.ax, particles.ay, particles.az
-    
+
     def get_potential_at_point(self, radius, x, y, z) -> np.ndarray:
         """
         Get the potential at a specific location
@@ -191,7 +195,9 @@ class CorrectionForCompoundParticle(object):
         self.parent = parent
         self.system = system
         self.lib = library
-    
+        self.SI_units = (1. | units.kg*units.m**-2.) * constants.G
+        self.acc_units = (system.vx.unit**2 / system.x.unit)
+
     def get_gravity_at_point(self, radius, x, y, z) -> float:
         """
         Compute gravitational acceleration felt by children due to parents present.
@@ -207,27 +213,22 @@ class CorrectionForCompoundParticle(object):
         Returns: 
             Array:  Acceleration array of children particles
         """
-        parent = self.parent
-        parts = self.particles - parent
-        
-        coefficient = (1. | units.kg*units.m**-2.) * constants.G
+        parts = self.particles - self.parent
         system = self.system.copy_to_memory()
-        acc_units = (system.vx.unit**2/system.x.unit)
         
-        system.ax = 0. | acc_units
-        system.ay = 0. | acc_units
-        system.az = 0. | acc_units
+        system.ax = 0. | self.acc_units
+        system.ay = 0. | self.acc_units
+        system.az = 0. | self.acc_units
         
-        parent_copy = Particles()
-        parent_copy.add_particle(parent)
-        system.position += parent.position
+        parent_copy = Particles(particles=[self.parent])
+        system.position += self.parent.position
         
         ax_chd, ay_chd, az_chd = compute_gravity(self.lib, parts, system)
         ax_par, ay_par, az_par = compute_gravity(self.lib, parts, parent_copy)
         
-        system.ax += (ax_chd - ax_par) * coefficient
-        system.ay += (ay_chd - ay_par) * coefficient
-        system.az += (az_chd - az_par) * coefficient
+        system.ax += (ax_chd - ax_par) * self.SI_units
+        system.ay += (ay_chd - ay_par) * self.SI_units
+        system.az += (az_chd - az_par) * self.SI_units
         
         return system.ax, system.ay, system.az
     
