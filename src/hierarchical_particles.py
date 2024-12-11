@@ -63,8 +63,9 @@ class HierarchicalParticles(ParticlesOverlay):
             parent.velocity = 0.*sys[0].velocity
         
         if (recenter):
-            parent.position += sys.center_of_mass()
-            parent.velocity += sys.center_of_mass_velocity()
+            massives = sys[sys.mass != (0. | units.kg)]
+            parent.position += massives.center_of_mass()
+            parent.velocity += massives.center_of_mass_velocity()
             sys.move_to_center()
             
         parent.mass = np.sum(sys.mass)

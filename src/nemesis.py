@@ -159,7 +159,6 @@ class Nemesis(object):
             parent.radius = set_parent_radius(np.sum(sys.mass))
             if parent not in self.subcodes:
                 code = self._sub_worker(sys)
-                code.particles.move_to_center()
                 
                 self._time_offsets[code] = self.model_time
                 self.subsystems[parent] = sys
@@ -172,7 +171,7 @@ class Nemesis(object):
                 
             if (self.__verbose):
                 print(f"System {nsyst+1}/{ntotal}, radius: {parent.radius.in_(units.au)}")
-                
+             
         particles[particles.radius > self._max_radius].radius = self._max_radius
         particles[particles.radius < self._min_radius].radius = self._min_radius
 
@@ -198,11 +197,10 @@ class Nemesis(object):
         
     def _setup_bridge(self) -> None:
         """Embed system into galactic potential"""
-        gravity = bridge.Bridge(use_threading=True,
-                                method=SPLIT_4TH_S_M6,)
-        gravity.add_system(self._parent_code, (self._MWG, ))
-        gravity.timestep = self.__dt
-        self._evolve_code = gravity
+        self._evolve_code = bridge.Bridge(use_threading=True,
+                                          method=SPLIT_4TH_S_M6,)
+        self._evolve_code.add_system(self._parent_code, (self._MWG, ))
+        self._evolve_code.timestep = self.__dt
     
     def _stellar_worker(self) -> SeBa:
         """Define stellar evolution integrator"""
@@ -301,8 +299,8 @@ class Nemesis(object):
             "from_parents_to_gravity":
                 self.particles.new_channel_to(
                     parent_particles,
-                    attributes=["vx","vy","vz"],
-                    target_names=["vx","vy","vz"]
+                    attributes=["x","y","z","vx","vy","vz"],
+                    target_names=["x","y","z","vx","vy","vz"]
                 )
         }
     
@@ -319,18 +317,19 @@ class Nemesis(object):
         Etot = Ek + Ep
         return Etot
       
-    def _star_channel_copier(self):
+    def _star_channel_copier(self) -> None:
         """Copy attributes from stellar code to grav. integrator particle set"""
         stars = self._stellar_code.particles
         self.channels["from_stellar_to_gravity"].copy()
         for parent, code in self.subcodes.items():
-            self.resume_workers(self.__pid_workers[parent])
+            pid = self.__pid_workers[parent]
+            self.resume_workers(pid)
             channel = stars.new_channel_to(code.particles)
             channel.copy_attributes(["mass", "radius"])
-            self.hibernate_workers(self.__pid_workers[parent])
+            self.hibernate_workers(pid)
             
     def _grav_channel_copier(self, transfer_data, receive_data, 
-                             attributes=["x","y","z","vx","vy","vz", "radius", "mass"]) -> None:
+                             attributes=["x","y","z","vx","vy","vz","radius","mass"]) -> None:
         """
         Communicate information between grav. integrator and local particle set
         
@@ -383,7 +382,7 @@ class Nemesis(object):
                 self._correction_kicks(
                     self.particles, 
                     self.subsystems,
-                    timestep
+                    tend - self.model_time
                 )
  
             if self.asteroids:
@@ -410,16 +409,18 @@ class Nemesis(object):
             print(f"Time: {self.model_time.in_(units.Myr)}")
             print(f"Parent code time: {self._parent_code.model_time.in_(units.Myr)}")
             for parent, code in self.subcodes.items():
-                self.resume_workers(self.__pid_workers[parent])
+                pid = self.__pid_workers[parent]
+                self.resume_workers(pid)
                 total_time = code.model_time + self._time_offsets[code]
                 if not abs(total_time - self.model_time) < 0.01 * self.__dt:
                     print(f"Parent: {parent.key}, Excess simulation: {total_time - self.model_time}")
-                self.hibernate_workers(self.__pid_workers[parent])
+                self.hibernate_workers(pid)
                 
             print(f"Stellar code time: {self._stellar_code.model_time.in_(units.Myr)}")
             print(f"==================================================")
             
     def _split_subcodes(self) -> None:
+        """Check for any isolated children"""    
         if (self.__verbose):
             print("...Checking Splits...")
 
@@ -443,7 +444,8 @@ class Nemesis(object):
                     parent_vel = parent.velocity
 
                     with self.__lock:
-                        self.resume_workers(self.__pid_workers[parent])
+                        pid = self.__pid_workers[parent]
+                        self.resume_workers(pid)
                         self.particles.remove_particle(parent)
                         code = self.subcodes.pop(parent)
                         self._time_offsets.pop(code)
@@ -578,21 +580,11 @@ class Nemesis(object):
             newparent.radius = set_parent_radius(np.sum(new_children.mass))
             new_children.move_to_center()
             
-        newcode = self._sub_worker(new_children)
-        newcode = self._sub_worker(new_children)
-    
-        with self.__lock:
             newcode = self._sub_worker(new_children)
-    
-        with self.__lock:
             self._time_offsets[newcode] = time_offset
             self.subcodes[newparent] = newcode
             self.subsystems[newparent] = new_children
-            
             worker_pid = self.get_child_pid()
-            worker_pid = self.get_child_pid()
-            
-        worker_pid = self.get_child_pid()    
             
         self.__pid_workers[newparent] = worker_pid
         self.hibernate_workers(worker_pid)
@@ -791,7 +783,7 @@ class Nemesis(object):
                     code.particles, 
                     self.subsystems[parti_]
                 )
-                self.hibernate_workers(worker_pid)
+                self.hibernate_workers(self.__pid_workers[newparent])
                 
         for parti_ in collsubset:              
             if parti_ in self.subsystems:
@@ -1185,7 +1177,8 @@ class Nemesis(object):
                 parent (Particle):  Parent particle
             """
             try:
-                self.resume_workers(self.__pid_workers[parent])
+                pid = self.__pid_workers[parent]
+                self.resume_workers(pid)
                 code = self.subcodes[parent]
                 evol_time = dt - self._time_offsets[code]
                 if evol_time <= 0 | units.s:
@@ -1214,7 +1207,6 @@ class Nemesis(object):
                                 PE = code.particles.potential_energy()
                                 E1 = KE + PE
                                 self.corr_energy += E1 - E0
-
                 self.hibernate_workers(self.__pid_workers[parent])
 
             except Exception as e:
@@ -1237,10 +1229,11 @@ class Nemesis(object):
 
         changes = [ ]
         for parent in self.subcodes.keys(): # Remove single children systems:
-            self.resume_workers(self.__pid_workers[parent])
+            pid = self.__pid_workers[parent]
+            self.resume_workers(pid)
             if len(self.subcodes[parent].particles) == 1:
                 changes.append(parent)
-            self.hibernate_workers(self.__pid_workers[parent])
+            self.hibernate_workers(pid)
 
         for parent in changes:
             old_subcode = self.subcodes.pop(parent)
@@ -1289,6 +1282,7 @@ class Nemesis(object):
         corr_par = CorrectionForCompoundParticle(particles, parent, subsystem, self.lib)
         self._kick_particles(subsystem, corr_par, dt)
         pid = self.__pid_workers[parent]
+        
         self.resume_workers(pid)
         self._grav_channel_copier(
             subsystem, 
@@ -1310,6 +1304,7 @@ class Nemesis(object):
         self.channels["from_gravity_to_parents"].copy()
         for parent, subsyst in subsystems.items():
             pid = self.__pid_workers[parent]
+            
             self.resume_workers(pid)
             self._grav_channel_copier(
                 self.subcodes[parent].particles,
@@ -1332,8 +1327,10 @@ class Nemesis(object):
                     future.result()
         
         self.particles.recenter_subsystems(max_workers=int(2 * self.avail_cpus))
+        self.channels["from_parents_to_gravity"].copy()
         for parent, subsyst in subsystems.items():
             pid = self.__pid_workers[parent]
+            
             self.resume_workers(pid)
             self._grav_channel_copier(
                 subsyst,
