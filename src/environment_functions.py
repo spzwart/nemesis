@@ -3,7 +3,7 @@ import numpy as np
 
 from amuse.datamodel import Particles
 from amuse.ext.galactic_potentials import MWpotentialBovy2015
-from amuse.ext.orbital_elements import orbital_elements_from_binary
+from amuse.ext.orbital_elements import orbital_elements
 from amuse.units import units, constants
 
 
@@ -26,8 +26,8 @@ def ejection_checker(particle_set, tidal_radius=None) -> np.ndarray:
         np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # zcoord
         np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # cluster com
         ctypes.c_int,  # num_particles
-        ctypes.c_double,  # NN threshold distance
-        np.ctypeslib.ndpointer(dtype=np.int32, ndim=1, flags='C_CONTIGUOUS'),  # ejected bool
+        ctypes.c_double,  # Threshold distance
+        np.ctypeslib.ndpointer(dtype=np.int32, ndim=1, flags='C_CONTIGUOUS'),  # Array of booleans (1 = ejected, 0 = not ejected)
     ]
     
     if tidal_radius is None:
@@ -35,6 +35,7 @@ def ejection_checker(particle_set, tidal_radius=None) -> np.ndarray:
     else:
         tidal_radius = 2.*tidal_radius
     num_parts = len(particle_set)
+    
     com_pos = particle_set.center_of_mass()
     
     ejected_bools = np.zeros(len(particle_set), dtype=np.int32)
@@ -91,12 +92,10 @@ def set_parent_radius(tot_mass) -> float:
 
     Args:
        tot_mass (Float):  Total mass of the system
-       dt (Float):  Timestep
-       pop (Float/Int):  Population of the system
     Returns:
        Float: Merging radius of the parent system
     """
-    radius = 100 * (tot_mass.value_in(units.MSun))**(1./3.) | units.AU
+    radius = 100. * (tot_mass.value_in(units.MSun))**(1./3.) | units.AU
     return radius
 
 def planet_radius(planet_mass) -> float:
@@ -131,7 +130,6 @@ def tidal_radius(parent_set) -> float:
         Float:  The tidal radius of the cluster
     """
     cluster_galaxy_system = Particles(2)
-    
     cluster_mass = parent_set.mass.sum()
     cluster_pos = parent_set.center_of_mass()
     enclosed_mass = MWG.enclosed_mass(cluster_pos.length())
@@ -140,11 +138,11 @@ def tidal_radius(parent_set) -> float:
     cluster_galaxy_system[0].velocity = parent_set.center_of_mass_velocity()
     cluster_galaxy_system[0].mass = cluster_mass
     
-    cluster_galaxy_system[1].position = [0., 0., 0.] | units.kpc
+    cluster_galaxy_system[1].position = [0., 0., 0.] | units.pc
     cluster_galaxy_system[1].velocity = [0., 0., 0.] | units.kms
     cluster_galaxy_system[1].mass = enclosed_mass
 
-    kepler_elements = orbital_elements_from_binary(cluster_galaxy_system, G=constants.G)
+    kepler_elements = orbital_elements(cluster_galaxy_system, G=constants.G)
     ecc = kepler_elements[3]
     
     tidal_radius = ((cluster_mass/enclosed_mass)/(3.+ecc))**(1./3.) * cluster_pos.length()
@@ -160,7 +158,7 @@ def ZAMS_radius(star_mass) -> float:
         Float:  The ZAMS radius of the star
     """
     mass_in_sun = star_mass.value_in(units.MSun)
-    mass_sq = (mass_in_sun)**2
+    mass_sq = (mass_in_sun)**2.
     r_zams = mass_in_sun**1.25 * (0.1148 + 0.8604 * mass_sq)/(0.04651 + mass_sq)
     
     return r_zams | units.RSun
