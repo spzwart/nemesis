@@ -97,16 +97,14 @@ def identify_parents(particle_set) -> list:
     Returns:
         List:  Index 0 contains major bodies, index 1 test particles
     """
-    isolated_particles = particle_set[particle_set.syst_id <= 0]
-    major_bodies = isolated_particles[isolated_particles.mass != (0. | units.kg)]
-    test_particles = isolated_particles - major_bodies
+    major_bodies = particle_set[particle_set.syst_id <= 0]
     for system_id in np.unique(particle_set.syst_id):
         if system_id > 0:
             system = particle_set[particle_set.syst_id == system_id]
             hosting_body = system[system.mass.argmax()]
             major_bodies += hosting_body
             
-    return [major_bodies, test_particles]
+    return major_bodies
 
 def run_simulation(particle_set, tend, code_dt, dtbridge, 
                    dt_diag, dE_track, gal_field, 
@@ -139,11 +137,11 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
         particle_set = configure_galactic_frame(particle_set)
     Rvir = particle_set[particle_set.mass > (0. | units.kg)].virial_radius()
     
-    major_bodies, test_particles = identify_parents(particle_set)
+    major_bodies = identify_parents(particle_set)
     isolated_systems = major_bodies[major_bodies.syst_id < 0]
     bounded_systems = major_bodies[major_bodies.syst_id > 0]
     conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), Rvir)
-    par_nworker = len(isolated_systems) // 500
+    par_nworker = max(1, len(isolated_systems) // 500)
     
     # Setting up system
     parents = HierarchicalParticles(isolated_systems)
@@ -164,14 +162,13 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
         newparent = nemesis.particles.add_subsystem(children)
         newparent.radius = set_parent_radius(newparent.mass)
     nemesis.particles.add_particles(parents)
-    nemesis.asteroids = test_particles
     nemesis.commit_particles()
+    nemesis._split_subcodes()
         
     if (nemesis._dE_track):
         energy_arr = [ ]
     
     allparts = nemesis.particles.all()
-    allparts.add_particles(nemesis.asteroids)
     write_set_to_file(
         allparts.savepoint(0 | units.Myr), 
         os.path.join(snapdir_path, "snap_0"), 
@@ -197,7 +194,7 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
     while t < tend:
         if (verbose):
             t0 = cpu_time.time()
-        
+            
         t += dtbridge
         if t == dtbridge and (dE_track):
             E0 = nemesis._calculate_total_energy()
@@ -213,11 +210,11 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
             t_diag += dt_diag
             snapshot_no += 1
             allparts = nemesis.particles.all()
-            allparts.add_particles(nemesis.asteroids)
             
             fname = os.path.join(snapdir_path, f"snap_{snapshot_no}")
             write_set_to_file(
-                allparts,  fname, 'amuse', 
+                allparts.savepoint(nemesis.model_time),  
+                fname, 'amuse', 
                 close_file=True, 
                 overwrite_file=True
             )
@@ -237,7 +234,6 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
             print(f"Step took {t1-t0} seconds")
         
     allparts = nemesis.particles.all()
-    allparts.add_particles(nemesis.asteroids)
     write_set_to_file(
         allparts, 
         os.path.join(snapdir_path, f"snap_{snapshot_no+1}"), 
@@ -288,7 +284,7 @@ def new_option_parser():
     result.add_option("--code_dt", 
                       dest="code_dt", 
                       type="float", 
-                      default=3.e-2,
+                      default=1.e-1,
                       help="Gravitational integrator internal timestep")
     result.add_option("--dt_diag", 
                       dest="dt_diag", 

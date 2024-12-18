@@ -52,6 +52,7 @@ class CorrectionFromCompoundParticle(object):
         self.subsystems = subsystems
         self.lib = library
         self.max_workers = max_workers
+        self.SI_units = (1. | units.kg*units.m**-2.) * constants.G
         
     def correct_parents(self, particles, parent_copy, system, removed_idx) -> None:
         """
@@ -66,16 +67,15 @@ class CorrectionFromCompoundParticle(object):
         ax = 0. | self.acc_units
         ay = 0. | self.acc_units
         az = 0. | self.acc_units
-        coefficient = (1. | units.kg/units.m**2) * constants.G
         
         parts = particles - parent_copy
         
         ax_chd, ay_chd, az_chd = compute_gravity(self.lib, system, parts)
         ax_par, ay_par, az_par = compute_gravity(self.lib, parent_copy, parts)
         
-        ax += (ax_chd - ax_par) * coefficient
-        ay += (ay_chd - ay_par) * coefficient
-        az += (az_chd - az_par) * coefficient
+        ax += (ax_chd - ax_par) * self.SI_units
+        ay += (ay_chd - ay_par) * self.SI_units
+        az += (az_chd - az_par) * self.SI_units
         
         ax = np.insert(ax.value_in(self.acc_units).astype(np.float128), removed_idx, 0.)
         ay = np.insert(ay.value_in(self.acc_units).astype(np.float128), removed_idx, 0.)
@@ -110,12 +110,10 @@ class CorrectionFromCompoundParticle(object):
         particles.az = 0. | self.acc_units
         
         parent_idx = {parent.key: i for i, parent in enumerate(particles)}
-        futures = []
-
+        futures = [ ]
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             for parent, sys in list(self.subsystems.items()):
                 copied_child = sys.copy()
-                copied_child = copied_child[copied_child.mass > (0 | units.kg)]
 
                 removed_idx = parent_idx[parent.key]
                 copied_child.position += parent.position
@@ -195,7 +193,7 @@ class CorrectionForCompoundParticle(object):
         self.parent = parent
         self.system = system
         self.lib = library
-        self.SI_units = (1. | units.kg*units.m**-2.) * constants.G
+        self.SI_units = (1. | units.kg * units.m**-2.) * constants.G
         self.acc_units = (system.vx.unit**2 / system.x.unit)
 
     def get_gravity_at_point(self, radius, x, y, z) -> float:
@@ -252,16 +250,16 @@ class CorrectionForCompoundParticle(object):
         instance = CalculateFieldForParticles(gravity_constant=constants.G)
         instance.particles.add_particles(parts)
         phi = instance.get_potential_at_point(
-                        0.*radius,
-                        parent.x + x,
-                        parent.y + y,
-                        parent.z + z
-                        )
+                    0.*radius,
+                    parent.x + x,
+                    parent.y + y,
+                    parent.z + z
+                    )
         _phi = instance.get_potential_at_point(
-                        [0.*parent.radius],
-                        [parent.x],
-                        [parent.y],
-                        [parent.z]
-                        )
+                    [0.*parent.radius],
+                    [parent.x],
+                    [parent.y],
+                    [parent.z]
+                    )
         instance.cleanup_code()
         return (phi-_phi[0])

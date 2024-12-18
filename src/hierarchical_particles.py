@@ -64,9 +64,13 @@ class HierarchicalParticles(ParticlesOverlay):
         
         if (recenter):
             massives = sys[sys.mass != (0. | units.kg)]
-            parent.position += massives.center_of_mass()
-            parent.velocity += massives.center_of_mass_velocity()
-            sys.move_to_center()
+            center_of_mass = massives.center_of_mass()
+            center_of_mass_velocity = massives.center_of_mass_velocity()
+            
+            parent.position += center_of_mass
+            parent.velocity += center_of_mass_velocity
+            sys.position -= center_of_mass
+            sys.velocity -= center_of_mass_velocity
             
         parent.mass = np.sum(sys.mass)
 
@@ -88,14 +92,13 @@ class HierarchicalParticles(ParticlesOverlay):
                 Particle:  The updated (copied) parent particle
             """
             massives = system[system.mass != (0. | units.kg)]
-            
             center_of_mass = massives.center_of_mass()
             center_of_mass_velocity = massives.center_of_mass_velocity()
             
-            system.position -= center_of_mass
-            system.velocity -= center_of_mass_velocity
             parent_copy.position += center_of_mass
             parent_copy.velocity += center_of_mass_velocity
+            system.position -= center_of_mass
+            system.velocity -= center_of_mass_velocity
             
             return parent_copy
                  
