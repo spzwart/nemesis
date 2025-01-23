@@ -38,7 +38,8 @@ def compute_gravity(grav_lib, perturber, particles) -> float:
     
 class CorrectionFromCompoundParticle(object):
     def __init__(self, particles, subsystems, library, max_workers):
-        """Correct force exerted by some parent system on 
+        """
+        Correct force exerted by some parent system on 
         other particles by that of its children.
         
         Args:
@@ -64,10 +65,7 @@ class CorrectionFromCompoundParticle(object):
             system (particle set):  Copy of selected parent's children
             removed_idx (int):  Index of parent particle
         """
-        ax = 0. | self.acc_units
-        ay = 0. | self.acc_units
-        az = 0. | self.acc_units
-        
+        ax = ay = az = 0. | self.acc_units
         parts = particles - parent_copy
         
         ax_chd, ay_chd, az_chd = compute_gravity(self.lib, system, parts)
@@ -118,13 +116,11 @@ class CorrectionFromCompoundParticle(object):
                 removed_idx = parent_idx[parent.key]
                 copied_child.position += parent.position
 
-                future = executor.submit(
-                             self.correct_parents,
-                             particles,
-                             Particles(particles=[parent]),
-                             copied_child,
-                             removed_idx
-                         )
+                future = executor.submit(self.correct_parents,
+                                         particles,
+                                         Particles(particles=[parent]),
+                                         copied_child,
+                                         removed_idx)
                 futures.append(future)
 
             for future in futures:
@@ -156,23 +152,19 @@ class CorrectionFromCompoundParticle(object):
             code.particles.velocity += parent.velocity
             
             parts = particles - parent
-            phi = code.get_potential_at_point(
-                            0.*parts.radius, 
-                            parts.x, 
-                            parts.y, 
-                            parts.z
-                            )
+            phi = code.get_potential_at_point(0.*parts.radius, 
+                                              parts.x, 
+                                              parts.y, 
+                                              parts.z)
             parts.phi += phi
             code.cleanup_code()
             
             code = CalculateFieldForParticles(gravity_constant=constants.G)
             code.particles.add_particle(parent)
-            phi = code.get_potential_at_point(
-                            0.*parts.radius, 
-                            parts.x, 
-                            parts.y, 
-                            parts.z
-                            )
+            phi = code.get_potential_at_point(0.*parts.radius, 
+                                              parts.x, 
+                                              parts.y, 
+                                              parts.z)
             parts.phi -= phi
             code.cleanup_code()
             
@@ -249,17 +241,14 @@ class CorrectionForCompoundParticle(object):
         
         instance = CalculateFieldForParticles(gravity_constant=constants.G)
         instance.particles.add_particles(parts)
-        phi = instance.get_potential_at_point(
-                    0.*radius,
-                    parent.x + x,
-                    parent.y + y,
-                    parent.z + z
-                    )
-        _phi = instance.get_potential_at_point(
-                    [0.*parent.radius],
-                    [parent.x],
-                    [parent.y],
-                    [parent.z]
-                    )
+        phi = instance.get_potential_at_point(0.*radius,
+                                              parent.x + x,
+                                              parent.y + y,
+                                              parent.z + z)
+        _phi = instance.get_potential_at_point([0.*parent.radius],
+                                               [parent.x],
+                                               [parent.y],
+                                               [parent.z])
         instance.cleanup_code()
+        
         return (phi-_phi[0])

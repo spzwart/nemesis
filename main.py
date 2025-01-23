@@ -34,7 +34,7 @@ def create_output_directories(sim_dir, run_idx) -> str:
         os.mkdir(dir_path+"/")
         subdir = ["event_data", "collision_snapshot", 
                   "data_process", "simulation_stats", 
-                  "simulation_snapshot", "ejected_particles"]
+                  "simulation_snapshot"]
         for path in subdir:
             os.makedirs(os.path.join(dir_path, path))
         os.makedirs(os.path.join(dir_path, "collision_snapshot", "output"))
@@ -129,12 +129,12 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
     # Setup directory paths
     dir_path = create_output_directories(sim_dir, run_idx)
     coll_dir = os.path.join(dir_path, "collision_snapshot")
-    ejected_dir = os.path.join(dir_path, "ejected_particles")
     snapdir_path = os.path.join(dir_path, "simulation_snapshot")
 
     particle_set = load_particle_set(sim_dir, run_idx)
     if (gal_field):
         particle_set = configure_galactic_frame(particle_set)
+        
     Rvir = particle_set[particle_set.mass > (0. | units.kg)].virial_radius()
     
     major_bodies = identify_parents(particle_set)
@@ -148,8 +148,7 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
     nemesis = Nemesis(min_stellar_mass=MIN_EVOL_MASS, 
                       par_conv=conv_par, 
                       dtbridge=dtbridge, 
-                      coll_dir=coll_dir, 
-                      ejected_dir=ejected_dir, 
+                      coll_dir=coll_dir,
                       eps=EPS, 
                       code_dt=code_dt, 
                       par_nworker=par_nworker, 
@@ -161,12 +160,14 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
         children = particle_set[particle_set.syst_id == id_]
         newparent = nemesis.particles.add_subsystem(children)
         newparent.radius = set_parent_radius(newparent.mass)
+        
     nemesis.particles.add_particles(parents)
     nemesis.commit_particles()
     nemesis._split_subcodes()
         
     if (nemesis._dE_track):
         energy_arr = [ ]
+        E0 = nemesis._calculate_total_energy()
     
     allparts = nemesis.particles.all()
     write_set_to_file(
@@ -196,9 +197,6 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
             t0 = cpu_time.time()
             
         t += dtbridge
-        if t == dtbridge and (dE_track):
-            E0 = nemesis._calculate_total_energy()
-        
         while nemesis.model_time < t*(1. - EPS):
             nemesis.evolve_model(t)
             
@@ -235,19 +233,13 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
         
     allparts = nemesis.particles.all()
     write_set_to_file(
-        allparts, 
+        allparts.savepoint(nemesis.model_time), 
         os.path.join(snapdir_path, f"snap_{snapshot_no+1}"), 
         'amuse', close_file=True, overwrite_file=True
     )
     
     print("...Simulation Ended...")
-    nemesis._stellar_code.stop()  
-    nemesis._parent_code.stop()
-    for parent, code in nemesis.subcodes.items():
-        pid = nemesis.__pid_workers[parent]
-        nemesis.resume_worker(pid)
-        code.stop()
-
+    
     # Store simulation statistics
     sim_time = (cpu_time.time() - START_TIME)/60.
     fname = os.path.join(dir_path, 'simulation_stats', f'sim_stats_{run_idx}.txt')
@@ -256,6 +248,14 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
                 \nEnd Time: {t.in_(units.Myr)} \
                 \nTime step: {dtbridge.in_(units.Myr)}")
     f.close()
+    
+    for parent, code in nemesis.subcodes.items():
+        pid = nemesis.__pid_workers[parent]
+        nemesis.resume_worker(pid)
+        code.stop()
+        
+    nemesis._stellar_code.stop()  
+    nemesis._parent_code.stop()
     
     if (dE_track):
         with open(os.path.join(dir_path, "energy_error.csv"), 'w') as f:

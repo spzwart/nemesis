@@ -20,10 +20,11 @@ class HierarchicalParticles(ParticlesOverlay):
         Returns:
             ParticlesOverlay:  The particle set
         """
-        _parts=ParticlesOverlay.add_particles(self,parts)
+        _parts = ParticlesOverlay.add_particles(self,parts)
         if hasattr(parts.collection_attributes, "subsystems"):
             for parent, sys in parts.collection_attributes.subsystems.items():
                 self.collection_attributes.subsystems[parent.as_particle_in_set(self)] = sys
+                
         return _parts
     
     def add_subsystem(self, sys, recenter=True) -> Particle:
@@ -46,6 +47,7 @@ class HierarchicalParticles(ParticlesOverlay):
         )
         parent = self.add_particle(p)
         self.collection_attributes.subsystems[parent] = sys
+        
         return parent
 
     def assign_parent_attributes(self, sys, parent, relative=True, recenter=True) -> None:
@@ -62,8 +64,8 @@ class HierarchicalParticles(ParticlesOverlay):
             parent.position = 0.*sys[0].position
             parent.velocity = 0.*sys[0].velocity
         
+        massives = sys[sys.mass != (0. | units.kg)]
         if (recenter):
-            massives = sys[sys.mass != (0. | units.kg)]
             center_of_mass = massives.center_of_mass()
             center_of_mass_velocity = massives.center_of_mass_velocity()
             
@@ -72,7 +74,7 @@ class HierarchicalParticles(ParticlesOverlay):
             sys.position -= center_of_mass
             sys.velocity -= center_of_mass_velocity
             
-        parent.mass = np.sum(sys.mass)
+        parent.mass = np.sum(massives.mass)
 
     def recenter_subsystems(self, max_workers) -> None:
         """
@@ -124,6 +126,7 @@ class HierarchicalParticles(ParticlesOverlay):
         """
         for p in parts:
             self.collection_attributes.subsystems.pop(p, None)
+            
         ParticlesOverlay.remove_particles(self, parts)
     
     def all(self) -> Particles:
@@ -140,6 +143,7 @@ class HierarchicalParticles(ParticlesOverlay):
         subsystems = self.collection_attributes.subsystems
         for system_id, (parent, sys) in enumerate(subsystems.items()):
             parts.remove_particle(parent)
+            
             subsys = parts.add_particles(sys)
             subsys.sub_worker_radius = subsys.radius
             subsys.position += parent.position

@@ -1,56 +1,11 @@
-import ctypes
 import numpy as np
 
 from amuse.datamodel import Particles
 from amuse.ext.galactic_potentials import MWpotentialBovy2015
-from amuse.ext.orbital_elements import orbital_elements
-from amuse.units import units, constants
+from amuse.units import units
 
 
 MWG = MWpotentialBovy2015()
-
-def ejection_checker(particle_set, tidal_radius=None) -> np.ndarray:
-    """
-    Find ejected systems (particles whose second nearest neighbour is separated with > DIST_THRESHOLD)
-
-    Args:
-        particle_set (particle set):  The particle set
-        tidal_field (boolean):  1 = Physical tidal radius 0 = hard-coded tidal radius
-    Returns:
-        Array: Array of booleans flagging ejected particles
-    """
-    lib = ctypes.CDLL('./src/build/find_ejection_worker.so')  # Adjust the path as necessary
-    lib.find_nearest_neighbour.argtypes = [
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # xcoord
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # ycoord
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # zcoord
-        np.ctypeslib.ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS'),  # cluster com
-        ctypes.c_int,  # num_particles
-        ctypes.c_double,  # Threshold distance
-        np.ctypeslib.ndpointer(dtype=np.int32, ndim=1, flags='C_CONTIGUOUS'),  # Array of booleans (1 = ejected, 0 = not ejected)
-    ]
-    
-    if tidal_radius is None:
-        tidal_radius = (10. | units.pc)
-    else:
-        tidal_radius = 2.*tidal_radius
-    num_parts = len(particle_set)
-    
-    com_pos = particle_set.center_of_mass()
-    
-    ejected_bools = np.zeros(len(particle_set), dtype=np.int32)
-    lib.find_nearest_neighbour(
-        particle_set.x.value_in(units.m),
-        particle_set.y.value_in(units.m),
-        particle_set.z.value_in(units.m),
-        com_pos.value_in(units.m),
-        num_parts, 
-        tidal_radius.value_in(units.m),
-        ejected_bools
-    )
-    ejected_idx = np.where(ejected_bools == 1)[0]
-    
-    return ejected_idx
 
 def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz) -> Particles:
     """
@@ -58,12 +13,12 @@ def galactic_frame(parent_set, dx, dy, dz, dvx, dvy, dvz) -> Particles:
 
     Args:
         parent_set (object):  The particle set
-        dx (Float):  x Distance of cluster to center of galaxy
-        dy (Float):  y Distance of cluster to center of galaxy
-        dz (Float):  z Distance of cluster to center of galaxy
-        dvx (Float):  x-Velocity of cluster in galactocentric frame
-        dvy (Float):  y-Velocity of cluster in galactocentric frame
-        dvz (Float):  z-Velocity of cluster in galactocentric frame
+        dx (Float):  x-coordinate in galactocentric frame
+        dy (Float):  y-coordinate in galactocentric frame
+        dz (Float):  z-coordinate in galactocentric frame
+        dvx (Float):  x-Velocity in galactocentric frame
+        dvy (Float):  y-Velocity in galactocentric frame
+        dvz (Float):  z-Velocity in galactocentric frame
     Returns:
         Particles: Particle set with galactocentric coordinates
     """
@@ -119,34 +74,6 @@ def planet_radius(planet_mass) -> float:
     
     radius = (14.3 | units.REarth)*(mass_in_earth)**(-0.02) 
     return radius
-
-def tidal_radius(parent_set) -> float:
-    """
-    Tidal radius (Spitzer 1987 eqn 5.10)
-    
-    Args:
-        parent_set (object):  The parent particle set
-    Returns:
-        Float:  The tidal radius of the cluster
-    """
-    cluster_galaxy_system = Particles(2)
-    cluster_mass = parent_set.mass.sum()
-    cluster_pos = parent_set.center_of_mass()
-    enclosed_mass = MWG.enclosed_mass(cluster_pos.length())
-    
-    cluster_galaxy_system[0].position = cluster_pos
-    cluster_galaxy_system[0].velocity = parent_set.center_of_mass_velocity()
-    cluster_galaxy_system[0].mass = cluster_mass
-    
-    cluster_galaxy_system[1].position = [0., 0., 0.] | units.pc
-    cluster_galaxy_system[1].velocity = [0., 0., 0.] | units.kms
-    cluster_galaxy_system[1].mass = enclosed_mass
-
-    kepler_elements = orbital_elements(cluster_galaxy_system, G=constants.G)
-    ecc = kepler_elements[3]
-    
-    tidal_radius = ((cluster_mass/enclosed_mass)/(3.+ecc))**(1./3.) * cluster_pos.length()
-    return tidal_radius
     
 def ZAMS_radius(star_mass) -> float:
     """
