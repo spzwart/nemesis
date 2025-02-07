@@ -16,7 +16,7 @@ class HierarchicalParticles(ParticlesOverlay):
         Add particles to particle set.
         
         Args:
-            parts (Particle set):  The particle set to be added
+            parts (Particles):  The particle set to be added
         Returns:
             ParticlesOverlay:  The particle set
         """
@@ -27,12 +27,12 @@ class HierarchicalParticles(ParticlesOverlay):
                 
         return _parts
     
-    def add_subsystem(self, sys, recenter=True) -> Particle:
+    def add_subsystem(self, sys: Particles, recenter=True) -> Particle:
         """
         Create a parent from particle subsytem
         
         Args:
-            sys (Particle set):  The children particle set
+            sys (Particles):  The children particle set
             recenter (Boolean):  Flag to recenter the parent
         Returns:
             Particle:  The parent particle
@@ -50,12 +50,12 @@ class HierarchicalParticles(ParticlesOverlay):
         
         return parent
 
-    def assign_parent_attributes(self, sys, parent, relative=True, recenter=True) -> None:
+    def assign_parent_attributes(self, sys: Particles, parent: Particle, relative=True, recenter=True) -> None:
         """
         Create parent from subsystem attributes
         
         Args:
-            sys (Particle set):  The children particle set
+            sys (Particles):  The children particle set
             parent (Particle):  The parent particle
             relative (Boolean):  Flag to assign relative attributes
             recenter (Boolean):  Flag to recenter the parent
@@ -76,20 +76,20 @@ class HierarchicalParticles(ParticlesOverlay):
             
         parent.mass = np.sum(massives.mass)
 
-    def recenter_subsystems(self, max_workers) -> None:
+    def recenter_subsystems(self, max_workers: int) -> None:
         """
         Recenter the children subsystems
         
         Args:
             max_workers (int):  The number of cores to use
         """
-        def calculate_com(parent_copy, system):
+        def calculate_com(parent_copy: Particle, system: Particles):
             """
             Calculate and shift system relative to center of mass
             
             Args:
                 parent_copy (Particle):  The copied parent particle
-                system (Particle set):  The children particle set
+                system (Particles):  The children particle set
             Returns:
                 Particle:  The updated (copied) parent particle
             """
@@ -117,12 +117,12 @@ class HierarchicalParticles(ParticlesOverlay):
             parent.position = updated_parent.position
             parent.velocity = updated_parent.velocity
 
-    def remove_particles(self, parts) -> None:
+    def remove_particles(self, parts: Particles) -> None:
         """
         Remove particles from particle set.
         
         Args:
-            parts (object):  The particle to be removed
+            parts (Particles):  The particle to be removed
         """
         for p in parts:
             self.collection_attributes.subsystems.pop(p, None)

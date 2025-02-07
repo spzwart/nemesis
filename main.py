@@ -17,64 +17,59 @@ from src.nemesis import Nemesis
 START_TIME = cpu_time.time()
 MIN_EVOL_MASS = 0.08 | units.MSun
 
-
-def create_output_directories(sim_dir, run_idx) -> str:
+    
+def create_output_directories(sim_dir: str) -> str:
     """
-    Creates relevant directories for output data
+    Creates directories for output
     
     Args:
-        sim_dir (str): Simulation directory path
-        run_idx (int):  Index of specific run
+        sim_dir (str):  Simulation directory path
     Returns:
         String: Directory path for specific run
     """
-    config_name = f"Nrun{run_idx}"
-    dir_path = os.path.join(sim_dir, config_name)
-    if not os.path.exists(dir_path):
-        os.mkdir(dir_path+"/")
-        subdir = ["event_data", "collision_snapshot", 
-                  "data_process", "simulation_stats", 
+    config_name = f"Nrun{RUN_IDX}"
+    directory_path = os.path.join(sim_dir, config_name)
+    if not os.path.exists(directory_path):
+        os.mkdir(directory_path+"/")
+        subdir = ["event_data", "collision_snapshot",
+                  "data_process", "simulation_stats",
                   "simulation_snapshot"]
         for path in subdir:
-            os.makedirs(os.path.join(dir_path, path))
-        os.makedirs(os.path.join(dir_path, "collision_snapshot", "output"))
+            os.makedirs(os.path.join(directory_path, path), exist_ok=True)
+        
+        collision_output = os.path.join(directory_path, "collision_snapshot", "output")
+        os.makedirs(collision_output, exist_ok=True)
             
-    return dir_path
+    return directory_path
 
-def load_particle_set(sim_dir, run_idx) -> Particles:
+def load_particle_set(sim_dir: str) -> Particles:
     """
     Load particle set from file
     
     Args:
-        sim_dir (String):  Path to initial conditions
-        run_idx (Int):  Index of run
+        sim_dir (str):  Path to initial conditions
     Returns:
-        Particles:  Initial conditions of particle set wished to simulate
+        Particles:  Initial particle set properties
     """
     particle_set_dir = os.path.join(sim_dir, "initial_particles", "*")
     particle_sets = natsorted(glob.glob(particle_set_dir))
-    if run_idx >= len(particle_sets):
-        raise IndexError(f"Error: Run index {run_idx} out of range.")
     
-    file = particle_sets[run_idx]
-    if not os.path.isfile(file):
-        raise FileNotFoundError(f"Error: No particle set found in {particle_set_dir}")
-    
+    file = particle_sets[RUN_IDX]
     particle_set = read_set_from_file(file)
+    if len(particle_set) == 0:
+        raise ValueError(f"Error: Particle set {file} is empty.")
+    
     particle_set.coll_events = 0
     particle_set.move_to_center()
     
-    if len(particle_set) == 0:
-        raise Exception(f"Error: Particle set {particle_set_dir} is empty.")
-    
     return particle_set
 
-def configure_galactic_frame(particle_set) -> Particles:
+def configure_galactic_frame(particle_set: Particles) -> Particles:
     """
     Shift particle set to galactic frame. Currently assumes solar orbit.
     
     Args:
-        particle_set (Particles):  The particle set
+        particle_set (particles):  The particle set
     Returns:
         Particles: Particle set with galactocentric coordinates
     """
@@ -86,16 +81,16 @@ def configure_galactic_frame(particle_set) -> Particles:
                           dvy=12.25 | units.kms,
                           dvz=7.41 | units.kms)
     
-def identify_parents(particle_set) -> list:
+def identify_parents(particle_set: Particles) -> list:
     """
     Identify parents in particle set. These are either:
         - Isolated particles (syst_id < 0)
         - Hosts of children system (max mass in system)
     
     Args:
-        particle_set (Particles):  The particle set
+        particle_set (particles):  The particle set
     Returns:
-        List:  Index 0 contains major bodies, index 1 test particles
+        list:  Index 0 contains major bodies, index 1 test particles
     """
     major_bodies = particle_set[particle_set.syst_id <= 0]
     for system_id in np.unique(particle_set.syst_id):
@@ -106,32 +101,45 @@ def identify_parents(particle_set) -> list:
             
     return major_bodies
 
-def run_simulation(particle_set, tend, code_dt, dtbridge, 
-                   dt_diag, dE_track, gal_field, 
-                   star_evol, verbose) -> None:
+def setup_simulation(particle_set: Particles) -> tuple:
+    """
+    Setup simulation directories and load particle set.
+
+    Args:
+        particle_set (particles): The particle set
+
+    Returns:
+        tuple: (directory_path, snapshot_path, particle_set)
+    """
+    sim_dir = particle_set.split("initial_particles/")[0]
+    directory_path = create_output_directories(sim_dir)
+    snapshot_path = os.path.join(directory_path, "simulation_snapshot")
+    particle_set = load_particle_set(sim_dir)
+    
+    return directory_path, snapshot_path, particle_set
+
+def run_simulation(particle_set: Particles, tend: float, 
+                   code_dt: float, dtbridge, dt_diag: float, 
+                   dE_track: bool, gal_field: bool, star_evol: bool, 
+                   verbose: bool) -> None:
     """
     Run simulation and output data.
     
     Args:
         particle_set (String):  Path to initial conditions
-        tend (Float):  Simulation end time
-        code_dt (Float):  Gravitational integrator internal timestep
-        dtbridge (Float):  Bridge timestep
-        dt_diag (Float):  Diagnostic time step
-        dE_track (Boolean):  Flag turning on energy error tracker
-        gal_field (Boolean):  Flag turning on galactic field or not
-        star_evol (Boolean):  Flag turning on stellar evolution or not
-        verbose (Boolean):  Flag turning on print statements or not
+        tend (float):  Simulation end time
+        code_dt (float):  Gravitational integrator internal timestep
+        dtbridge (float):  Bridge timestep
+        dt_diag (float):  Diagnostic time step
+        dE_track (boolean):  Flag turning on energy error tracker
+        gal_field (boolean):  Flag turning on galactic field or not
+        star_evol (boolean):  Flag turning on stellar evolution or not
+        verbose (boolean):  Flag turning on print statements or not
     """
     EPS = 1.e-8
-    sim_dir = particle_set.split("initial_particles/")[0]
     
-    # Setup directory paths
-    dir_path = create_output_directories(sim_dir, run_idx)
-    coll_dir = os.path.join(dir_path, "collision_snapshot")
-    snapdir_path = os.path.join(dir_path, "simulation_snapshot")
-
-    particle_set = load_particle_set(sim_dir, run_idx)
+    directory_path, snapshot_path, particle_set = setup_simulation(particle_set)
+    coll_dir = os.path.join(directory_path, "collision_snapshot")
     if (gal_field):
         particle_set = configure_galactic_frame(particle_set)
         
@@ -163,7 +171,7 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
         
     nemesis.particles.add_particles(parents)
     nemesis.commit_particles()
-    nemesis._split_subcodes()
+    nemesis._split_subcodes()  # Check for any splits at t=0
         
     if (nemesis._dE_track):
         energy_arr = [ ]
@@ -172,19 +180,19 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
     allparts = nemesis.particles.all()
     write_set_to_file(
         allparts.savepoint(0 | units.Myr), 
-        os.path.join(snapdir_path, "snap_0"), 
+        os.path.join(snapshot_path, "snap_0"), 
         'amuse', close_file=True, overwrite_file=True
     )
     
     if (verbose):
-        print("...Simulation Params...")
-        print(f"Total number of particles: {len(particle_set)}")
-        print(f"Total number of initial children: {id_}")
-        print(f"Bridge timestep: {dtbridge.in_(units.yr)}")
-        print(f"End time: {tend.in_(units.Myr)}")
-        print(f"Galactic field: {gal_field}")
-        print(f"Number of workers: {par_nworker}")
-        print(f"............................................")
+        print(
+            f"Simulation Parameters:\n"
+            f"  Total number of particles: {len(particle_set)}\n"
+            f"  Total number of initial children: {id_}\n"
+            f"  Bridge timestep: {dtbridge.in_(units.yr)}\n"
+            f"  End time: {tend.in_(units.Myr)}\n"
+            f"  Galactic field: {gal_field}"
+        )
     
     t = 0. | units.yr
     t_diag = dt_diag
@@ -201,15 +209,18 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
             nemesis.evolve_model(t)
             
         if (nemesis.model_time >= t_diag) and (nemesis.dt_step != prev_step):
-            print(f"Saving snap. T= {t.in_(units.yr)}")
-            print(f"Time taken: {cpu_time.time() - snap_cpu_time}")
-            snap_cpu_time = cpu_time.time()
+            if (verbose):
+                print(
+                    f"Saving snapshot {snapshot_no} at time {t.in_(units.yr)}\n"
+                    f"Time taken: {cpu_time.time() - snap_cpu_time}"
+                )
+                snap_cpu_time = cpu_time.time()
             
             t_diag += dt_diag
             snapshot_no += 1
             allparts = nemesis.particles.all()
             
-            fname = os.path.join(snapdir_path, f"snap_{snapshot_no}")
+            fname = os.path.join(snapshot_path, f"snap_{snapshot_no}")
             write_set_to_file(
                 allparts.savepoint(nemesis.model_time),  
                 fname, 'amuse', 
@@ -234,7 +245,7 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
     allparts = nemesis.particles.all()
     write_set_to_file(
         allparts.savepoint(nemesis.model_time), 
-        os.path.join(snapdir_path, f"snap_{snapshot_no+1}"), 
+        os.path.join(snapshot_path, f"snap_{snapshot_no+1}"), 
         'amuse', close_file=True, overwrite_file=True
     )
     
@@ -242,15 +253,15 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
     
     # Store simulation statistics
     sim_time = (cpu_time.time() - START_TIME)/60.
-    fname = os.path.join(dir_path, 'simulation_stats', f'sim_stats_{run_idx}.txt')
+    fname = os.path.join(directory_path, 'simulation_stats', f'sim_stats_{RUN_IDX}.txt')
     with open(fname, 'w') as f:
         f.write(f"Total CPU Time: {sim_time} minutes \
                 \nEnd Time: {t.in_(units.Myr)} \
                 \nTime step: {dtbridge.in_(units.Myr)}")
-    f.close()
     
+    # Kill all workers
     for parent, code in nemesis.subcodes.items():
-        pid = nemesis.__pid_workers[parent]
+        pid = nemesis._pid_workers[parent]
         nemesis.resume_worker(pid)
         code.stop()
         
@@ -258,9 +269,8 @@ def run_simulation(particle_set, tend, code_dt, dtbridge,
     nemesis._parent_code.stop()
     
     if (dE_track):
-        with open(os.path.join(dir_path, "energy_error.csv"), 'w') as f:
+        with open(os.path.join(directory_path, "energy_error.csv"), 'w') as f:
             f.write(f"Energy error: {energy_arr}")
-        f.close()
      
 def new_option_parser():
     result = OptionParser()
@@ -312,15 +322,24 @@ def new_option_parser():
                       action="store_true", 
                       default=True,
                       help="Flag to turn on print statements")
+    result.add_option("--run_idx",
+                      dest="run_idx",
+                      type="int",
+                      default=0,
+                      help="Index of specific run")
     
     return result
         
 if __name__ == "__main__":
     o, args = new_option_parser().parse_args()
     
-    run_idx = 0
-    initial_particles = natsorted(glob.glob("data/OrionLike_Plummer_Qvir_0.25/initial_particles/*"))
-    particle_set = initial_particles[run_idx]
+    RUN_IDX = o.run_idx
+    initial_particles = natsorted(glob.glob("examples/basic_cluster/initial_particles/*"))
+    try:
+        particle_set = initial_particles[RUN_IDX]
+    except IndexError:
+        raise IndexError(f"Error: Run index {RUN_IDX} out of range. \n"
+                         f"Available particle sets: {initial_particles}.")
     
     run_simulation(
         particle_set=particle_set, 

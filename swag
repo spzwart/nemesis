@@ -1,0 +1,195 @@
+[erwanh-desktop:98473] shmem: mmap: an error occurred while determining whether or not /tmp/ompi.erwanh-desktop.1000/jf.0/267649024/shared_mem_cuda_pool.erwanh-desktop could be created.
+[erwanh-desktop:98473] create_and_attach: unable to create shared memory BTL coordinating structure :: size 134217728 
+Abort is in progress...hit ctrl-c again to forcibly terminate
+
+System 1/10, radius: 149.197168486 au
+System 2/10, radius: 104.070325841 au
+System 3/10, radius: 96.4890963528 au
+System 4/10, radius: 124.391339091 au
+System 5/10, radius: 124.87067973 au
+System 6/10, radius: 108.286868948 au
+System 7/10, radius: 101.503104202 au
+System 8/10, radius: 168.070134524 au
+System 9/10, radius: 149.164592051 au
+System 10/10, radius: 122.465989445 au
+...Checking Splits...
+Simulation Parameters:
+  Total number of particles: 250
+  Total number of initial children: 10
+  Bridge timestep: 1000.0 yr
+  End time: 20.0 Myr
+  Galactic field: True
+Stellar evol. 
+Drifting global
+...Drifting Global...
+Drifting child
+...Drifting Children...
+Kicking
+Stellar Evol
+...Checking Splits...
+Time: 0.00106201437421 Myr
+Parent code time: 0.00106201437421 Myr
+Stellar code time: 0.00106201437421 Myr
+#Children: 10
+==================================================
+Step took 3.750425338745117 seconds
+Stellar evol. 
+Drifting global
+...Drifting Global...
+Drifting child
+...Drifting Children...
+Traceback (most recent call last):
+  File "/home/erwanh/Desktop/PhD_Code/Planetary_Systems/nemesis/src/nemesis.py", line 1065, in _drift_child
+    for future in as_completed(futures):  #Iterate over to ensure no silent failures
+                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/miniforge3/envs/AMUSE_Env/lib/python3.12/concurrent/futures/_base.py", line 243, in as_completed
+    waiter.event.wait(wait_timeout)
+  File "/home/erwanh/miniforge3/envs/AMUSE_Env/lib/python3.12/threading.py", line 655, in wait
+Error while evolving parent 1056957549874103983: Exception when calling function 'evolve_model', of code 'HuaynoInterface', exception was 'Error in code: no error message - code probably died, sorry.'
+Error while evolving parent 6509566147153725223: Exception when calling function 'evolve_model', of code 'HuaynoInterface', exception was 'Error in code: no error message - code probably died, sorry.'
+Error while evolving parent 11867854737965210774: Exception when calling function 'evolve_model', of code 'HuaynoInterface', exception was 'Error in code: no error message - code probably died, sorry.'
+Error while evolving parent 3702509481506591511: Exception when calling function 'evolve_model', of code 'HuaynoInterface', exception was 'Error in code: no error message - code probably died, sorry.'
+Traceback: Traceback (most recent call last):
+  File "/home/erwanh/amuse/src/amuse/rfi/core.py", line 129, in __call__
+    dtype_to_result = self.interface.channel.recv_message(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/rfi/channel.py", line 1350, in recv_message
+    raise exceptions.CodeException("Error in code: " + error_message)
+amuse.support.exceptions.CodeException: Error in code: no error message - code probably died, sorry.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/erwanh/Desktop/PhD_Code/Planetary_Systems/nemesis/src/nemesis.py", line 1033, in evolve_code
+    code.evolve_model(evol_time)
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 168, in __call__
+    result = self.method(*list_arguments, **keyword_arguments)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 168, in __call__
+    result = self.method(*list_arguments, **keyword_arguments)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 168, in __call__
+    result = self.method(*list_arguments, **keyword_arguments)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 267, in __call__
+    return self.method(*list_arguments, **keyword_arguments)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/rfi/core.py", line 138, in __call__
+    raise exceptions.CodeException(
+amuse.support.exceptions.CodeException: Exception when calling function 'evolve_model', of code 'HuaynoInterface', exception was 'Error in code: no error message - code probably died, sorry.'
+
+Traceback: Traceback (most recent call last):
+  File "/home/erwanh/amuse/src/amuse/rfi/core.py", line 129, in __call__
+    dtype_to_result = self.interface.channel.recv_message(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/rfi/channel.py", line 1350, in recv_message
+    raise exceptions.CodeException("Error in code: " + error_message)
+amuse.support.exceptions.CodeException: Error in code: no error message - code probably died, sorry.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/erwanh/Desktop/PhD_Code/Planetary_Systems/nemesis/src/nemesis.py", line 1033, in evolve_code
+    code.evolve_model(evol_time)
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 168, in __call__
+    result = self.method(*list_arguments, **keyword_arguments)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 168, in __call__
+    result = self.method(*list_arguments, **keyword_arguments)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 168, in __call__
+    result = self.method(*list_arguments, **keyword_arguments)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 267, in __call__
+    return self.method(*list_arguments, **keyword_arguments)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/rfi/core.py", line 138, in __call__
+    raise exceptions.CodeException(
+amuse.support.exceptions.CodeException: Exception when calling function 'evolve_model', of code 'HuaynoInterface', exception was 'Error in code: no error message - code probably died, sorry.'
+
+Traceback: Traceback (most recent call last):
+  File "/home/erwanh/amuse/src/amuse/rfi/core.py", line 129, in __call__
+    dtype_to_result = self.interface.channel.recv_message(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/rfi/channel.py", line 1350, in recv_message
+    raise exceptions.CodeException("Error in code: " + error_message)
+amuse.support.exceptions.CodeException: Error in code: no error message - code probably died, sorry.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/erwanh/Desktop/PhD_Code/Planetary_Systems/nemesis/src/nemesis.py", line 1033, in evolve_code
+    code.evolve_model(evol_time)
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 168, in __call__
+    result = self.method(*list_arguments, **keyword_arguments)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 168, in __call__
+    result = self.method(*list_arguments, **keyword_arguments)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 168, in __call__
+    result = self.method(*list_arguments, **keyword_arguments)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 267, in __call__
+    return self.method(*list_arguments, **keyword_arguments)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/rfi/core.py", line 138, in __call__
+    raise exceptions.CodeException(
+amuse.support.exceptions.CodeException: Exception when calling function 'evolve_model', of code 'HuaynoInterface', exception was 'Error in code: no error message - code probably died, sorry.'
+
+Traceback: Traceback (most recent call last):
+  File "/home/erwanh/amuse/src/amuse/rfi/core.py", line 129, in __call__
+    dtype_to_result = self.interface.channel.recv_message(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/rfi/channel.py", line 1350, in recv_message
+    raise exceptions.CodeException("Error in code: " + error_message)
+amuse.support.exceptions.CodeException: Error in code: no error message - code probably died, sorry.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/erwanh/Desktop/PhD_Code/Planetary_Systems/nemesis/src/nemesis.py", line 1033, in evolve_code
+    code.evolve_model(evol_time)
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 168, in __call__
+    result = self.method(*list_arguments, **keyword_arguments)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 168, in __call__
+    result = self.method(*list_arguments, **keyword_arguments)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 168, in __call__
+    result = self.method(*list_arguments, **keyword_arguments)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/support/methods.py", line 267, in __call__
+    return self.method(*list_arguments, **keyword_arguments)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/amuse/src/amuse/rfi/core.py", line 138, in __call__
+    raise exceptions.CodeException(
+amuse.support.exceptions.CodeException: Exception when calling function 'evolve_model', of code 'HuaynoInterface', exception was 'Error in code: no error message - code probably died, sorry.'
+    signaled = self._cond.wait(timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/miniforge3/envs/AMUSE_Env/lib/python3.12/threading.py", line 355, in wait
+    waiter.acquire()
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/erwanh/Desktop/PhD_Code/Planetary_Systems/nemesis/main.py", line 344, in <module>
+    run_simulation(
+  File "/home/erwanh/Desktop/PhD_Code/Planetary_Systems/nemesis/main.py", line 209, in run_simulation
+    nemesis.evolve_model(t)
+  File "/home/erwanh/Desktop/PhD_Code/Planetary_Systems/nemesis/src/nemesis.py", line 372, in evolve_model
+    self._drift_child(self.model_time)
+  File "/home/erwanh/Desktop/PhD_Code/Planetary_Systems/nemesis/src/nemesis.py", line 1061, in _drift_child
+    with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/erwanh/miniforge3/envs/AMUSE_Env/lib/python3.12/concurrent/futures/_base.py", line 647, in __exit__
+    self.shutdown(wait=True)
+  File "/home/erwanh/miniforge3/envs/AMUSE_Env/lib/python3.12/concurrent/futures/thread.py", line 238, in shutdown
+    t.join()
+  File "/home/erwanh/miniforge3/envs/AMUSE_Env/lib/python3.12/threading.py", line 1149, in join
+    self._wait_for_tstate_lock()
+  File "/home/erwanh/miniforge3/envs/AMUSE_Env/lib/python3.12/threading.py", line 1169, in _wait_for_tstate_lock
+    if lock.acquire(block, timeout):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+
