@@ -22,8 +22,8 @@ def ZAMS_radius(mass):
             * (0.1148 + 0.8604*mass_sq) / (0.04651 + mass_sq)
     return r_zams | units.RSun
 
-Nbodies = 200
-Nchildren = 10
+Nbodies = 500
+Nchildren = 100
 
 masses = new_kroupa_mass_distribution(Nbodies, mass_min=0.5 | units.MSun, mass_max=30 | units.MSun)
 converter = nbody_system.nbody_to_si(masses.sum(), 1 | units.pc)
