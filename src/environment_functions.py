@@ -7,19 +7,18 @@ from amuse.units import units
 
 MWG = MWpotentialBovy2015()
 
-def galactic_frame(parent_set: Particles, dx: float, dy: float, dz: float, 
-                   dvx: float, dvy: float, dvz: float) -> Particles:
+def galactic_frame(parent_set: Particles, dx, dy, dz, dvx, dvy, dvz) -> Particles:
     """
-    Shift particle set to galactic frame
+    Shift particle set to galactic frame.
 
     Args:
         parent_set (Particles):  The particle set
-        dx (float):  x-coordinate in galactocentric frame
-        dy (float):  y-coordinate in galactocentric frame
-        dz (float):  z-coordinate in galactocentric frame
-        dvx (float):  x-Velocity in galactocentric frame
-        dvy (float):  y-Velocity in galactocentric frame
-        dvz (float):  z-Velocity in galactocentric frame
+        dx (units.length): x-coordinate shift in the galactocentric frame
+        dy (units.length): y-coordinate shift in the galactocentric frame
+        dz (units.length): z-coordinate shift in the galactocentric frame
+        dvx (units.length): x-velocity shift in the galactocentric frame
+        dvy (units.length): y-velocity shift in the galactocentric frame
+        dvz (units.length): z-velocity shift in the galactocentric frame
     Returns:
         Particles: Particle set with galactocentric coordinates
     """
@@ -28,62 +27,51 @@ def galactic_frame(parent_set: Particles, dx: float, dy: float, dz: float,
     parent_set.z += dz
     distance = np.sqrt(dx**2 + dy**2 + dz**2)
     
-    dvy += MWG.circular_velocity(distance)
     parent_set.vx += dvx
-    parent_set.vy += dvy
+    parent_set.vy += dvy + MWG.circular_velocity(distance)
     parent_set.vz += dvz
     
     return parent_set
 
-def set_parent_radius(tot_mass: float) -> float:
+def set_parent_radius(system_mass) -> units.au:
     """
     Merging radius of parent systems. Based on system crossing time.
-    
-    Too large a radius:
-        - Poor conservation of angular momentum
-        - Center of mass approximation is poor due to low resolution
-    Too small a radius:
-        - Slow down the simulation due to shared timesteps. 
-        - System crossing time << internal time-step and violent interactions are missed.
+    - Too large → Poor angular momentum conservation, inaccurate center of mass.
+    - Too small → Excessive computation due to frequent small timesteps.
 
     Args:
-       tot_mass (float):  Total mass of the system
+       system_mass (units.mass):  Total mass of the system
     Returns:
-       float: Merging radius of the parent system
+       units.length: Merging radius of the parent system
     """
-    radius = 100. * (tot_mass.value_in(units.MSun))**(1./3.) | units.AU
+    radius = 500. * (system_mass.value_in(units.MSun))**(1./3.) | units.AU
     return radius
 
-def planet_radius(planet_mass: float) -> float:
+def planet_radius(planet_mass) -> units.REarth:
     """
-    Define planet radius (arXiv:2311.12593)
+    Compute planet radius (arXiv:2311.12593).
     
     Args:
-        plant_mass (float):  Mass of the planet
+        planet_mass (units.mass):  Mass of the planet
     Returns:
-        float:  Planet radius
+        units.mass:  Planet radius
     """
     mass_in_earth = planet_mass.value_in(units.MEarth)
     
-    if planet_mass < (7.8 | units.MEarth):
-        radius = (1. | units.REarth)*(mass_in_earth)**0.41
-        return radius
+    if mass_in_earth < 7.8:
+        return (1. | units.REarth)*(mass_in_earth)**0.41
+    elif mass_in_earth < 125:
+        return (0.55 | units.REarth)*(mass_in_earth)**0.65
+    return (14.3 | units.REarth)*(mass_in_earth)**(-0.02) 
     
-    elif planet_mass < (125. | units.MEarth):
-        radius = (0.55 | units.REarth)*(mass_in_earth)**0.65
-        return radius
-    
-    radius = (14.3 | units.REarth)*(mass_in_earth)**(-0.02) 
-    return radius
-    
-def ZAMS_radius(star_mass: float) -> float:
+def ZAMS_radius(star_mass) -> units.RSun:
     """
-    Define stellar radius at ZAMS
+    Define stellar radius at ZAMS.
     
     Args:
-        star_mass (float):  Mass of the star
+        star_mass (units.mass):  Mass of the star
     Returns:
-        float:  The ZAMS radius of the star
+        units.length:  The ZAMS radius of the star
     """
     mass_in_sun = star_mass.value_in(units.MSun)
     mass_sq = (mass_in_sun)**2.

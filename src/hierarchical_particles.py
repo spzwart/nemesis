@@ -11,7 +11,7 @@ class HierarchicalParticles(ParticlesOverlay):
         ParticlesOverlay.__init__(self,*args,**kwargs)
         self.collection_attributes.subsystems = dict()
 
-    def add_particles(self, parts) -> ParticlesOverlay:  
+    def add_particles(self, parts: Particles) -> ParticlesOverlay:  
         """
         Add particles to particle set.
         
@@ -33,19 +33,20 @@ class HierarchicalParticles(ParticlesOverlay):
         
         Args:
             sys (Particles):  The children particle set
-            recenter (Boolean):  Flag to recenter the parent
+            recenter (bool):  Flag to recenter the parent
         Returns:
             Particle:  The parent particle
         """
         if len(sys) == 1:
             return self.add_particles(sys)[0]
         
-        p = Particle()
+        parent = Particle()
         self.assign_parent_attributes(
-            sys, p, relative=False, 
+            sys, parent, 
+            relative=False, 
             recenter=recenter
         )
-        parent = self.add_particle(p)
+        parent = self.add_particle(parent)
         self.collection_attributes.subsystems[parent] = sys
         
         return parent
@@ -57,22 +58,26 @@ class HierarchicalParticles(ParticlesOverlay):
         Args:
             sys (Particles):  The children particle set
             parent (Particle):  The parent particle
-            relative (Boolean):  Flag to assign relative attributes
-            recenter (Boolean):  Flag to recenter the parent
+            relative (bool):  Flag to assign relative attributes
+            recenter (bool):  Flag to recenter the parent
         """
-        if not (relative):
+        if not relative:
             parent.position = 0.*sys[0].position
             parent.velocity = 0.*sys[0].velocity
         
         massives = sys[sys.mass != (0. | units.kg)]
-        if (recenter):
-            center_of_mass = massives.center_of_mass()
-            center_of_mass_velocity = massives.center_of_mass_velocity()
+        if recenter:
+            masses = massives.mass.value_in(units.kg)
+            positions = massives.position.value_in(units.m)
+            velocities = massives.velocity.value_in(units.ms)
             
-            parent.position += center_of_mass
-            parent.velocity += center_of_mass_velocity
-            sys.position -= center_of_mass
-            sys.velocity -= center_of_mass_velocity
+            com = np.average(positions, weights=masses, axis=0)
+            com_vel = np.average(velocities, weights=masses, axis=0)
+            
+            parent.position += com | units.m
+            parent.velocity += com_vel | units.ms
+            sys.position -= com | units.m
+            sys.velocity -= com_vel | units.ms
             
         parent.mass = np.sum(massives.mass)
 
@@ -94,16 +99,20 @@ class HierarchicalParticles(ParticlesOverlay):
                 Particle:  The updated (copied) parent particle
             """
             massives = system[system.mass != (0. | units.kg)]
-            center_of_mass = massives.center_of_mass()
-            center_of_mass_velocity = massives.center_of_mass_velocity()
+            masses = massives.mass.value_in(units.kg)
+            positions = massives.position.value_in(units.m)
+            velocities = massives.velocity.value_in(units.ms)
             
-            parent_copy.position += center_of_mass
-            parent_copy.velocity += center_of_mass_velocity
-            system.position -= center_of_mass
-            system.velocity -= center_of_mass_velocity
+            com = np.average(positions, weights=masses, axis=0)
+            com_vel = np.average(velocities, weights=masses, axis=0)
+            
+            parent_copy.position += com | units.m
+            parent_copy.velocity += com_vel | units.ms
+            system.position -= com | units.m
+            system.velocity -= com_vel | units.ms
             
             return parent_copy
-                 
+        
         updated_parents = dict()
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
@@ -137,7 +146,7 @@ class HierarchicalParticles(ParticlesOverlay):
         Returns:
             Particles:  The complete particle set simulating
         """
-        parts = self.copy_to_memory()
+        parts = self.copy()
         parts.syst_id = -1
         
         subsystems = self.collection_attributes.subsystems

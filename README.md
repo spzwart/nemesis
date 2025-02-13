@@ -12,12 +12,12 @@ Nemesis is a flexible and efficient multi-scale algorithm used to integrate hier
 2. Compile C++ files: <br />
     ```cd src/cpp``` <br />
     ```make```
-3. Create a cluster particle set. For instance, in ```examples/``` execite: <br />
+3. Create a cluster particle set. For instance, in ```examples/``` execute: <br />
     ```python basic_cluster/particle_initialiser.py```
     This will create a particle set with several planetary systems. The particle set are always saved in a folder ```initial_particles/```.
 4. Execute script from the root directory. Make sure that the ```initial_particles``` in the main directs the code to the target ```initial_particles/``` directory.To run with default values execute: <br />
     ```python main.py```
-Data will be saved in the directory hosting ```initialise_particles/```. With folders containing ejection+collision events, snapshots every user-defined time-frame, and statistics on the time taken.
+Data will be saved in the directory hosting ```initialise_particles/```. With folders containing collision events, snapshots every user-defined time-frame, and statistics on the time taken.
 
 
 ### Script contents
@@ -28,7 +28,7 @@ Data will be saved in the directory hosting ```initialise_particles/```. With fo
 - `src/nemesis.py`: Script hosting the evolution procedure
 - `examples/`: Folders with several examples initialising particles set to be run.
 
-NOTE: Children are identified as particles with attribute `syst_id > 0`. Their corresponding parents are identified with the same `syst_id` value.
+NOTE: Children are identified as particles with attribute `syst_id > 0`. Their parents are identified with the same `syst_id` value.
 
 ### Free parameters: 
 In addition to the input functions needed to execute `interface.py`, the following may vary depending on your simulation:
@@ -36,16 +36,13 @@ In addition to the input functions needed to execute `interface.py`, the followi
 main.py:
 - `MIN_EVOL_MASS`: The minimum mass for a particle to be flagged for stellar evolution.
 - `galactic_frame()`: The phase-space coordinates centered about a Milky Way-like galaxy.
-- `typical_crosstime`: The typical crossing time of a parent system. Tendency is to keep diagnostic timestep below 10 crossing times of the smallest system.
 
 src/environment_functions.py:
 - `threshold`: If no second-nearest parent system is within `DIST_THRESHOLD` from iterated parent, it is 'isolated' and a possible ejector.
-- In `set_parent_radius`, there is a pre-factor influencing the parent system radius.
+- `set_parent_radius`, there is a pre-factor influencing the parent system radius.
 
 src/nemesis.py:
 - In `__init__`, `maximum_radius`: Maximum parent radius
 - In `__init__`, `minimum_radius`: Minimum parent radius
-- In `__init__`, `kick_ast_iter`: How many iterations occur between kicking isolated asteroids
 - In `_parent_worker()` time step parameter.
 - In `_split_subcodes()`, there is a coefficient influencing the parent radius to detect 'dettached' objects.
-- In `__drift_test_particles()`, there is a coefficient tuning distance for which isolated asteroids are captured by a parent.
