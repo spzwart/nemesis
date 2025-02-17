@@ -1,8 +1,15 @@
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
 
 from amuse.datamodel import Particle, Particles, ParticlesOverlay
 from amuse.units import units
+
+
+############################## TO WORK ON ##############################
+# 1. PARALLELISE RECENTERING OF SUBSYSTEMS
+#### NUMPY RELEASES GIL, CHECK IF OTHER COMPUTATIONS ARE THE BOTTLE NECK
+########################################################################
+
 
 
 class HierarchicalParticles(ParticlesOverlay):
@@ -11,7 +18,7 @@ class HierarchicalParticles(ParticlesOverlay):
         ParticlesOverlay.__init__(self,*args,**kwargs)
         self.collection_attributes.subsystems = dict()
 
-    def add_particles(self, parts: Particles) -> ParticlesOverlay:  
+    def add_particles(self, parts: Particles) -> Particles:  
         """
         Add particles to particle set.
         
@@ -81,50 +88,51 @@ class HierarchicalParticles(ParticlesOverlay):
             
         parent.mass = np.sum(massives.mass)
 
-    def recenter_subsystems(self, max_workers: int) -> None:
+    def recenter_subsystems(self, max_workers) -> None:
         """
         Recenter the children subsystems
         
         Args:
             max_workers (int):  The number of cores to use
         """
-        def calculate_com(parent_copy: Particle, system: Particles):
+        def calculate_com(parent_pos, parent_vel, system) -> tuple:
             """
             Calculate and shift system relative to center of mass
             
             Args:
-                parent_copy (Particle):  The copied parent particle
+                parent_pos (units.length):  Parent particle position
+                parent_vel (units.velocity):  Parent particle velocity
                 system (Particles):  The children particle set
+                
             Returns:
-                Particle:  The updated (copied) parent particle
+                tuple:  The shifted position and velocity
             """
             massives = system[system.mass != (0. | units.kg)]
             masses = massives.mass.value_in(units.kg)
-            positions = massives.position.value_in(units.m)
-            velocities = massives.velocity.value_in(units.ms)
+            children_pos = massives.position.value_in(units.m)
+            children_vel = massives.velocity.value_in(units.ms)
             
-            com = np.average(positions, weights=masses, axis=0)
-            com_vel = np.average(velocities, weights=masses, axis=0)
+            com = np.average(children_pos, weights=masses, axis=0) | units.m
+            com_vel = np.average(children_vel, weights=masses, axis=0) | units.ms
             
-            parent_copy.position += com | units.m
-            parent_copy.velocity += com_vel | units.ms
-            system.position -= com | units.m
-            system.velocity -= com_vel | units.ms
+            system.position -= com 
+            system.velocity -= com_vel
+            parent_pos += com
+            parent_vel += com_vel
             
-            return parent_copy
+            return parent_pos, parent_vel
         
-        updated_parents = dict()
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
-                parent: executor.submit(calculate_com, parent.copy(), sys)
+                executor.submit(calculate_com, parent.position, parent.velocity, sys): parent
                 for parent, sys in self.collection_attributes.subsystems.items()
             }
-            for parent, future in futures.items():
-                updated_parents[parent] = future.result()
-            
-        for parent, updated_parent in updated_parents.items():
-            parent.position = updated_parent.position
-            parent.velocity = updated_parent.velocity
+
+            for future in as_completed(futures):
+                parent = futures.pop(future)
+                com_pos, com_vel = future.result()
+                parent.position = com_pos
+                parent.velocity = com_vel
 
     def remove_particles(self, parts: Particles) -> None:
         """

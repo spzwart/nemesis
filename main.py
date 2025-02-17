@@ -59,8 +59,6 @@ def load_particle_set(ic_file: str) -> Particles:
     particle_set = read_set_from_file(ic_file)
     if len(particle_set) == 0:
         raise ValueError(f"Error: Particle set {ic_file} is empty.")
-    
-    particle_set = particle_set[particle_set.syst_id < 6]
     particle_set.coll_events = 0
     particle_set.move_to_center()
     
@@ -116,7 +114,6 @@ def setup_simulation(particle_set: Particles) -> tuple:
     directory_path = create_output_directories(sim_dir)
     snapshot_path = os.path.join(directory_path, "simulation_snapshot")
     particle_set = load_particle_set(particle_set)
-    
     return directory_path, snapshot_path, particle_set
 
 def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: float,
@@ -149,8 +146,8 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     bounded_systems = major_bodies[major_bodies.syst_id > 0]
     
     Rvir = major_bodies.virial_radius()
-    conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), 2*Rvir)
-    par_nworker = max(1, len(isolated_systems) // 350)
+    conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), 2. * Rvir)
+    par_nworker = max(1, len(isolated_systems) // 1000)
     
     # Setting up system
     parents = HierarchicalParticles(isolated_systems)
@@ -167,7 +164,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         
     nemesis.particles.add_particles(parents)
     nemesis.commit_particles()
-    nemesis._split_subcodes()  # Check for any splits at t=0
+    #nemesis._split_subcodes()  # Check for any splits at t=0
         
     if (nemesis._dE_track):
         energy_arr = [ ]
@@ -202,11 +199,6 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     snap_time = time.time()
 
     allparts = nemesis.particles.all()
-    write_set_to_file(
-        allparts.savepoint(nemesis.model_time),  
-        f"validate_data/nemesis_ph4_1000/step_{nemesis.dt_step}.hdf5", 
-        'amuse', close_file=True, overwrite_file=True
-    )
     while t < tend:
         if verbose:
             t0 = time.time()
