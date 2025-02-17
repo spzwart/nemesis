@@ -5,6 +5,11 @@ from amuse.ext.galactic_potentials import MWpotentialBovy2015
 from amuse.units import units
 
 
+############################## TO WORK ON ########################################
+# 1. CONSIDER ADDING ALGORITHM TO CHECK EJECTIONS AND REMOVE RELEVANT PARTICLES
+##################################################################################
+
+
 MWG = MWpotentialBovy2015()
 
 def galactic_frame(parent_set: Particles, dx, dy, dz, dvx, dvy, dvz) -> Particles:
@@ -78,6 +83,6 @@ def ZAMS_radius(star_mass) -> units.RSun:
     
     numerator = mass_in_sun**1.25 * (0.1148 + 0.8604 * mass_sq)
     denominator = (0.04651 + mass_sq)
-    r_zams = numerator/denominator
+    r_zams = numerator / denominator
     
     return r_zams | units.RSun
