@@ -26,6 +26,7 @@ from src.environment_functions import set_parent_radius
 from src.environment_functions import planet_radius, ZAMS_radius
 from src.grav_correctors import CorrectionFromCompoundParticle
 from src.grav_correctors import CorrectionForCompoundParticle
+from src.grav_correctors import _kick_particles
 from src.hierarchical_particles import HierarchicalParticles
 
 
@@ -195,7 +196,7 @@ class Nemesis(object):
             if self.__verbose:
                 print(f"System {nsyst+1}/{ntotal}, radius: {parent.radius.in_(units.au)}")
         
-        self.particles.recenter_subsystems(max_workers=int(2 * self.avail_cpus))
+        self.particles.recenter_subsystems(max_workers=self.avail_cpus)
         overly_massive = particles.radius > self._max_radius
         particles[overly_massive].radius = self._max_radius
 
@@ -1105,14 +1106,16 @@ class Nemesis(object):
 
         with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
             futures = {executor.submit(evolve_code, parent):
-                       parent for parent in list(self.subcodes.keys())}
+                       parent for parent in self.subcodes.keys()}
             for future in as_completed(futures):  # Iterate over to ensure no silent failures
-                parent = futures[future]
+                parent = futures.pop(future)
                 try:
                     future.result()
                 except Exception as e:
                     print(f"Error while evolving parent {parent.key}: {e}")
-
+        futures = None
+        gc.collect()
+        
         for parent in list(self.subcodes.keys()):  # Remove single children systems:
             pid = self._pid_workers[parent]
             self.resume_workers(pid)
@@ -1135,8 +1138,8 @@ class Nemesis(object):
         Apply correction kicks onto target particles
         
         Args:
-            particles (Particles):  Particles to correct accelerations of
-            corr_code (Code):  Code containing information on difference in gravitational field
+            particles (Particles):  Particles whose accelerations are corrected
+            corr_code (Code):  Object providing the difference in gravity
             dt (units.time):  Time-step of correction kick
         """
         ax, ay, az = corr_code.get_gravity_at_point(
@@ -1149,23 +1152,31 @@ class Nemesis(object):
         particles.velocity[:,0] += dt * ax
         particles.velocity[:,1] += dt * ay
         particles.velocity[:,2] += dt * az
-        
-        del ax, ay, az
-        del corr_code
 
-    def _correct_children(self, particles: Particles, parent: Particle, subsystem: Particles, dt) -> None:
+    def _correct_children(self, perturber_mass, perturber_x, perturber_y, perturber_z,
+                          parent_copy: Particle, subsystem: Particles, dt) -> None:
         """
         Apply correcting kicks onto children particles
 
         Args:
-            particles (Particles):  Parent particle set
+            perturber_mass (units.mass):  Mass of perturber
+            perturber_x (units.length):  X-position of perturber
+            perturber_y (units.length):  Y-position of perturber
+            perturber_z (units.length):  Z-position of perturber
             parent (Particle):  Parent particle
             subsystem (Particles):  Children particle set
             dt (units.time):  Time interval for applying kicks
         """
-        corr_par = CorrectionForCompoundParticle(particles, parent, subsystem, self.lib)
+        corr_par = CorrectionForCompoundParticle(
+                        grav_lib=self.lib,
+                        perturber_mass=perturber_mass,
+                        perturber_x=perturber_x,
+                        perturber_y=perturber_y,
+                        perturber_z=perturber_z,
+                        parent_copy=parent_copy, 
+                        system=subsystem, 
+                        )
         self._kick_particles(subsystem, corr_par, dt)
-        del corr_par
        
     def _correction_kicks(self, particles: Particles, subsystems: dict, dt) -> None:
         """
@@ -1176,22 +1187,66 @@ class Nemesis(object):
             subsystems (dict):  Dictionary of children system
             dt (units.time):  Time interval for applying kicks
         """
-        if subsystems and len(particles) > 1:
-            corr_chd = CorrectionFromCompoundParticle(particles,
-                                                      subsystems,
-                                                      self.lib,
-                                                      self.avail_cpus)
-            self._kick_particles(particles, corr_chd, dt)
-            del corr_chd
-
-            with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
-                futures = [executor.submit(self._correct_children, particles.copy(), parent.copy(), subsystem, dt)
-                           for parent, subsystem in subsystems.items()]
-                for future in as_completed(futures):
-                    future.result()
-            futures.clear()
-            gc.collect()
+        def process_children_jobs(parent, children):
+            removed_idx = abs(particles_mass - parent.mass).argmin()
+            mask = np.ones(len(particles_mass), dtype=bool)
+            mask[removed_idx] = False
             
+            pert_mass = particles_mass[mask]
+            pert_xpos = particles_x[mask]
+            pert_ypos = particles_y[mask]
+            pert_zpos = particles_z[mask]
+
+            parent_copy = Particles(1)
+            parent_copy.position = parent.position
+            system_copy = Particles(particles=[children])
+            system_copy.position += parent_copy.position
+
+            future = executor.submit(
+                        self._correct_children,
+                        perturber_mass=pert_mass,
+                        perturber_x=pert_xpos,
+                        perturber_y=pert_ypos,
+                        perturber_z=pert_zpos,
+                        parent_copy=parent_copy,
+                        subsystem=system_copy,
+                        dt=dt
+                        )
+
+            return future
+        
+        if subsystems and len(particles) > 1:
+            corr_chd = CorrectionFromCompoundParticle(
+                            grav_lib=self.lib,
+                            particles=particles,
+                            subsystems=subsystems,
+                            num_of_workers=self.avail_cpus
+                            )
+            self._kick_particles(particles, corr_chd, dt)
+            
+            # Setup array for CorrectionFor
+            particles_mass = particles.mass
+            particles_x = particles.x
+            particles_y = particles.y
+            particles_z = particles.z
+            
+            futures = [ ]
+            with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
+                for parent, children in subsystems.items():
+                    try:
+                        future = process_children_jobs(parent, children)
+                        futures.append(future)
+                    except Exception as e:
+                        print(f"Error submitting job for parent {parent.key}: {e}")
+                        print(f"Traceback: {traceback.format_exc()}")
+
+                for future in as_completed(futures):
+                    try:
+                        future.result()
+                    except Exception as e:
+                        print(f"Error in CorrectionFor result: {e}")
+                        print(f"Traceback: {traceback.format_exc()}")
+                            
     @property
     def model_time(self) -> float:  
         """Extract the global integrator model time"""
