@@ -273,7 +273,7 @@ class CorrectionForCompoundParticle(object):
         
         Args:
             grav_lib (Library): The gravity library (e.g., a wrapped C++ library).
-            parent_copy (Particle): A copy of the parent particle.
+            parent (Particle): A copy of the parent particle.
             system (Particles): The subsystem particles.
             perturber_mass (units.mass): Mass of the perturber particle.
             perturber_x (units.length): x coordinate of the perturber particle.

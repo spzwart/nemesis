@@ -1167,6 +1167,7 @@ class Nemesis(object):
             subsystem (Particles):  Children particle set
             dt (units.time):  Time interval for applying kicks
         """
+        subsystem.position += parent_copy.position   # Use original set for efficiency
         corr_par = CorrectionForCompoundParticle(
                         grav_lib=self.lib,
                         perturber_mass=perturber_mass,
@@ -1177,6 +1178,7 @@ class Nemesis(object):
                         system=subsystem, 
                         )
         self._kick_particles(subsystem, corr_par, dt)
+        subsystem.position -= parent_copy.position  # Move back to c.o.m
        
     def _correction_kicks(self, particles: Particles, subsystems: dict, dt) -> None:
         """
@@ -1199,8 +1201,6 @@ class Nemesis(object):
 
             parent_copy = Particles(1)
             parent_copy.position = parent.position
-            system_copy = Particles(particles=[children])
-            system_copy.position += parent_copy.position
 
             future = executor.submit(
                         self._correct_children,
@@ -1209,11 +1209,11 @@ class Nemesis(object):
                         perturber_y=pert_ypos,
                         perturber_z=pert_zpos,
                         parent_copy=parent_copy,
-                        subsystem=system_copy,
+                        subsystem=children,
                         dt=dt
                         )
 
-            return future
+            return future, parent_copy
         
         if subsystems and len(particles) > 1:
             corr_chd = CorrectionFromCompoundParticle(
@@ -1230,17 +1230,19 @@ class Nemesis(object):
             particles_y = particles.y
             particles_z = particles.z
             
-            futures = [ ]
+            futures = {}
             with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
                 for parent, children in subsystems.items():
                     try:
-                        future = process_children_jobs(parent, children)
-                        futures.append(future)
+                        future, parent_copy = process_children_jobs(parent, children)
+                        futures[future] = parent_copy
                     except Exception as e:
                         print(f"Error submitting job for parent {parent.key}: {e}")
                         print(f"Traceback: {traceback.format_exc()}")
 
                 for future in as_completed(futures):
+                    parent_copy = futures.pop(future)
+                    parent_copy.remove_particle(parent_copy)
                     try:
                         future.result()
                     except Exception as e:
