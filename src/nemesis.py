@@ -20,18 +20,18 @@ from amuse.ext.basicgraph import UnionFind
 from amuse.ext.composition_methods import SPLIT_4TH_S_M6
 from amuse.ext.galactic_potentials import MWpotentialBovy2015
 from amuse.ext.orbital_elements import orbital_elements
+from amuse.lab import write_set_to_file
 from amuse.units import units, constants, nbody_system
 
 from src.environment_functions import set_parent_radius
 from src.environment_functions import planet_radius, ZAMS_radius
 from src.grav_correctors import CorrectionFromCompoundParticle
 from src.grav_correctors import CorrectionForCompoundParticle
-from src.grav_correctors import _kick_particles
 from src.hierarchical_particles import HierarchicalParticles
 
 
 ############################## CURRENT BOTTLE NECKS ##################################
-# 1. Evolving children systems in _evolve_coll_offset --> ONE-BY-ONE, NOT PARALLELISED
+# 1. Evolving subsystems in _evolve_coll_offset --> ONE-BY-ONE, NOT PARALLELISED
 # 2. SPLIT_SUBCODES --> SPLITTING SYSTEMS, NOT PARALLELISED (MEMORY ISSUES)
 #### OTHER ROOM FOR IMPROVEMENT:
 # 1. DEFINE BRIDGE TIME BETTER --> CURRENTLY FIXED
@@ -346,6 +346,7 @@ class Nemesis(object):
         Ek = all_parts.kinetic_energy()
         Ep = all_parts.potential_energy()
         Etot = Ek + Ep
+        all_parts.remove_particles(all_parts)
         return Etot
       
     def _star_channel_copier(self) -> None:
@@ -791,13 +792,28 @@ class Nemesis(object):
         tcoll = code.model_time + self._time_offsets[code]
         with open(os.path.join(self.__coll_dir, f"merger{self.__nmerge}.txt"), 'w') as f:
             f.write(f"Tcoll: {tcoll.in_(units.yr)}")
+            f.write(f"\nSystem ID: {parent.syst_id}")
             f.write(f"\nKey1: {enc_parti[0].key}")
             f.write(f"\nKey2: {enc_parti[1].key}")
+            f.write(f"\nType1: {enc_parti[0].type}")
+            f.write(f"\nType2: {enc_parti[1].type}")
             f.write(f"\nM1: {enc_parti[0].mass.in_(units.MSun)}")
             f.write(f"\nM2: {enc_parti[1].mass.in_(units.MSun)}")
             f.write(f"\nSemi-major axis: {abs(sma).in_(units.au)}")
             f.write(f"\nEccentricity: {ecc}")
             f.write(f"\nInclination: {inc} deg")
+            
+        write_set_to_file(
+            self.particles, 
+            os.path.join(self.__coll_dir, f"Cluster_Merger{self.__nmerge}.hdf5"),
+            'amuse', close_file=True, overwrite_file=True
+        )
+          
+        write_set_to_file(
+            children, 
+            os.path.join(self.__coll_dir, f"System_Merger{self.__nmerge}.hdf5"),
+            'amuse', close_file=True, overwrite_file=True
+        )
         
         # Create merger remnant
         most_massive = collider[collider.mass.argmax()]
@@ -1154,7 +1170,7 @@ class Nemesis(object):
         particles.velocity[:,2] += dt * az
 
     def _correct_children(self, perturber_mass, perturber_x, perturber_y, perturber_z,
-                          parent_copy: Particle, subsystem: Particles, dt) -> None:
+                          parent_x, parent_y, parent_z, subsystem: Particles, dt) -> None:
         """
         Apply correcting kicks onto children particles
 
@@ -1163,22 +1179,31 @@ class Nemesis(object):
             perturber_x (units.length):  X-position of perturber
             perturber_y (units.length):  Y-position of perturber
             perturber_z (units.length):  Z-position of perturber
-            parent (Particle):  Parent particle
+            parent_x (units.length):  X-position of parent
+            parent_y (units.length):  Y-position of parent
+            parent_z (units.length):  Z-position of parent
             subsystem (Particles):  Children particle set
             dt (units.time):  Time interval for applying kicks
         """
-        subsystem.position += parent_copy.position   # Use original set for efficiency
+        subsystem_x = subsystem.x + parent_x
+        subsystem_y = subsystem.y + parent_y
+        subsystem_z = subsystem.z + parent_z
+        
         corr_par = CorrectionForCompoundParticle(
                         grav_lib=self.lib,
+                        parent_x=parent_x,
+                        parent_y=parent_y,
+                        parent_z=parent_z, 
+                        system=subsystem,
+                        system_x=subsystem_x,
+                        system_y=subsystem_y,
+                        system_z=subsystem_z, 
                         perturber_mass=perturber_mass,
                         perturber_x=perturber_x,
                         perturber_y=perturber_y,
                         perturber_z=perturber_z,
-                        parent_copy=parent_copy, 
-                        system=subsystem, 
                         )
         self._kick_particles(subsystem, corr_par, dt)
-        subsystem.position -= parent_copy.position  # Move back to c.o.m
        
     def _correction_kicks(self, particles: Particles, subsystems: dict, dt) -> None:
         """
@@ -1199,50 +1224,51 @@ class Nemesis(object):
             pert_ypos = particles_y[mask]
             pert_zpos = particles_z[mask]
 
-            parent_copy = Particles(1)
-            parent_copy.position = parent.position
-
             future = executor.submit(
                         self._correct_children,
                         perturber_mass=pert_mass,
                         perturber_x=pert_xpos,
                         perturber_y=pert_ypos,
                         perturber_z=pert_zpos,
-                        parent_copy=parent_copy,
+                        parent_x=parent.x,
+                        parent_y=parent.y,
+                        parent_z=parent.z,
                         subsystem=children,
                         dt=dt
                         )
 
-            return future, parent_copy
+            return future
         
         if subsystems and len(particles) > 1:
-            corr_chd = CorrectionFromCompoundParticle(
-                            grav_lib=self.lib,
-                            particles=particles,
-                            subsystems=subsystems,
-                            num_of_workers=self.avail_cpus
-                            )
-            self._kick_particles(particles, corr_chd, dt)
-            
             # Setup array for CorrectionFor
             particles_mass = particles.mass
             particles_x = particles.x
             particles_y = particles.y
             particles_z = particles.z
             
-            futures = {}
+            corr_chd = CorrectionFromCompoundParticle(
+                            grav_lib=self.lib,
+                            particles=particles,
+                            particles_x=particles_x,
+                            particles_y=particles_y,
+                            particles_z=particles_z,
+                            subsystems=subsystems,
+                            num_of_workers=self.avail_cpus
+                            )
+            self._kick_particles(particles, corr_chd, dt)
+            
+            
+            futures = []
             with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
                 for parent, children in subsystems.items():
                     try:
-                        future, parent_copy = process_children_jobs(parent, children)
-                        futures[future] = parent_copy
+                        future = process_children_jobs(parent, children)
+                        futures.append(future)
                     except Exception as e:
                         print(f"Error submitting job for parent {parent.key}: {e}")
                         print(f"Traceback: {traceback.format_exc()}")
 
                 for future in as_completed(futures):
-                    parent_copy = futures.pop(future)
-                    parent_copy.remove_particle(parent_copy)
                     try:
                         future.result()
                     except Exception as e:
