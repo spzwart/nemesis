@@ -795,8 +795,8 @@ class Nemesis(object):
             f.write(f"\nSystem ID: {parent.syst_id}")
             f.write(f"\nKey1: {enc_parti[0].key}")
             f.write(f"\nKey2: {enc_parti[1].key}")
-            f.write(f"\nType1: {enc_parti[0].type}")
-            f.write(f"\nType2: {enc_parti[1].type}")
+            f.write(f"\nType1: {coll_a.type}")
+            f.write(f"\nType2: {coll_b.type}")
             f.write(f"\nM1: {enc_parti[0].mass.in_(units.MSun)}")
             f.write(f"\nM2: {enc_parti[1].mass.in_(units.MSun)}")
             f.write(f"\nSemi-major axis: {abs(sma).in_(units.au)}")
@@ -804,13 +804,13 @@ class Nemesis(object):
             f.write(f"\nInclination: {inc} deg")
             
         write_set_to_file(
-            self.particles, 
+            self._parent_code.particles.savepoint(0 | units.Myr), 
             os.path.join(self.__coll_dir, f"Cluster_Merger{self.__nmerge}.hdf5"),
             'amuse', close_file=True, overwrite_file=True
         )
           
         write_set_to_file(
-            children, 
+            code.particles.savepoint(0 | units.Myr), 
             os.path.join(self.__coll_dir, f"System_Merger{self.__nmerge}.hdf5"),
             'amuse', close_file=True, overwrite_file=True
         )
@@ -847,6 +847,7 @@ class Nemesis(object):
                 
         remnant.coll_events = max(collider.coll_events) + 1
         remnant.type = most_massive.type
+        remnant.original_key = most_massive.original_key
         
         # Deal with simultaneous mergers
         changes = [ ]

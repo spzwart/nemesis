@@ -61,6 +61,7 @@ def load_particle_set(ic_file: str) -> Particles:
         raise ValueError(f"Error: Particle set {ic_file} is empty.")
     particle_set.coll_events = 0
     particle_set.move_to_center()
+    particle_set.original_key = particle_set.key
 
     return particle_set
 
@@ -277,7 +278,7 @@ def new_option_parser():
                       dest="tend", 
                       type="float", 
                       unit=units.Myr, 
-                      default=0.1 | units.Myr,
+                      default=10 | units.Myr,
                       help="End time of simulation")
     result.add_option("--tbridge", 
                       dest="tbridge", 
