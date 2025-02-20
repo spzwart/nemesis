@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
+import traceback
 
 from amuse.couple.bridge import CalculateFieldForParticles
 from amuse.lab import constants, units, Particles, Particle
@@ -199,36 +200,42 @@ class CorrectionFromCompoundParticle(object):
         futures = []
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             for parent, system in list(self.subsystems.items()):
-                removed_idx = parent_idx.pop(parent.key)
+                try:
+                    removed_idx = parent_idx.pop(parent.key)
 
-                ### Strip relevant properties. Copy leads to leak -> remove_particles() consumes time.
-                parent_mass = parent.mass
-                parent_x = parent.x
-                parent_y = parent.y
-                parent_z = parent.z
+                    ### Strip relevant properties. Copy leads to leak -> remove_particles() consumes time.
+                    parent_mass = parent.mass
+                    parent_x = parent.x
+                    parent_y = parent.y
+                    parent_z = parent.z
 
-                system_mass = system.mass
-                system_pos = system.position + parent.position
-                system_x = system_pos.x
-                system_y = system_pos.y
-                system_z = system_pos.z
+                    system_mass = system.mass
+                    system_pos = system.position + parent.position
+                    system_x = system_pos.x
+                    system_y = system_pos.y
+                    system_z = system_pos.z
 
-                future = executor.submit(
-                    self.correct_parents,
-                    particles_x=self.particles_x,
-                    particles_y=self.particles_y,
-                    particles_z=self.particles_z,
-                    parent_mass=parent_mass,
-                    parent_x=parent_x,
-                    parent_y=parent_y,
-                    parent_z=parent_z,
-                    system_mass=system_mass,
-                    system_x=system_x,
-                    system_y=system_y,
-                    system_z=system_z,
-                    removed_idx=removed_idx
-                    )
-                futures.append(future)
+                    future = executor.submit(
+                        self.correct_parents,
+                        particles_x=self.particles_x,
+                        particles_y=self.particles_y,
+                        particles_z=self.particles_z,
+                        parent_mass=parent_mass,
+                        parent_x=parent_x,
+                        parent_y=parent_y,
+                        parent_z=parent_z,
+                        system_mass=system_mass,
+                        system_x=system_x,
+                        system_y=system_y,
+                        system_z=system_z,
+                        removed_idx=removed_idx
+                        )
+                    futures.append(future)
+                except Exception as e:
+                    print(f"Error for parent {parent.key}: {e}")
+                    print(f"Parent Particle: {parent}")
+                    print(f"System Particles: {system}")
+                    print(f"Traceback: {traceback.format_exc()}")
 
             for future in as_completed(futures):
                 ax, ay, az = future.result()
@@ -254,7 +261,7 @@ class CorrectionFromCompoundParticle(object):
         """
         particles = self.particles.copy()
         particles.phi = 0. | (particles.vx.unit**2)
-        for parent, sys in list(self.subsystems.items()): 
+        for parent, sys in self.subsystems.items(): 
             copied_system = sys.copy()
             copied_system.position += parent.position
             copied_system.velocity += parent.velocity

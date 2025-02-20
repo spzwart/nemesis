@@ -528,7 +528,7 @@ class Nemesis(object):
             
         if self.__verbose:
             print(f"New Children has: {len(asteroids)} asteroids, {len(planets)} planets, {len(stars)} stars")
-            print(f"Host mass: {stars.mass.max().in_(units.MSun)}, stars.position: {stars.position.in_(units.au)}")
+            print(f"Host mass: {stars.mass.max().in_(units.MSun)}")
         
         with self.__lock:
             newparent = self.particles.add_subsystem(new_children)
@@ -545,6 +545,7 @@ class Nemesis(object):
                 children=new_children
                 )
             self._pid_workers[newparent] = worker_pid
+
             self.hibernate_workers(worker_pid)
             
     def _process_parent_mergers(self) -> None:
@@ -556,7 +557,7 @@ class Nemesis(object):
         for temp_key, new_children in self._new_systems.items():
             temp_parent_local = self.particles[self.particles.key == temp_key]
             time_offset = self._new_offsets[temp_key]
-                    
+            
             new_children.position += temp_parent_local.position
             new_children.velocity += temp_parent_local.velocity
             
@@ -594,20 +595,21 @@ class Nemesis(object):
         coll_array = self._evolve_coll_offset(coll_set, coll_time)
         collsubset = coll_array[0] 
         
-        newparts = HierarchicalParticles(Particles())
+        newparts = Particles()
         for parti_ in collsubset:
             parti_ = parti_.as_particle_in_set(self.particles)
             
             if parti_ in self.subcodes:
                 pid = self._pid_workers.pop(parti_)
                 self.resume_workers(pid)
+                
                 code = self.subcodes.pop(parti_)
                 offset = self._time_offsets.pop(code)
                 channel = self._child_channels.pop(parti_)
-                
                 sys = self.subsystems.pop(parti_)
                 sys.position += parti_.position
                 sys.velocity += parti_.velocity
+                
                 newparts.add_particles(sys)
 
                 code.cleanup_code()
@@ -624,6 +626,10 @@ class Nemesis(object):
         # Temporary new parent particle
         newparent = Particle()
         newparent.mass = collsubset.total_mass()
+        newparent.radius = set_parent_radius(newparent.mass)
+        if newparent.radius > self._max_radius:
+            newparent.radius = self._max_radius
+            
         if min(collsubset.mass) > 0. | units.kg:
             newparent.position = collsubset.center_of_mass()
             newparent.velocity = collsubset.center_of_mass_velocity()
@@ -632,15 +638,11 @@ class Nemesis(object):
             newparent.position = most_massive.position
             newparent.velocity = most_massive.velocity
         
-        newparent.radius = set_parent_radius(newparent.mass)
-        if newparent.radius > self._max_radius:
-            newparent.radius = self._max_radius
-        
         self.particles.add_particle(newparent)
         newparts.move_to_center()
         
-        self._new_systems[newparent] = newparts
-        self._new_offsets[newparent] = self.model_time
+        self._new_systems[newparent.key] = newparts
+        self._new_offsets[newparent.key] = self.model_time
 
         return newparent
 
@@ -671,16 +673,13 @@ class Nemesis(object):
                 collsubset.remove_particle(parti_)
                 evolved_parent = parti_.as_particle_in_set(self.particles)
 
-                children = self._new_systems.pop(parti_.key)
                 offset = self._new_offsets.pop(parti_.key)
-
-                children = self._new_systems.pop(parti_)
+                children = self._new_systems.pop(parti_.key)
                 children.position += evolved_parent.position
                 children.velocity += evolved_parent.velocity
 
                 newcode = self._sub_worker(children)
                 newcode.particles.move_to_center()
-
                 newparent = self.particles.add_subsystem(children)
                 newparent.radius = set_parent_radius(newparent.mass)
 
@@ -695,7 +694,6 @@ class Nemesis(object):
 
                 worker_pid = self.get_child_pid()
                 self._pid_workers[newparent] = worker_pid
-                self._new_systems.pop(parti_)
                 self.particles.remove_particle(parti_)
                 collsubset.add_particle(newparent)
                 parti_ = newparent  # Redefine parent for further processing
