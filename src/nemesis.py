@@ -528,6 +528,7 @@ class Nemesis(object):
             
         if self.__verbose:
             print(f"New Children has: {len(asteroids)} asteroids, {len(planets)} planets, {len(stars)} stars")
+            print(f"Host mass: {stars.mass.max().in_(units.MSun)}, stars.position: {stars.position.in_(units.au)}")
         
         with self.__lock:
             newparent = self.particles.add_subsystem(new_children)
@@ -552,16 +553,16 @@ class Nemesis(object):
         
         job_queue = queue.Queue()
         nmergers = len(self._new_systems.keys())
-        for temp_parent, new_children in self._new_systems.items():
-            n = temp_parent.as_particle_in_set(self._parent_code.particles)
-            time_offset = self._new_offsets[temp_parent]
+        for temp_key, new_children in self._new_systems.items():
+            temp_parent_local = self.particles[self.particles.key == temp_key]
+            time_offset = self._new_offsets[temp_key]
                     
-            new_children.position += n.position
-            new_children.velocity += n.velocity
+            new_children.position += temp_parent_local.position
+            new_children.velocity += temp_parent_local.velocity
             
             job_queue.put((new_children, time_offset))
-            self.particles.remove_particle(temp_parent)
-        
+            self.particles.remove_particle(temp_parent_local)
+
         threads = [ ]
         for _ in range(nmergers):
             th = threading.Thread(target=self._create_new_children, 
@@ -631,12 +632,16 @@ class Nemesis(object):
             newparent.position = most_massive.position
             newparent.velocity = most_massive.velocity
         
+        newparent.radius = set_parent_radius(newparent.mass)
+        if newparent.radius > self._max_radius:
+            newparent.radius = self._max_radius
+        
         self.particles.add_particle(newparent)
         newparts.move_to_center()
         
         self._new_systems[newparent] = newparts
         self._new_offsets[newparent] = self.model_time
-        
+
         return newparent
 
     def _evolve_coll_offset(self, coll_set: Particles, coll_time) -> list:
@@ -659,14 +664,16 @@ class Nemesis(object):
             # If a recently merged parent merges in the same time-loop, you need to give it children
             # in case of children collisions occuring during the evolution.
             code = None
-            if parti_ in self._new_systems:  
+            if parti_.key in self._new_systems:
                 if self.__verbose:
                     print("...Parent Merging Again...")
 
                 collsubset.remove_particle(parti_)
-                evolved_parent = parti_.as_particle_in_set(self._parent_code.particles)
-               
-                offset = self._new_offsets.pop(parti_)
+                evolved_parent = parti_.as_particle_in_set(self.particles)
+
+                children = self._new_systems.pop(parti_.key)
+                offset = self._new_offsets.pop(parti_.key)
+
                 children = self._new_systems.pop(parti_)
                 children.position += evolved_parent.position
                 children.velocity += evolved_parent.velocity
@@ -1089,7 +1096,7 @@ class Nemesis(object):
                 code = self.subcodes[parent]
                 stopping_condition = code.stopping_conditions.collision_detection
                 stopping_condition.enable()
-                
+                 
                 evol_time = dt - self._time_offsets[code]
                 while code.model_time < evol_time * (1. - self.__eps):
                     code.evolve_model(evol_time)
@@ -1257,8 +1264,7 @@ class Nemesis(object):
                             num_of_workers=self.avail_cpus
                             )
             self._kick_particles(particles, corr_chd, dt)
-            
-            
+
             futures = []
             with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
                 for parent, children in subsystems.items():
@@ -1275,17 +1281,17 @@ class Nemesis(object):
                     except Exception as e:
                         print(f"Error in CorrectionFor result: {e}")
                         print(f"Traceback: {traceback.format_exc()}")
-                            
+               
     @property
     def model_time(self) -> float:  
         """Extract the global integrator model time"""
         return self._parent_code.model_time
-    
+
     @property
     def subsystems(self) -> dict:
         """Extract the children system"""
         return self.particles.collection_attributes.subsystems
-    
+
     @property
     def avail_cpus(self) -> int:
         """
