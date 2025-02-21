@@ -161,6 +161,6 @@ cython_debug/
 #.idea/
 
 
-examples/asteroid_cluster/N*
+examples/*/N*
 examples/*/initial_particles
 plotters/*
