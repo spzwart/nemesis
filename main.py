@@ -329,7 +329,7 @@ if __name__ == "__main__":
     o, args = new_option_parser().parse_args()
 
     RUN_IDX = o.run_idx
-    initial_particles = natsorted(glob.glob("data/asteroid_cluster/initial_particles/*"))
+    initial_particles = natsorted(glob.glob("examples/basic_cluster/initial_particles/*"))
     try:
         particle_set = initial_particles[RUN_IDX]
     except IndexError:

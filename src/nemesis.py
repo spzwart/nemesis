@@ -253,8 +253,12 @@ class Nemesis(object):
     def get_child_pid(self) -> int:
         """Returns the PID of the most recently spawned children worker"""
         for child in self.__main_process.children(recursive=True):
-            if 'huayno_worker' in child.name():
-                return child.pid
+            try:
+                if 'huayno_worker' in child.name():
+                    return child.pid
+            except Exception as e:
+                print(f"Error extracting PID: {e}")
+                print("Check your children integrator matches the expected name")
     
     def hibernate_workers(self, pid: int) -> None:
         """
@@ -352,7 +356,7 @@ class Nemesis(object):
     def _star_channel_copier(self) -> None:
         """Copy attributes from stellar code to grav. integrator particle set"""
         self.channels["from_stellar_to_gravity"].copy()
-        for parent, channel in self._child_channels.items():
+        for parent, channel in self._child_channels.items():  # Can't parallelise due to star particles
             pid = self._pid_workers[parent]
             self.resume_workers(pid)
             channel["from_star_to_gravity"].copy()
@@ -392,6 +396,7 @@ class Nemesis(object):
         while self.model_time < (evolve_time + timestep) * (1. - self.__eps):
             self.corr_energy = 0. | units.J
             self.dt_step += 1
+            self._sync_grav_to_local()
             
             if (self.__star_evol):
                 self._stellar_evolution(evolve_time + timestep/2.)
@@ -528,7 +533,6 @@ class Nemesis(object):
             
         if self.__verbose:
             print(f"New Children has: {len(asteroids)} asteroids, {len(planets)} planets, {len(stars)} stars")
-            print(f"Host mass: {stars.mass.max().in_(units.MSun)}")
         
         with self.__lock:
             newparent = self.particles.add_subsystem(new_children)
@@ -574,8 +578,7 @@ class Nemesis(object):
         for th in threads:
             th.join()
             
-        job_queue.queue.clear()
-        del job_queue, self._new_systems, self._new_offsets
+        job_queue = None
         
         new_parents = self.particles[-nmergers:]
         overly_massive = new_parents.radius > self._max_radius
@@ -1033,6 +1036,9 @@ class Nemesis(object):
                         
         if (coll_time):
             self._process_parent_mergers()
+            self._new_offsets.clear()
+            self._new_systems.clear()
+            del self._new_offsets, self._new_systems
             
     def _drift_child(self, dt) -> None:
         """
@@ -1130,13 +1136,15 @@ class Nemesis(object):
             futures = {executor.submit(evolve_code, parent):
                        parent for parent in self.subcodes.keys()}
             for future in as_completed(futures):  # Iterate over to ensure no silent failures
-                parent = futures.pop(future)
+                parent = futures[future]
                 try:
                     future.result()
                 except Exception as e:
                     print(f"Error while evolving parent {parent.key}: {e}")
-        futures = None
-        gc.collect()
+                del futures[future]
+                
+        futures.clear()
+        del futures
         
         for parent in list(self.subcodes.keys()):  # Remove single children systems:
             pid = self._pid_workers[parent]
