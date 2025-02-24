@@ -22,30 +22,26 @@ START_TIME = time.time()
 MIN_EVOL_MASS = 0.08 | units.MSun
 
 
-def create_output_directories(sim_dir: str) -> str:
+def create_output_directories(dir_path: str):
     """
     Creates directories for output.
 
     Args:
-        sim_dir (str):  Simulation directory path
+        dir_path (str):  Simulation directory path
     Returns:
         String: Directory path for specific run
     """
-    directory_path = os.path.join(sim_dir, f"Nrun{RUN_IDX}")
-
     # Create main directory and subdirectories in a single pass
     subdirs = [
         "event_data", 
-        "collision_snapshot/output",
+        "collision_snapshot",
         "data_process", 
         "simulation_stats",
         "simulation_snapshot"
     ]
 
     for subdir in subdirs:
-        os.makedirs(os.path.join(directory_path, subdir), exist_ok=True)
-
-    return directory_path
+        os.makedirs(os.path.join(dir_path, subdir), exist_ok=True)
 
 def load_particle_set(ic_file: str) -> Particles:
     """
@@ -57,6 +53,7 @@ def load_particle_set(ic_file: str) -> Particles:
         Particles:  Initial particle set
     """
     particle_set = read_set_from_file(ic_file)
+    particle_set -= particle_set[particle_set.syst_id > 10]
     if len(particle_set) == 0:
         raise ValueError(f"Error: Particle set {ic_file} is empty.")
     particle_set.coll_events = 0
@@ -101,20 +98,20 @@ def identify_parents(particle_set: Particles) -> Particles:
 
     return parents
 
-def setup_simulation(particle_set: Particles) -> tuple:
+def setup_simulation(dir_path: str, particle_set: Particles) -> tuple:
     """
     Setup simulation directories and load particle set.
 
     Args:
+        dir_path (str):  Directory path for outputs
+        sim_dir (str):  Simulation directory path
         particle_set (Particles): The particle set
     Returns:
         tuple: (directory_path, snapshot_path, particle_set)
     """
-    sim_dir = particle_set.split("initial_particles/")[0]
-    directory_path = create_output_directories(sim_dir)
-    snapshot_path = os.path.join(directory_path, "simulation_snapshot")
+    snapshot_path = os.path.join(dir_path, "simulation_snapshot")
     particle_set = load_particle_set(particle_set)
-    return directory_path, snapshot_path, particle_set
+    return snapshot_path, particle_set
 
 def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: float,
                    dE_track: bool, gal_field: bool, star_evol: bool, verbose: bool) -> None:
@@ -133,14 +130,38 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         verbose (boolean):  Flag turning on print statements or not
     """
     EPS = 1.e-8
+    
+    sim_dir = particle_set.split("initial_particles/")[0]
+    directory_path = os.path.join(sim_dir, f"Nrun{RUN_IDX}")
+    initial_parameters = os.path.join(directory_path, 'simulation_stats', f'initial_conditions_{RUN_IDX}.txt')
+    
+    if os.path.exists(initial_parameters):
+        if (verbose):
+            print("...Loading from previous simulation...")
+            
+        snapshot_path = os.path.join(directory_path, "simulation_snapshot")
+        previous_snaps = natsorted(glob.glob(os.path.join(snapshot_path, "*")))
+        
+        Nsnaps = len(previous_snaps) - 1
+        particle_set = read_set_from_file(previous_snaps[-1])
+        tend = tend - Nsnaps * dt_diag
+        
+        if (verbose):
+            print(f"{tend.in_(units.Myr)} remaining in simulation")
+    
+    else:
+        if (verbose):
+            print("...Starting new simulation...")
+        create_output_directories(directory_path)
+        snapshot_path, particle_set = setup_simulation(directory_path, particle_set)
 
-    directory_path, snapshot_path, particle_set = setup_simulation(particle_set)
+        if (gal_field):
+            particle_set = configure_galactic_frame(particle_set)
+    
+    print(particle_set.x[:5].in_(units.kpc))
     coll_dir = os.path.join(directory_path, "collision_snapshot")
     snap_path = os.path.join(snapshot_path, "snap_{}")
-
-    if (gal_field):
-        particle_set = configure_galactic_frame(particle_set)
-
+    
     major_bodies = identify_parents(particle_set)
     isolated_systems = major_bodies[major_bodies.syst_id <= 0]
     bounded_systems = major_bodies[major_bodies.syst_id > 0]
@@ -178,15 +199,14 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     )
     allparts.remove_particles(allparts)  # Clean memory
 
-    if verbose:
-        print(
-            f"Simulation Parameters:\n"
-            f"  Total number of particles: {len(particle_set)}\n"
-            f"  Total number of initial subsystems: {id_}\n"
-            f"  Bridge timestep: {dtbridge.in_(units.yr)}\n"
-            f"  End time: {tend.in_(units.Myr)}\n"
-            f"  Galactic field: {gal_field}"
-        )
+    with open(initial_parameters, 'w') as f:
+        f.write(f"Simulation Parameters:\n")
+        f.write(f"  Total number of particles: {len(particle_set)}\n")
+        f.write(f"  Total number of initial subsystems: {id_}\n")
+        f.write(f"  Diagnostic timestep: {dt_diag.in_(units.yr)}\n")
+        f.write(f"  Bridge timestep: {dtbridge.in_(units.yr)}\n")
+        f.write(f"  End time: {tend.in_(units.Myr)}\n")
+        f.write(f"  Galactic field: {gal_field}")
 
     t = 0. | units.yr
     t_diag = dt_diag
@@ -295,7 +315,7 @@ def new_option_parser():
                       dest="dt_diag", 
                       type="int", 
                       unit=units.kyr, 
-                      default=100 | units.kyr,
+                      default=10 | units.kyr,
                       help="Diagnostic time step")
     result.add_option("--gal_field", 
                       dest="gal_field", 
