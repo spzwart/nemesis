@@ -281,27 +281,46 @@ class Nemesis(object):
     def _major_channel_maker(self) -> None:
         """Create channels for communication between codes"""
         parent_particles = self._parent_code.particles
-        stellar_particles = self._stellar_code.particles
-        self.channels = {
-            "from_stellar_to_gravity":
-                stellar_particles.new_channel_to(
-                    parent_particles,
-                    attributes=["mass"],
-                    target_names=["mass"]
-                ),
-            "from_gravity_to_parents":
-                parent_particles.new_channel_to(
-                    self.particles,
-                    attributes=["x", "y", "z", "vx", "vy", "vz"],
-                    target_names=["x", "y", "z", "vx", "vy", "vz"]
-                ),
-            "from_parents_to_gravity":
-                self.particles.new_channel_to(
-                    parent_particles,
-                    attributes=["x", "y", "z", "vx", "vy", "vz"],
-                    target_names=["x", "y", "z", "vx", "vy", "vz"]
-                )
-        }
+        
+        if self.__star_evol:
+            stellar_particles = self._stellar_code.particles
+            
+            self.channels = {
+                "from_stellar_to_gravity":
+                    stellar_particles.new_channel_to(
+                        parent_particles,
+                        attributes=["mass"],
+                        target_names=["mass"]
+                    ),
+                "from_gravity_to_parents":
+                    parent_particles.new_channel_to(
+                        self.particles,
+                        attributes=["x", "y", "z", "vx", "vy", "vz"],
+                        target_names=["x", "y", "z", "vx", "vy", "vz"]
+                    ),
+                "from_parents_to_gravity":
+                    self.particles.new_channel_to(
+                        parent_particles,
+                        attributes=["x", "y", "z", "vx", "vy", "vz"],
+                        target_names=["x", "y", "z", "vx", "vy", "vz"]
+                    )
+            }
+        else:
+            self.channels = {
+                "from_gravity_to_parents":
+                    parent_particles.new_channel_to(
+                        self.particles,
+                        attributes=["x", "y", "z", "vx", "vy", "vz"],
+                        target_names=["x", "y", "z", "vx", "vy", "vz"]
+                    ),
+                "from_parents_to_gravity":
+                    self.particles.new_channel_to(
+                        parent_particles,
+                        attributes=["x", "y", "z", "vx", "vy", "vz"],
+                        target_names=["x", "y", "z", "vx", "vy", "vz"]
+                    )
+            }
+            
     
     def _child_channel_maker(self, parent: Particle, code_particles: Particles, children: Particles) -> None:
         """
@@ -318,26 +337,42 @@ class Nemesis(object):
             "radius", "mass"
             ]
         
-        self._child_channels[parent] = {
-            "from_star_to_gravity":
-                self._stellar_code.particles.new_channel_to(
-                    code_particles,
-                    attributes=["mass", "radius"],
-                    target_names=["mass", "radius"]
-                    ),
-            "from_gravity_to_children": 
-                code_particles.new_channel_to(
-                    children,
-                    attributes=grav_copy_variables,
-                    target_names=grav_copy_variables
-                    ),
-            "from_children_to_gravity": 
-                children.new_channel_to(
-                    code_particles,
-                    attributes=grav_copy_variables,
-                    target_names=grav_copy_variables
-                    )
-            }
+        if (self.__star_evol):
+            self._child_channels[parent] = {
+                "from_star_to_gravity":
+                    self._stellar_code.particles.new_channel_to(
+                        code_particles,
+                        attributes=["mass", "radius"],
+                        target_names=["mass", "radius"]
+                        ),
+                "from_gravity_to_children": 
+                    code_particles.new_channel_to(
+                        children,
+                        attributes=grav_copy_variables,
+                        target_names=grav_copy_variables
+                        ),
+                "from_children_to_gravity": 
+                    children.new_channel_to(
+                        code_particles,
+                        attributes=grav_copy_variables,
+                        target_names=grav_copy_variables
+                        )
+                }
+        else:
+            self._child_channels[parent] = {
+                "from_gravity_to_children": 
+                    code_particles.new_channel_to(
+                        children,
+                        attributes=grav_copy_variables,
+                        target_names=grav_copy_variables
+                        ),
+                "from_children_to_gravity": 
+                    children.new_channel_to(
+                        code_particles,
+                        attributes=grav_copy_variables,
+                        target_names=grav_copy_variables
+                        )
+                }
     
     def _calculate_total_energy(self) -> float:
         """
@@ -435,8 +470,8 @@ class Nemesis(object):
                     print(f"Excess simulation: {(total_time - self.model_time).in_(units.kyr)}")
                     
                 self.hibernate_workers(pid)
-                
-            print(f"Stellar code time: {self._stellar_code.model_time.in_(units.Myr)}")
+            if self.__star_evol:
+                print(f"Stellar code time: {self._stellar_code.model_time.in_(units.Myr)}")
             print(f"#Children: {len(self.subsystems.keys())}")
             print("===" * 50)
             
