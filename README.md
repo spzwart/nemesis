@@ -17,7 +17,7 @@ Nemesis is a flexible and efficient multi-scale algorithm used to integrate hier
     This will create a particle set with several planetary systems. The particle set are always saved in a folder ```initial_particles/```.
 4. Execute script from the root directory. Make sure that the ```initial_particles``` in the main directs the code to the target ```initial_particles/``` directory.To run with default values execute: <br />
     ```python main.py```
-Data will be saved in the directory hosting ```initialise_particles/```. With folders containing collision events, snapshots every user-defined time-frame, and statistics on the time taken.
+Ensure the main script is correctly pointed to the initial_particles/ directory. Data (including collision events, snapshots, and statistics) will be saved in a designated output folder.
 
 
 ### Script contents
@@ -27,8 +27,6 @@ Data will be saved in the directory hosting ```initialise_particles/```. With fo
 - `src/hierarchical_particles.py`: Script to categorise particles into parents and children
 - `src/nemesis.py`: Script hosting the evolution procedure
 - `examples/`: Folders with several examples initialising particles set to be run.
-
-NOTE: Children are identified as particles with attribute `syst_id > 0`. Their parents are identified with the same `syst_id` value.
 
 ### Free parameters: 
 In addition to the input functions needed to execute `interface.py`, the following may vary depending on your simulation:
@@ -46,3 +44,6 @@ src/nemesis.py:
 - In `__init__`, `minimum_radius`: Minimum parent radius
 - In `_parent_worker()` time step parameter.
 - In `_split_subcodes()`, there is a coefficient influencing the parent radius to detect 'dettached' objects.
+
+### NOTES:
+- Children are identified as particles with attribute `syst_id > 0`. Their parents are identified with the same `syst_id` value.

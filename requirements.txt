@@ -3,9 +3,3 @@ natsort
 tables
 h5py
 psutil
-ctypes
-queue
-signal
-threading
-traceback
-concurrrent.futures

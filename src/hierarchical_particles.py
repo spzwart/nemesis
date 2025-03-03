@@ -5,9 +5,11 @@ from amuse.datamodel import Particle, Particles, ParticlesOverlay
 from amuse.units import units
 
 
-############################## TO WORK ON ##############################
-# 1. PARALLELISE RECENTERING OF SUBSYSTEMS
-#### NUMPY RELEASES GIL, CHECK IF OTHER COMPUTATIONS ARE THE BOTTLE NECK
+############################## NOTES ##############################
+# Recentering subsystems is optimised. Even without GIL release, 
+# overhead of multiprocessing is too consuming. Most likely the 
+# AMUSE-based arrays (position/velocity) are already wrapped around 
+# NumPy arrays.
 ########################################################################
 
 

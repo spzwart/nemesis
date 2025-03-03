@@ -32,7 +32,7 @@ from src.hierarchical_particles import HierarchicalParticles
 
 ############################## CURRENT BOTTLE NECKS ##################################
 # 1. Evolving subsystems in _evolve_coll_offset --> ONE-BY-ONE, NOT PARALLELISED
-# 2. SPLIT_SUBCODES --> SPLITTING SYSTEMS, NOT PARALLELISED (MEMORY ISSUES)
+# 2. SPLIT_SUBCODES --> SPLITTING SYSTEMS, NOT PARALLELISED (SHARED MEMORY SO DIFFICULT)
 #### OTHER ROOM FOR IMPROVEMENT:
 # 1. DEFINE BRIDGE TIME BETTER --> CURRENTLY FIXED
 # 2. DEFINE PARENT SYSTEM BETTER --> CURRENTLY IGNORES NEAREST NEIGHBOURS
@@ -835,7 +835,7 @@ class Nemesis(object):
         tcoll = code.model_time + self._time_offsets[code]
         with open(os.path.join(self.__coll_dir, f"merger{self.__nmerge}.txt"), 'w') as f:
             f.write(f"Tcoll: {tcoll.in_(units.yr)}")
-            f.write(f"\nSystem ID: {parent.syst_id}")
+            f.write(f"\nParent Key: {parent.key}")
             f.write(f"\nKey1: {enc_parti[0].key}")
             f.write(f"\nKey2: {enc_parti[1].key}")
             f.write(f"\nType1: {coll_a.type}")
@@ -844,7 +844,7 @@ class Nemesis(object):
             f.write(f"\nM2: {enc_parti[1].mass.in_(units.MSun)}")
             f.write(f"\nSemi-major axis: {abs(sma).in_(units.au)}")
             f.write(f"\nEccentricity: {ecc}")
-            f.write(f"\nInclination: {inc} deg")
+            f.write(f"\nInclination: {inc.in_(units.deg)}")
             
         write_set_to_file(
             self._parent_code.particles.savepoint(0 | units.Myr), 

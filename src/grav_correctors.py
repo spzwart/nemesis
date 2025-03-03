@@ -3,7 +3,7 @@ import numpy as np
 import traceback
 
 from amuse.couple.bridge import CalculateFieldForParticles
-from amuse.lab import constants, units, Particles, Particle
+from amuse.lab import constants, units, Particles
 
 
 ############################## TO WORK ON ##############################
@@ -231,6 +231,7 @@ class CorrectionFromCompoundParticle(object):
                         removed_idx=removed_idx
                         )
                     futures.append(future)
+                    
                 except Exception as e:
                     print(f"Error for parent {parent.key}: {e}")
                     print(f"Parent Particle: {parent}")

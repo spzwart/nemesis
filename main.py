@@ -53,7 +53,6 @@ def load_particle_set(ic_file: str) -> Particles:
         Particles:  Initial particle set
     """
     particle_set = read_set_from_file(ic_file)
-    particle_set -= particle_set[particle_set.syst_id > 10]
     if len(particle_set) == 0:
         raise ValueError(f"Error: Particle set {ic_file} is empty.")
     particle_set.coll_events = 0
@@ -139,12 +138,21 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         if (verbose):
             print("...Loading from previous simulation...")
             
+        with open(initial_parameters, 'r') as f:
+            iparams = f.readlines()
+            diag_dt = iparams[3].split(":")[1].split("yr")[0]
+            end_time = iparams[5].split(":")[1].split("Myr")[0]
+            
+            diag_dt = float(diag_dt) | units.yr
+            end_time = float(end_time) | units.Myr
+            
         snapshot_path = os.path.join(directory_path, "simulation_snapshot")
         previous_snaps = natsorted(glob.glob(os.path.join(snapshot_path, "*")))
         
         Nsnaps = len(previous_snaps) - 1
         particle_set = read_set_from_file(previous_snaps[-1])
         tend = tend - Nsnaps * dt_diag
+        snapshot_no = Nsnaps
         
         if (verbose):
             print(f"{tend.in_(units.Myr)} remaining in simulation")
@@ -152,13 +160,14 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     else:
         if (verbose):
             print("...Starting new simulation...")
+            
+        snapshot_no = 0
         create_output_directories(directory_path)
         snapshot_path, particle_set = setup_simulation(directory_path, particle_set)
 
         if (gal_field):
             particle_set = configure_galactic_frame(particle_set)
     
-    print(particle_set.x[:5].in_(units.kpc))
     coll_dir = os.path.join(directory_path, "collision_snapshot")
     snap_path = os.path.join(snapshot_path, "snap_{}")
     
@@ -210,7 +219,6 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
 
     t = 0. | units.yr
     t_diag = dt_diag
-    snapshot_no = 0
     prev_step = nemesis.dt_step
     snap_time = time.time()
     while t < tend:
@@ -225,7 +233,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
             if verbose:
                 print(
                     f"Saving snapshot {snapshot_no} at time {t.in_(units.yr)}\n"
-                    f"Time taken: {time.time() - snap_time}"
+                    f"Time taken since last snapshot saved: {time.time() - snap_time}"
                 )
                 snap_time = time.time()
 
@@ -353,8 +361,10 @@ if __name__ == "__main__":
     try:
         particle_set = initial_particles[RUN_IDX]
     except IndexError:
-        raise IndexError(f"Error: Run index {RUN_IDX} out of range. \n"
-                         f"Available particle sets: {initial_particles}.")
+        raise IndexError(
+            f"Error: Run index {RUN_IDX} out of range. \n"
+            f"Available particle sets: {initial_particles}."
+            )
 
     run_simulation(
         particle_set=particle_set, 
