@@ -42,7 +42,7 @@ src/environment_functions.py:
 src/nemesis.py:
 - In `__init__`, `maximum_radius`: Maximum parent radius
 - In `__init__`, `minimum_radius`: Minimum parent radius
-- In `_parent_worker()` time step parameter.
+- In `_sub_worker()`: Number of child workers.
 - In `_split_subcodes()`, there is a coefficient influencing the parent radius to detect 'dettached' objects.
 
 ### NOTES:

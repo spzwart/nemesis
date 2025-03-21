@@ -35,7 +35,6 @@ def create_output_directories(dir_path: str):
     subdirs = [
         "event_data", 
         "collision_snapshot",
-        "data_process", 
         "simulation_stats",
         "simulation_snapshot"
     ]
@@ -132,7 +131,10 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     
     sim_dir = particle_set.split("initial_particles/")[0]
     directory_path = os.path.join(sim_dir, f"Nrun{RUN_IDX}")
-    initial_parameters = os.path.join(directory_path, 'simulation_stats', f'initial_conditions_{RUN_IDX}.txt')
+    coll_dir = os.path.join(directory_path, "collision_snapshot")
+    initial_parameters = os.path.join(directory_path, 
+                                      'simulation_stats', 
+                                      f'initial_conditions_{RUN_IDX}.txt')
     
     if os.path.exists(initial_parameters):
         if (verbose):
@@ -148,19 +150,23 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
             
         snapshot_path = os.path.join(directory_path, "simulation_snapshot")
         previous_snaps = natsorted(glob.glob(os.path.join(snapshot_path, "*")))
-        
-        Nsnaps = len(previous_snaps) - 1
+
+        snapshot_no = len(previous_snaps) - 1
         particle_set = read_set_from_file(previous_snaps[-1])
-        tend = tend - Nsnaps * dt_diag
-        snapshot_no = Nsnaps
-        
+
+        time_offset = snapshot_no * dt_diag
+        tend = tend - time_offset
+        current_mergers = particle_set.coll_events.sum()
         if (verbose):
+            print(f"Resuming from {time_offset.in_(units.Myr)}.", end=" ")
             print(f"{tend.in_(units.Myr)} remaining in simulation")
     
     else:
         if (verbose):
             print("...Starting new simulation...")
             
+        time_offset = 0. | units.yr
+        current_mergers = 0
         snapshot_no = 0
         create_output_directories(directory_path)
         snapshot_path, particle_set = setup_simulation(directory_path, particle_set)
@@ -168,7 +174,6 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         if (gal_field):
             particle_set = configure_galactic_frame(particle_set)
     
-    coll_dir = os.path.join(directory_path, "collision_snapshot")
     snap_path = os.path.join(snapshot_path, "snap_{}")
     
     major_bodies = identify_parents(particle_set)
@@ -185,7 +190,8 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
                       dtbridge=dtbridge, coll_dir=coll_dir, eps=EPS, 
                       code_dt=code_dt, par_nworker=par_nworker, 
                       dE_track=dE_track, star_evol=star_evol, 
-                      gal_field=gal_field, verbose=verbose)
+                      gal_field=gal_field, verbose=verbose,
+                      nmerge=current_mergers, resume_time=time_offset)
 
     for id_ in np.unique(bounded_systems.syst_id):
         subsystem = particle_set[particle_set.syst_id == id_]
@@ -200,13 +206,14 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         energy_arr = [ ]
         E0 = nemesis._calculate_total_energy()
 
-    allparts = nemesis.particles.all()
-    write_set_to_file(
-        allparts.savepoint(0 | units.Myr), 
-        os.path.join(snap_path.format(0)), 
-        'amuse', close_file=True, overwrite_file=True
-    )
-    allparts.remove_particles(allparts)  # Clean memory
+    if snapshot_no == 0:
+        allparts = nemesis.particles.all()
+        write_set_to_file(
+            allparts.savepoint(0 | units.Myr), 
+            os.path.join(snap_path.format(0)), 
+            'amuse', close_file=True, overwrite_file=True
+        )
+        allparts.remove_particles(allparts)  # Clean memory
 
     with open(initial_parameters, 'w') as f:
         f.write(f"Simulation Parameters:\n")

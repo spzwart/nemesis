@@ -45,9 +45,10 @@ from src.hierarchical_particles import HierarchicalParticles
 
 class Nemesis(object):
     def __init__(self, min_stellar_mass, par_conv, dtbridge, 
-                 coll_dir, available_cpus=os.cpu_count(),
-                 eps=1.e-8, code_dt=0.03, par_nworker=1, dE_track=False, 
-                 star_evol=False, gal_field=True, verbose=True):
+                 coll_dir, available_cpus=os.cpu_count(), nmerge=0,
+                 resume_time=0. | units.yr, eps=1.e-8, code_dt=0.03, 
+                 par_nworker=1, dE_track=False, star_evol=False, 
+                 gal_field=True, verbose=True):
         """
         Class setting up the simulation.
         
@@ -57,6 +58,8 @@ class Nemesis(object):
             dtbridge (units.time):  Diagnostic time step
             coll_dir (str):  Path to store collision data
             available_cpus(int):  Number of available CPUs
+            nmerge (int):  Number of mergers loaded particle set has
+            resume_time (units.time):  Time which simulation is resumed at
             eps (float):  Threshold for evolution time
             code_dt (float):  Internal time step
             par_nworker (int):  Number of workers for global integrator
@@ -81,8 +84,9 @@ class Nemesis(object):
         self.__total_free_cpus = available_cpus
         self.__lock = threading.Lock()
         self.__main_process = psutil.Process(os.getpid())
-        self.__nmerge = 0
-        
+        self.__nmerge = nmerge
+        self.__resume_offset = resume_time
+
         # Protected attributes
         self._dE_track = dE_track
         self._time_offsets = dict()
@@ -177,7 +181,7 @@ class Nemesis(object):
             parent.radius = set_parent_radius(parent.mass)
             
             if parent not in self.subcodes:
-                code = self._sub_worker(sys)
+                code, number_of_workers = self._sub_worker(sys)
                 
                 self._time_offsets[code] = self.model_time
                 self.subsystems[parent] = sys
@@ -189,7 +193,7 @@ class Nemesis(object):
                     )
                 
                 # Store children PID to allow hibernation
-                worker_pid = self.get_child_pid()
+                worker_pid = self.get_child_pids(number_of_workers)
                 self._pid_workers[parent] = worker_pid
                 self.hibernate_workers(worker_pid)
                 
@@ -237,46 +241,62 @@ class Nemesis(object):
             raise ValueError("Error: No children provided.")
     
         if (0. | units.kg) in children.mass:
-            code = Ph4(self.__child_conv)
+            number_of_workers = 1
+            
+            code = Ph4(self.__child_conv, number_of_workers=number_of_workers)
             code.parameters.epsilon_squared = (0. | units.au)**2.
             code.parameters.timestep_parameter = self.__code_dt
             code.particles.add_particles(children)
-            return code
             
         else:
-            code = Huayno(self.__child_conv)
+            number_of_workers = 1
+            
+            code = Huayno(self.__child_conv, number_of_workers=number_of_workers)
             code.particles.add_particles(children)
             code.parameters.timestep_parameter = self.__code_dt
             code.set_integrator("SHARED8_COLLISIONS")
-            return code
+        
+        return code, number_of_workers
     
-    def get_child_pid(self) -> int:
+    def get_child_pids(self, number_of_workers) -> list:
         """Returns the PID of the most recently spawned children worker"""
+        child_pids = []
         for child in self.__main_process.children(recursive=True):
+            if len(child_pids) >= number_of_workers:
+                break
             try:
-                if 'huayno_worker' in child.name():
-                    return child.pid
+                if 'ph4_worker' in child.name() or 'huayno_worker' in child.name():
+                    child_pids.append(child.pid)
             except Exception as e:
                 print(f"Error extracting PID: {e}")
                 print("Check your children integrator matches the expected name")
+                
+        return child_pids
     
-    def hibernate_workers(self, pid: int) -> None:
+    def hibernate_workers(self, pid_list: list) -> None:
         """
         hibernate workers to reduce CPU usage
         
         Args:
-            pid (int):  Process ID of worker
+            pid (list):  List of process ID of worker
         """
-        os.kill(pid, signal.SIGSTOP)
+        for pid in pid_list:
+            try:
+                os.kill(pid, signal.SIGSTOP)
+            except ProcessLookupError:
+                print(f"Warning: Process {pid} not found. It may have exited.")
+            except PermissionError:
+                print(f"Error: Insufficient permissions to stop process {pid}.")
         
-    def resume_workers(self, pid: int) -> None:
+    def resume_workers(self, pid_list: list) -> None:
         """
         Resume workers to continue simulation
         
         Args:
             pid (int):  Process ID of worker
         """
-        os.kill(pid, signal.SIGCONT)
+        for pid in pid_list:
+            os.kill(pid, signal.SIGCONT)
      
     def _major_channel_maker(self) -> None:
         """Create channels for communication between codes"""
@@ -431,8 +451,8 @@ class Nemesis(object):
         while self.model_time < (evolve_time + timestep) * (1. - self.__eps):
             self.corr_energy = 0. | units.J
             self.dt_step += 1
-            self._sync_grav_to_local()
             
+            self._sync_grav_to_local()
             if (self.__star_evol):
                 self._stellar_evolution(evolve_time + timestep/2.)
                 self._star_channel_copier()
@@ -440,21 +460,21 @@ class Nemesis(object):
             self._drift_global(evolve_time + timestep)
             if self.subcodes:
                 self._drift_child(self.model_time)
-                
+
             self._sync_grav_to_local()
             self._correction_kicks(
                 self.particles, 
                 self.subsystems,
                 self.model_time - evolve_time
             )
-            self._sync_local_to_grav()
             
+            self._sync_local_to_grav()
             if (self.__star_evol):
                 self._stellar_evolution(self.model_time)
-                
+
             self._split_subcodes()
             self.channels["from_parents_to_gravity"].copy()   
-            
+
         gc.collect()
         
         if self.__verbose:
@@ -514,8 +534,8 @@ class Nemesis(object):
                             Nnew_parents += 1
                             newparent = self.particles.add_subsystem(sys)
                                 
-                            newcode = self._sub_worker(sys)
-                            worker_pid = self.get_child_pid()
+                            newcode, number_of_workers = self._sub_worker(sys)
+                            worker_pid = self.get_child_pids(number_of_workers)
                             
                             self.subcodes[newparent] = newcode
                             self._time_offsets[newcode] = self.model_time
@@ -572,8 +592,8 @@ class Nemesis(object):
         with self.__lock:
             newparent = self.particles.add_subsystem(new_children)
             newparent.radius = set_parent_radius(newparent.mass)
-            newcode = self._sub_worker(new_children)
-            worker_pid = self.get_child_pid()
+            newcode, number_of_workers = self._sub_worker(new_children)
+            worker_pid = self.get_child_pids(number_of_workers)
             
             self._time_offsets[newcode] = time_offset
             self.subcodes[newparent] = newcode
@@ -716,7 +736,7 @@ class Nemesis(object):
                 children.position += evolved_parent.position
                 children.velocity += evolved_parent.velocity
 
-                newcode = self._sub_worker(children)
+                newcode, number_of_workers = self._sub_worker(children)
                 newcode.particles.move_to_center()
                 newparent = self.particles.add_subsystem(children)
                 newparent.radius = set_parent_radius(newparent.mass)
@@ -730,7 +750,7 @@ class Nemesis(object):
                     children=children
                     )
 
-                worker_pid = self.get_child_pid()
+                worker_pid = self.get_child_pids(number_of_workers)
                 self._pid_workers[newparent] = worker_pid
                 self.particles.remove_particle(parti_)
                 collsubset.add_particle(newparent)
@@ -832,7 +852,7 @@ class Nemesis(object):
         ecc = kepler_elements[3]
         inc = kepler_elements[4]
         
-        tcoll = code.model_time + self._time_offsets[code]
+        tcoll = code.model_time + self._time_offsets[code] + self.__resume_offset
         with open(os.path.join(self.__coll_dir, f"merger{self.__nmerge}.txt"), 'w') as f:
             f.write(f"Tcoll: {tcoll.in_(units.yr)}")
             f.write(f"\nParent Key: {parent.key}")
@@ -845,12 +865,14 @@ class Nemesis(object):
             f.write(f"\nSemi-major axis: {abs(sma).in_(units.au)}")
             f.write(f"\nEccentricity: {ecc}")
             f.write(f"\nInclination: {inc.in_(units.deg)}")
-            
-        write_set_to_file(
-            self._parent_code.particles.savepoint(0 | units.Myr), 
-            os.path.join(self.__coll_dir, f"Cluster_Merger{self.__nmerge}.hdf5"),
-            'amuse', close_file=True, overwrite_file=True
-        )
+        
+        if not self.__merged:
+            write_set_to_file(
+                self._parent_code.particles.savepoint(0 | units.Myr), 
+                os.path.join(self.__coll_dir, f"Cluster_Merger{self.__nmerge}.hdf5"),
+                'amuse', close_file=True, overwrite_file=True
+            )
+            self.__merged = True
           
         write_set_to_file(
             code.particles.savepoint(0 | units.Myr), 
@@ -1167,6 +1189,7 @@ class Nemesis(object):
         if self.__verbose:
             print("...Drifting Children...")
 
+        self.__merged = False
         with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
             futures = {executor.submit(evolve_code, parent):
                        parent for parent in self.subcodes.keys()}
@@ -1342,4 +1365,7 @@ class Nemesis(object):
             - One worker for main process
             - Leave one free for good measure
         """
-        return min(len(self.subsystems.keys()), self.__total_free_cpus - self.__par_nworker - 3)
+        ncpu = min(len(self.subsystems), self.__total_free_cpus - self.__par_nworker - 3)
+        if ncpu < 1:
+            return 1
+        return ncpu
