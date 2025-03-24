@@ -57,7 +57,7 @@ def load_particle_set(ic_file: str) -> Particles:
     particle_set.coll_events = 0
     particle_set.move_to_center()
     particle_set.original_key = particle_set.key
-
+    
     return particle_set
 
 def configure_galactic_frame(particle_set: Particles) -> Particles:
@@ -155,6 +155,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         particle_set = read_set_from_file(previous_snaps[-1])
 
         time_offset = snapshot_no * dt_diag
+        tend_fixed = tend
         tend = tend - time_offset
         current_mergers = particle_set.coll_events.sum()
         if (verbose):
@@ -170,7 +171,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         snapshot_no = 0
         create_output_directories(directory_path)
         snapshot_path, particle_set = setup_simulation(directory_path, particle_set)
-
+        tend_fixed = tend
         if (gal_field):
             particle_set = configure_galactic_frame(particle_set)
     
@@ -221,7 +222,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         f.write(f"  Total number of initial subsystems: {id_}\n")
         f.write(f"  Diagnostic timestep: {dt_diag.in_(units.yr)}\n")
         f.write(f"  Bridge timestep: {dtbridge.in_(units.yr)}\n")
-        f.write(f"  End time: {tend.in_(units.Myr)}\n")
+        f.write(f"  End time: {tend_fixed.in_(units.Myr)}\n")
         f.write(f"  Galactic field: {gal_field}")
 
     t = 0. | units.yr

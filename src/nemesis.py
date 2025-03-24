@@ -365,6 +365,12 @@ class Nemesis(object):
                         attributes=["mass", "radius"],
                         target_names=["mass", "radius"]
                         ),
+                "from_star_to_children":
+                    self._stellar_code.particles.new_channel_to(
+                        children,
+                        attributes=["age", "relative_age"],
+                        target_names=["age", "relative_age"]
+                        ),
                 "from_gravity_to_children": 
                     code_particles.new_channel_to(
                         children,
@@ -415,6 +421,7 @@ class Nemesis(object):
             pid = self._pid_workers[parent]
             self.resume_workers(pid)
             channel["from_star_to_gravity"].copy()
+            channel["from_star_to_children"].copy()
             self.hibernate_workers(pid)
         
     def _sync_grav_to_local(self) -> None:
