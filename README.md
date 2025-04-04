@@ -32,18 +32,20 @@ Ensure the main script is correctly pointed to the initial_particles/ directory.
 In addition to the input functions needed to execute `interface.py`, the following may vary depending on your simulation:
 
 main.py:
-- `MIN_EVOL_MASS`: The minimum mass for a particle to be flagged for stellar evolution.
 - `galactic_frame()`: The phase-space coordinates centered about a Milky Way-like galaxy.
 
-src/environment_functions.py:
-- `threshold`: If no second-nearest parent system is within `DIST_THRESHOLD` from iterated parent, it is 'isolated' and a possible ejector.
-- `set_parent_radius`, there is a pre-factor influencing the parent system radius.
+src/globals.py:
+- `CONNECTED_COEFF`: Threshold for detecting what constitutes an ejected children.
+- `EPS`: Tolerance with which models have successfully integrated to required timestep.
+- `GRAV_THRESHOLD`: Threshold for modifying the parent radius in case it is relatively isolated.
+- `MIN_EVOL_MASS`: The minimum mass for a particle to be flagged for stellar evolution.
+- `PARENT_RADIUS_COEFF`: Pre-factor influencing the parent system radius.
+- `PARENT_RADIUS_MAX`: Maximum allowed parent radius.
 
 src/nemesis.py:
 - In `__init__`, `maximum_radius`: Maximum parent radius
 - In `__init__`, `minimum_radius`: Minimum parent radius
 - In `_sub_worker()`: Number of child workers.
-- In `_split_subcodes()`, there is a coefficient influencing the parent radius to detect 'dettached' objects.
 
 ### NOTES:
 - Children are identified as particles with attribute `syst_id > 0`. Their parents are identified with the same `syst_id` value.

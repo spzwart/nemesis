@@ -3,3 +3,4 @@ natsort
 tables
 h5py
 psutil
+cKDTree

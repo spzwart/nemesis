@@ -10,16 +10,12 @@ from amuse.units import units, nbody_system
 from amuse.units.optparse import OptionParser
 
 from src.environment_functions import galactic_frame, set_parent_radius
+from src.globals import EPS
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
 #### ROOM FOR IMPROVEMENT
 # 1. IMPLEMENT CLEANER WAY TO INITIALISE SUBSYSTEMS
-
-
-# Constants
-START_TIME = time.time()
-MIN_EVOL_MASS = 0.08 | units.MSun
 
 
 def create_output_directories(dir_path: str):
@@ -35,7 +31,7 @@ def create_output_directories(dir_path: str):
     subdirs = [
         "event_data", 
         "collision_snapshot",
-        "simulation_stats",
+        "sim_stats",
         "simulation_snapshot"
     ]
 
@@ -57,7 +53,6 @@ def load_particle_set(ic_file: str) -> Particles:
     particle_set.coll_events = 0
     particle_set.move_to_center()
     particle_set.original_key = particle_set.key
-    
     return particle_set
 
 def configure_galactic_frame(particle_set: Particles) -> Particles:
@@ -127,27 +122,25 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         star_evol (boolean):  Flag turning on stellar evolution or not
         verbose (boolean):  Flag turning on print statements or not
     """
-    EPS = 1.e-8
+    start_time = time.time()
     
     sim_dir = particle_set.split("initial_particles/")[0]
     directory_path = os.path.join(sim_dir, f"Nrun{RUN_IDX}")
     coll_dir = os.path.join(directory_path, "collision_snapshot")
-    initial_parameters = os.path.join(directory_path, 
-                                      'simulation_stats', 
-                                      f'initial_conditions_{RUN_IDX}.txt')
-    
-    if os.path.exists(initial_parameters):
+    init_params = os.path.join(directory_path, 'sim_stats', f'init_conds{RUN_IDX}.txt')
+
+    if os.path.exists(init_params):
         if (verbose):
             print("...Loading from previous simulation...")
-            
-        with open(initial_parameters, 'r') as f:
+
+        with open(init_params, 'r') as f:
             iparams = f.readlines()
             diag_dt = iparams[3].split(":")[1].split("yr")[0]
             end_time = iparams[5].split(":")[1].split("Myr")[0]
             
             diag_dt = float(diag_dt) | units.yr
             end_time = float(end_time) | units.Myr
-            
+
         snapshot_path = os.path.join(directory_path, "simulation_snapshot")
         previous_snaps = natsorted(glob.glob(os.path.join(snapshot_path, "*")))
 
@@ -161,11 +154,11 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         if (verbose):
             print(f"Resuming from {time_offset.in_(units.Myr)}.", end=" ")
             print(f"{tend.in_(units.Myr)} remaining in simulation")
-    
+
     else:
         if (verbose):
             print("...Starting new simulation...")
-            
+
         time_offset = 0. | units.yr
         current_mergers = 0
         snapshot_no = 0
@@ -175,7 +168,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         if (gal_field):
             particle_set = configure_galactic_frame(particle_set)
     
-    snap_path = os.path.join(snapshot_path, "snap_{}")
+    snap_path = os.path.join(snapshot_path, "snap_{}.hdf5")
     
     major_bodies = identify_parents(particle_set)
     isolated_systems = major_bodies[major_bodies.syst_id <= 0]
@@ -187,12 +180,12 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
 
     # Setting up system
     parents = HierarchicalParticles(isolated_systems)
-    nemesis = Nemesis(min_stellar_mass=MIN_EVOL_MASS, par_conv=conv_par, 
-                      dtbridge=dtbridge, coll_dir=coll_dir, eps=EPS, 
-                      code_dt=code_dt, par_nworker=par_nworker, 
-                      dE_track=dE_track, star_evol=star_evol, 
-                      gal_field=gal_field, verbose=verbose,
-                      nmerge=current_mergers, resume_time=time_offset)
+    nemesis = Nemesis(par_conv=conv_par, dtbridge=dtbridge, 
+                      coll_dir=coll_dir, code_dt=code_dt, 
+                      par_nworker=par_nworker, dE_track=dE_track, 
+                      star_evol=star_evol, gal_field=gal_field, 
+                      verbose=verbose, nmerge=current_mergers, 
+                      resume_time=time_offset)
 
     for id_ in np.unique(bounded_systems.syst_id):
         subsystem = particle_set[particle_set.syst_id == id_]
@@ -216,7 +209,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         )
         allparts.remove_particles(allparts)  # Clean memory
 
-    with open(initial_parameters, 'w') as f:
+    with open(init_params, 'w') as f:
         f.write(f"Simulation Parameters:\n")
         f.write(f"  Total number of particles: {len(particle_set)}\n")
         f.write(f"  Total number of initial subsystems: {id_}\n")
@@ -283,8 +276,8 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     print("...Simulation Ended...")
 
     # Store simulation statistics
-    sim_time = (time.time() - START_TIME)/60.
-    fname = os.path.join(directory_path, 'simulation_stats', f'sim_stats_{RUN_IDX}.txt')
+    sim_time = (time.time() - start_time)/60.
+    fname = os.path.join(directory_path, 'sim_stats', f'sim_stats_{RUN_IDX}.txt')
     with open(fname, 'w') as f:
         f.write(f"Total CPU Time: {sim_time} minutes \
                 \nEnd Time: {t.in_(units.Myr)} \
