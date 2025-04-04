@@ -26,7 +26,8 @@ from amuse.units import units, constants, nbody_system
 
 from src.environment_functions import set_parent_radius
 from src.environment_functions import planet_radius, ZAMS_radius
-from src.globals import CONNECTED_COEFF, EPS, GRAV_THRESHOLD, MIN_EVOL_MASS, PARENT_RADIUS_MAX
+from src.globals import ASTEROID_RADIUS, CONNECTED_COEFF, EPS
+from src.globals import GRAV_THRESHOLD, MIN_EVOL_MASS, PARENT_RADIUS_MAX
 from src.grav_correctors import CorrectionFromCompoundParticle
 from src.grav_correctors import CorrectionForCompoundParticle
 from src.hierarchical_particles import HierarchicalParticles
@@ -44,7 +45,7 @@ from src.hierarchical_particles import HierarchicalParticles
 ######################################################################################
 
 
-
+ 
 class Nemesis(object):
     def __init__(self, par_conv, dtbridge, coll_dir, 
                  available_cpus=os.cpu_count(), nmerge=0,
@@ -520,11 +521,12 @@ class Nemesis(object):
             max_grav_idx = external_gravity.argmax()
 
             #  Adjust parent radius if external gravity is too weak
-            if external_gravity[max_grav_idx]/parent_gravity < GRAV_THRESHOLD:
-                old_rad = radius
-                radius = np.sqrt(radius**2 * external[max_grav_idx].mass/(GRAV_THRESHOLD * host.mass))
-                if self.__verbose:
-                    print(f"Radius: {old_rad.value_in(units.au):.3f} au -> {radius.value_in(units.au):.3f} au")
+            if external_gravity[max_grav_idx] / parent_gravity < GRAV_THRESHOLD:
+                new_radius = np.sqrt(radius**2 * external[max_grav_idx].mass / (GRAV_THRESHOLD * host.mass))
+                if new_radius > radius:
+                    if self.__verbose:
+                        print(f"Radius: {radius.value_in(units.au):.3f} au -> {new_radius.value_in(units.au):.3f} au")
+                    radius = new_radius
 
             if furthest > 0.5 * radius:
                 components = subsys.connected_components(threshold=radius)
@@ -593,7 +595,7 @@ class Nemesis(object):
 
         if self.__verbose:
             asteroids = new_children[new_children.mass == (0. | units.kg)]
-            stars = new_children[new_children.mass > self.__min_mass_evol]
+            stars = new_children[new_children.mass > MIN_EVOL_MASS]
             planets = new_children - stars - asteroids
 
             print(f"New Children has: {len(asteroids)} asteroids, {len(planets)} planets, {len(stars)} stars")
@@ -674,7 +676,7 @@ class Nemesis(object):
 
             local_mass = massive.as_particle_in_set(self.particles)
             local_ast = asteroid.as_particle_in_set(self.particles)
-            
+            local_ast.radius = ASTEROID_RADIUS
             if self.__verbose:
                 print(f"... Asteroid merger @ T={coll_time.value_in(units.Myr):.6f}", end=" Myr: ")
 
@@ -1201,7 +1203,7 @@ class Nemesis(object):
             children = self.subsystems[parent]
             coll_a_particles = stopping_condition.particles(0)
             coll_b_particles = stopping_condition.particles(1)
-                        
+
             resolved_keys = dict()
             Nmergers = max(len(np.unique(coll_a_particles.key)),
                            len(np.unique(coll_b_particles.key)))

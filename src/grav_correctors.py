@@ -5,6 +5,7 @@ import traceback
 from amuse.couple.bridge import CalculateFieldForParticles
 from amuse.lab import constants, units, Particles
 
+from src.globals import SI_UNITS
 
 ############################## TO WORK ON ##############################
 # 1. AMUSIFY C++ LIBRARY WITH INTERFACE
@@ -12,7 +13,6 @@ from amuse.lab import constants, units, Particles
 # 3. GET_POTENTIAL_AT_POINT FUNCTION NOT USED --> TO VALIDATE
 ########################################################################
 
-SI_UNITS = (1. | units.kg * units.m**-2.) * constants.G
 
 
 

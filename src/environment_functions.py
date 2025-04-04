@@ -1,16 +1,9 @@
 import numpy as np
 
 from amuse.datamodel import Particles
-from amuse.ext.galactic_potentials import MWpotentialBovy2015
 from amuse.units import units
 
-
-############################## TO WORK ON ########################################
-# 1. CONSIDER ADDING ALGORITHM TO CHECK EJECTIONS AND REMOVE RELEVANT PARTICLES
-##################################################################################
-
-
-MWG = MWpotentialBovy2015()
+from src.globals import MWG, PARENT_RADIUS_COEFF
 
 
 
@@ -51,7 +44,7 @@ def set_parent_radius(system_mass) -> units.au:
     Returns:
        units.length: Merging radius of the parent system
     """
-    radius = 500. * (system_mass.value_in(units.MSun))**(1./3.) | units.AU
+    radius = PARENT_RADIUS_COEFF * (system_mass.value_in(units.MSun))**(1./3.)
     return radius
 
 def planet_radius(planet_mass) -> units.REarth:
