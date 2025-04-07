@@ -2,6 +2,8 @@ import time
 from amuse.ext.galactic_potentials import MWpotentialBovy2015
 from amuse.lab import constants, units
 
+ASTEROID_RADIUS = 10. | units.km
+CONNECTED_COEFF = 2.
 EPS = 1.e-8
 GRAV_THRESHOLD = 5.e-3
 MIN_EVOL_MASS = 0.08 | units.MSun
