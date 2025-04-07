@@ -54,7 +54,7 @@ class Nemesis(object):
                  gal_field=True, verbose=True):
         """
         Class setting up the simulation.
-
+        
         Args:
             par_conv (converter):  Parent N-body converter
             dtbridge (units.time):  Diagnostic time step
@@ -69,7 +69,6 @@ class Nemesis(object):
             gal_field (bool):  Flag turning on/off galactic field
             verbose (bool):  Flag turning on/off verbose output
         """
-        
         # Private attributes
         self.__parent_conv = par_conv
         self.__dt = dtbridge
@@ -521,7 +520,7 @@ class Nemesis(object):
             parent_pos_m = parent.position.value_in(units.m)
             idx = tree.query_ball_point(parent_pos_m, r=CONNECTED_COEFF * radius.value_in(units.m))
             external = self.particles[idx]
-            external = external[external.key != parent.key] # exclude parent            
+            external = external[external.key != parent.key] # exclude parent
             if len(external) == 0:
                 continue
             
@@ -999,18 +998,18 @@ class Nemesis(object):
             
             if remnant.mass > MIN_EVOL_MASS:
                 remnant.radius = ZAMS_radius(remnant.mass)
-                self._stellar_code.particles.add_particle(remnant)
-                self.stars.add_particle(remnant)
+                if self.__star_evol:
+                    self._stellar_code.particles.add_particle(remnant)
+                    self.stars.add_particle(remnant)
             else:
                 remnant.radius = planet_radius(remnant.mass)
-            
-            if (self.__star_evol):
+            if self.__star_evol:
                 if coll_a.mass > MIN_EVOL_MASS:
-                        self._stellar_code.particles.remove_particle(coll_a)
-                        self.stars.remove_particle(coll_a)
+                    self._stellar_code.particles.remove_particle(coll_a)
+                    self.stars.remove_particle(coll_a)
                 if coll_b.mass > MIN_EVOL_MASS:
-                        self._stellar_code.particles.remove_particle(coll_b)
-                        self.stars.remove_particle(coll_b)
+                    self._stellar_code.particles.remove_particle(coll_b)
+                    self.stars.remove_particle(coll_b)
             
         else:
             raise ValueError("Error: Asteroid - Asteroid collision")
