@@ -10,7 +10,7 @@ from amuse.units import units, nbody_system
 from amuse.units.optparse import OptionParser
 
 from src.environment_functions import galactic_frame, set_parent_radius
-from src.globals import EPS
+from src.globals import EPS, START_TIME
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
@@ -122,8 +122,6 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         star_evol (boolean):  Flag turning on stellar evolution or not
         verbose (boolean):  Flag turning on print statements or not
     """
-    start_time = time.time()
-    
     sim_dir = particle_set.split("initial_particles/")[0]
     directory_path = os.path.join(sim_dir, f"Nrun{RUN_IDX}")
     coll_dir = os.path.join(directory_path, "collision_snapshot")
@@ -276,7 +274,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     print("...Simulation Ended...")
 
     # Store simulation statistics
-    sim_time = (time.time() - start_time)/60.
+    sim_time = (time.time() - START_TIME)/60.
     fname = os.path.join(directory_path, 'sim_stats', f'sim_stats_{RUN_IDX}.txt')
     with open(fname, 'w') as f:
         f.write(f"Total CPU Time: {sim_time} minutes \
