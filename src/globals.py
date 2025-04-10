@@ -7,9 +7,9 @@ CONNECTED_COEFF = 2.
 EPS = 1.e-8
 GRAV_THRESHOLD = 5.e-3
 MIN_EVOL_MASS = 0.08 | units.MSun
+PARENT_NWORKER = 8
 PARENT_RADIUS_COEFF = 500. | units.au
 PARENT_RADIUS_MAX = 2500 | units.au
-PARENT_N_WORKERS = 8
 
 SI_UNITS = (1. | units.kg * units.m**-2.) * constants.G
 START_TIME = time.time()

@@ -124,13 +124,13 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     """
     sim_dir = particle_set.split("initial_particles/")[0]
     directory_path = os.path.join(sim_dir, f"Nrun{RUN_IDX}")
+    init_params = os.path.join(directory_path, 'sim_stats', f'initial_conditions_{RUN_IDX}.txt')
     coll_dir = os.path.join(directory_path, "collision_snapshot")
-    init_params = os.path.join(directory_path, 'sim_stats', f'init_conds{RUN_IDX}.txt')
-    
+
     if os.path.exists(init_params):
         if (verbose):
             print("...Loading from previous simulation...")
-            
+
         with open(init_params, 'r') as f:
             iparams = f.readlines()
             diag_dt = iparams[3].split(":")[1].split("yr")[0]
@@ -138,36 +138,35 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
             
             diag_dt = float(diag_dt) | units.yr
             end_time = float(end_time) | units.Myr
-            
+
         snapshot_path = os.path.join(directory_path, "simulation_snapshot")
         previous_snaps = natsorted(glob.glob(os.path.join(snapshot_path, "*")))
 
-        snapshot_no = len(previous_snaps) - 1
+        snapshot_no = len(previous_snaps)
         particle_set = read_set_from_file(previous_snaps[-1])
 
         # Set these parameters to ensure SeBa doesn't reset age
         stars = particle_set[particle_set.mass > MIN_EVOL_MASS]
         stars.relative_mass = stars.mass
         stars.relative_age = stars.age
-        
+
         time_offset = (snapshot_no - 1) * dt_diag
-        tend_fixed = tend
         tend = tend - time_offset
         current_mergers = particle_set.coll_events.sum()
         if (verbose):
-            print(f"Resuming from {time_offset.in_(units.Myr)}.", end=" ")
             print(f"{tend.in_(units.Myr)} remaining in simulation")
+            print(f"# Mergers: {current_mergers}")
+            print(f"# Snaps: {snapshot_no}")
     
     else:
         if (verbose):
             print("...Starting new simulation...")
-            
+
         time_offset = 0. | units.yr
         current_mergers = 0
         snapshot_no = 0
         create_output_directories(directory_path)
         snapshot_path, particle_set = setup_simulation(directory_path, particle_set)
-        tend_fixed = tend
         if (gal_field):
             particle_set = configure_galactic_frame(particle_set)
     
@@ -192,7 +191,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         subsystem = particle_set[particle_set.syst_id == id_]
         newparent = nemesis.particles.add_subsystem(subsystem)
         newparent.radius = set_parent_radius(newparent.mass)
-        
+
     nemesis.particles.add_particles(parents)
     nemesis.commit_particles()
     nemesis._split_subcodes()  # Check for any splits at t=0
@@ -216,9 +215,9 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         f.write(f"  Total number of initial subsystems: {id_}\n")
         f.write(f"  Diagnostic timestep: {dt_diag.in_(units.yr)}\n")
         f.write(f"  Bridge timestep: {dtbridge.in_(units.yr)}\n")
-        f.write(f"  End time: {tend_fixed.in_(units.Myr)}\n")
+        f.write(f"  End time: {tend.in_(units.Myr)}\n")
         f.write(f"  Galactic field: {gal_field}")
-    
+
     t = 0. | units.yr
     t_diag = dt_diag
     prev_step = nemesis.dt_step
@@ -226,7 +225,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     while t < tend:
         if verbose:
             t0 = time.time()
-        
+
         t += dtbridge
         while nemesis.model_time < t*(1. - EPS):
             nemesis.evolve_model(t)
