@@ -26,8 +26,8 @@ from amuse.units import units, constants, nbody_system
 
 from src.environment_functions import set_parent_radius
 from src.environment_functions import planet_radius, ZAMS_radius
-from src.globals import ASTEROID_RADIUS, CONNECTED_COEFF, EPS
-from src.globals import GRAV_THRESHOLD, MIN_EVOL_MASS, PARENT_RADIUS_MAX
+from src.globals import ASTEROID_RADIUS, CONNECTED_COEFF, EPS, GRAV_THRESHOLD
+from src.globals import MIN_EVOL_MASS, PARENT_RADIUS_MAX, PARENT_N_WORKERS
 from src.grav_correctors import CorrectionFromCompoundParticle
 from src.grav_correctors import CorrectionForCompoundParticle
 from src.hierarchical_particles import HierarchicalParticles
@@ -50,7 +50,7 @@ class Nemesis(object):
     def __init__(self, par_conv, dtbridge, coll_dir, 
                  available_cpus=os.cpu_count(), nmerge=0,
                  resume_time=0. | units.yr, code_dt=0.03, 
-                 par_nworker=1, dE_track=False, star_evol=False, 
+                 dE_track=False, star_evol=False, 
                  gal_field=True, verbose=True):
         """
         Class setting up the simulation.
@@ -63,7 +63,6 @@ class Nemesis(object):
             nmerge (int):  Number of mergers loaded particle set has
             resume_time (units.time):  Time which simulation is resumed at
             code_dt (float):  Internal time step
-            par_nworker (int):  Number of workers for global integrator
             dE_track (bool):  Flag turning on/off energy error tracker
             star_evol (bool):  Flag turning on/off stellar evolution
             gal_field (bool):  Flag turning on/off galactic field
@@ -74,7 +73,7 @@ class Nemesis(object):
         self.__dt = dtbridge
         self.__coll_dir = coll_dir
         self.__code_dt = code_dt
-        self.__par_nworker = par_nworker
+        self.__par_nworker = PARENT_N_WORKERS
         self.__star_evol = star_evol
         self.__gal_field = gal_field
         self.__verbose = verbose
