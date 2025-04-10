@@ -10,7 +10,7 @@ from amuse.units import units, nbody_system
 from amuse.units.optparse import OptionParser
 
 from src.environment_functions import galactic_frame, set_parent_radius
-from src.globals import EPS, START_TIME
+from src.globals import EPS, MIN_EVOL_MASS, START_TIME
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
@@ -144,8 +144,13 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
 
         snapshot_no = len(previous_snaps) - 1
         particle_set = read_set_from_file(previous_snaps[-1])
-
-        time_offset = snapshot_no * dt_diag
+        
+        # Set these parameters to ensure SeBa doesn't reset age
+        stars = particle_set[particle_set.mass > MIN_EVOL_MASS]
+        stars.relative_mass = stars.mass
+        stars.relative_age = stars.age
+        
+        time_offset = (snapshot_no - 1) * dt_diag
         tend_fixed = tend
         tend = tend - time_offset
         current_mergers = particle_set.coll_events.sum()
@@ -167,7 +172,6 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
             particle_set = configure_galactic_frame(particle_set)
     
     snap_path = os.path.join(snapshot_path, "snap_{}.hdf5")
-    
     major_bodies = identify_parents(particle_set)
     isolated_systems = major_bodies[major_bodies.syst_id <= 0]
     bounded_systems = major_bodies[major_bodies.syst_id > 0]
