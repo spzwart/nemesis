@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.spatial import cKDTree
 
 from amuse.datamodel import Particles
 from amuse.units import units
@@ -6,6 +7,49 @@ from amuse.units import units
 from src.globals import MWG, PARENT_RADIUS_COEFF
 
 
+def connected_components_kdtree(system: Particles, threshold=None) -> list:
+    """
+    Returns a list of connected component subsets of particles.
+    Uses a KD-Tree for efficient spatial queries.
+    
+    Args:
+        system (Particles): The particle set
+        threshold (units.length): The distance threshold for connected components
+    """
+    coords = np.vstack([
+        system.x.value_in(units.m),
+        system.y.value_in(units.m),
+        system.z.value_in(units.m)
+    ]).T
+
+    tree = cKDTree(coords)
+
+    n = len(coords)
+    visited = np.zeros(n, dtype=bool)
+    components = []
+
+    # Loop over each point and perform a neighbor search if the point is not yet visited.
+    for i in range(n):
+        if not visited[i]:  # Start a new connected component
+            component = []
+            stack = [i]
+            visited[i] = True
+            
+            while stack:
+                current = stack.pop()
+                component.append(current)
+                # Find all neighbors within the threshold
+                neighbors = tree.query_ball_point(x=coords[current], 
+                                                  r=threshold.value_in(units.m))
+                
+                for nb in neighbors:
+                    if not visited[nb]:
+                        visited[nb] = True
+                        stack.append(nb)
+            components.append(component)
+
+    cc_parts = [system[component] for component in components]
+    return cc_parts
 
 def galactic_frame(parent_set: Particles, dx, dy, dz, dvx, dvy, dvz) -> Particles:
     """
