@@ -23,7 +23,7 @@ def ZAMS_radius(mass):
     return r_zams | units.RSun
 
 Nbodies = 500
-Nchildren = 100
+Nchildren = 10
 
 masses = new_kroupa_mass_distribution(Nbodies, mass_min=0.5 | units.MSun, mass_max=30 | units.MSun)
 converter = nbody_system.nbody_to_si(masses.sum(), 1 | units.pc)
@@ -72,7 +72,6 @@ for id in np.unique(bodies.syst_id):
 
 output_dir = "examples/basic_cluster/initial_particles"
 if not os.path.exists(output_dir):
-    os.mkdir("examples/basic_cluster")
     os.mkdir(output_dir)
 
 Run_ID = 0
