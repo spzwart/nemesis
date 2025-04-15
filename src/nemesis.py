@@ -32,6 +32,24 @@ from src.grav_correctors import CorrectionForCompoundParticle
 from src.hierarchical_particles import HierarchicalParticles
 
 
+
+############################## CURRENT BOTTLE NECKS ##################################
+# 1. Evolving subsystems in _evolve_coll_offset --> ONE-BY-ONE, NOT PARALLELISED. 
+#    THIS IS THE MAIN BOTTLE NECK AND REQUIRES COMPLETE RESTRUCTURE OF NEMESIS LOGIC
+#    TO CIRCUMVENT.
+# 2. SPLIT_SUBCODES --> SPLITTING SYSTEMS, NOT PARALLELISED (SHARED MEMORY SO DIFFICULT)
+#### OTHER ROOM FOR IMPROVEMENT:
+# 1. DEFINE BRIDGE TIME BETTER --> CURRENTLY FIXED. CAN USE ADAPTIVE AS CLASSIC ALGORITHM
+#    OR USING INFERRED VIA MACHINE LEARNING.
+# 2. DEFINE PARENT SYSTEM BETTER --> CURRENTLY IGNORES CLUSTER DENSITY. CAN BASED ON 
+#    GRAVITATIONAL FORCE OR USING INFERENCE VIA MACHINE LEARNING.
+# 3. FOR ASTEROIDS, USE A DIFFERENT INTEGRATOR --> CURRENTLY USING PH4
+# 4. FOR ASTEROIDS, TOO MANY SPLITS AND RE-MERGES --> HAVE A FILTER TO REDUCE THE `COMETS`
+# 5. REMOVE EJECTED SYSTEMS
+######################################################################################
+
+
+
 class Nemesis(object):
     def __init__(self, par_conv, dtbridge, coll_dir, 
                  available_cpus=os.cpu_count(), nmerge=0,
@@ -87,7 +105,7 @@ class Nemesis(object):
         self.particles = HierarchicalParticles(self._parent_code.particles)
         self.subcodes = dict()
         self.dt_step = 0
-        self.executor = ThreadPoolExecutor(max_workers=20)
+        self.executor = ThreadPoolExecutor(max_workers=4)
         
         self._major_channel_maker()
         self._validate_initialization()
@@ -225,7 +243,10 @@ class Nemesis(object):
             raise ValueError("Error: No children provided.")
 
         converter = nbody_system.nbody_to_si(scale_mass, scale_radius)
-        number_of_workers = max(1, 2 * int(len(children)//1000 - 1))
+        
+        ### Most efficient to keep the number of workers to 1 for each children.
+        ### Change only if number of cores available >> number of children.
+        number_of_workers = 1
         if (0. | units.kg) in children.mass:
             code = Ph4(converter, number_of_workers=number_of_workers)
             code.parameters.epsilon_squared = (0. | units.au)**2.
@@ -678,7 +699,7 @@ class Nemesis(object):
             coll_time (units.time):  Time of collision
             coll_set (Particles):  Colliding particle set
         """
-        collsubset, _ = self._evolve_coll_offset(coll_set, coll_time)
+        collsubset = self._evolve_coll_offset(coll_set, coll_time)
         newparts = Particles()
         for particle in collsubset:
             local_parent = particle.as_particle_in_set(self.particles)
@@ -767,8 +788,9 @@ class Nemesis(object):
                     system.add_particle(local_ast)
                     system.position -= mass_pos
                     system.velocity -= mass_vel
-                    sys_mass = system.mass
 
+                    """  Not sure if necessary
+                    sys_mass = system.mass
                     stars = system[sys_mass > MIN_EVOL_MASS]
                     asteroids = system[sys_mass == 0. | units.MSun]
                     planets = system - stars - asteroids
@@ -776,6 +798,7 @@ class Nemesis(object):
                     stars.radius = ZAMS_radius(stars.mass)
                     for p in planets:
                         p.radius = planet_radius(p.mass)
+                    """
 
                     newparent = Particle()
                     newparent.mass = local_mass.mass
@@ -821,7 +844,6 @@ class Nemesis(object):
             List: Index 0 contains parent colliders, index 1 childrens of merging parents
         """
         collsubset = Particles()
-        collsyst = dict()
         for particle in coll_set:
             collsubset.add_particle(particle)
 
@@ -924,12 +946,8 @@ class Nemesis(object):
 
                     code.stop()
                     del code, offset, channel
-
-        for particle in collsubset:              
-            if particle in self.subsystems:
-                collsyst[particle] = self.subsystems[particle]
                 
-        return [collsubset, collsyst]
+        return collsubset
     
     def _handle_collision(self, children: Particles, parent: Particle, enc_parti: Particles, code, resolved_keys: dict):
         """
