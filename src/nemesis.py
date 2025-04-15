@@ -789,7 +789,6 @@ class Nemesis(object):
                     system.position -= mass_pos
                     system.velocity -= mass_vel
 
-                    """  Not sure if necessary
                     sys_mass = system.mass
                     stars = system[sys_mass > MIN_EVOL_MASS]
                     asteroids = system[sys_mass == 0. | units.MSun]
@@ -798,8 +797,7 @@ class Nemesis(object):
                     stars.radius = ZAMS_radius(stars.mass)
                     for p in planets:
                         p.radius = planet_radius(p.mass)
-                    """
-
+                    
                     newparent = Particle()
                     newparent.mass = local_mass.mass
                     newparent.position = mass_pos
@@ -1025,7 +1023,7 @@ class Nemesis(object):
                     if coll_a.mass > MIN_EVOL_MASS:
                         self._stellar_code.particles.remove_particle(coll_a)
                         self.stars.remove_particle(coll_a)
-                    
+
                     if coll_b.mass > MIN_EVOL_MASS:
                         self._stellar_code.particles.remove_particle(coll_b)
                         self.stars.remove_particle(coll_b)
