@@ -989,39 +989,43 @@ class Nemesis(object):
         # Create merger remnant
         most_massive = collider[collider.mass.argmax()]
         collider_mass = collider.mass
-        if max(collider_mass) == (0. | units.kg):
-            raise ValueError("Error: Asteroid - Asteroid collision")
-        elif min(collider_mass) == (0. | units.kg):
+        if min(collider_mass) == (0. | units.kg):
             remnant = Particles(particles=[most_massive])
-        else:
+
+        elif max(collider_mass) > (0 | units.kg):
             remnant  = Particles(1)
-            remnant.mass = collider_mass.sum()
+            remnant.mass = collider.total_mass()
             remnant.position = collider.center_of_mass()
             remnant.velocity = collider.center_of_mass_velocity()
-            
+
             if remnant.mass > MIN_EVOL_MASS:
                 remnant.radius = ZAMS_radius(remnant.mass)
                 if self.__star_evol:
                     self._stellar_code.particles.add_particle(remnant)
                     self.stars.add_particle(remnant)
+
+                    if coll_a.mass > MIN_EVOL_MASS:
+                        self._stellar_code.particles.remove_particle(coll_a)
+                        self.stars.remove_particle(coll_a)
+                    
+                    if coll_b.mass > MIN_EVOL_MASS:
+                        self._stellar_code.particles.remove_particle(coll_b)
+                        self.stars.remove_particle(coll_b)
+
             else:
                 remnant.radius = planet_radius(remnant.mass)
-            
+
+        else:
+            raise ValueError("Error: Asteroid - Asteroid collision")
+
         remnant.coll_events = max(collider.coll_events) + 1
         remnant.type = most_massive.type
         remnant.original_key = most_massive.original_key
-        
-        if self.__star_evol:
-            if coll_a.mass > MIN_EVOL_MASS:
-                self._stellar_code.particles.remove_particle(coll_a)
-                self.stars.remove_particle(coll_a)
-            if coll_b.mass > MIN_EVOL_MASS:
-                self._stellar_code.particles.remove_particle(coll_b)
-                self.stars.remove_particle(coll_b)
-        
+
         # Deal with simultaneous mergers
         changes = [ ]
-        coll_a_change = coll_b_change = 0
+        coll_a_change = 0
+        coll_b_change = 0
         if not resolved_keys:
             resolved_keys[coll_a.key] = remnant.key[0]
             resolved_keys[coll_b.key] = remnant.key[0]
