@@ -1,3 +1,9 @@
+############################## TO WORK ON ##############################
+# 1. AMUSIFY C++ LIBRARY WITH INTERFACE
+# 2. RELEASE GIL IN C++ LIBRARY
+# 3. GET_POTENTIAL_AT_POINT FUNCTION NOT USED --> TO VALIDATE
+########################################################################
+ 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
 import traceback
@@ -6,13 +12,6 @@ from amuse.couple.bridge import CalculateFieldForParticles
 from amuse.lab import constants, units, Particles
 
 from src.globals import SI_UNITS
-
-############################## TO WORK ON ##############################
-# 1. AMUSIFY C++ LIBRARY WITH INTERFACE
-# 2. RELEASE GIL IN C++ LIBRARY
-# 3. GET_POTENTIAL_AT_POINT FUNCTION NOT USED --> TO VALIDATE
-########################################################################
-
 
 
 
@@ -199,7 +198,7 @@ class CorrectionFromCompoundParticle(object):
         parent_idx = {parent.key: i for i, parent in enumerate(self.particles)}
         futures = []
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            for parent, system in list(self.subsystems.items()):
+            for parent, system in list(self.subsystems.values()):
                 try:
                     removed_idx = parent_idx.pop(parent.key)
 
@@ -262,7 +261,7 @@ class CorrectionFromCompoundParticle(object):
         """
         particles = self.particles.copy()
         particles.phi = 0. | (particles.vx.unit**2)
-        for parent, sys in self.subsystems.items(): 
+        for parent, sys in self.subsystems.values(): 
             copied_system = sys.copy()
             copied_system.position += parent.position
             copied_system.velocity += parent.velocity

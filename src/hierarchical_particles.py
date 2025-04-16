@@ -1,16 +1,16 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import numpy as np
-
-from amuse.datamodel import Particle, Particles, ParticlesOverlay
-from amuse.units import units
-
 
 ############################## NOTES ##############################
 # Recentering subsystems is optimised. Even without GIL release, 
 # overhead of multiprocessing is too consuming. Most likely the 
 # AMUSE-based arrays (position/velocity) are already wrapped around 
 # NumPy arrays.
-########################################################################
+###################################################################
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import numpy as np
+
+from amuse.datamodel import Particle, Particles, ParticlesOverlay
+from amuse.units import units
 
 
 
@@ -31,8 +31,9 @@ class HierarchicalParticles(ParticlesOverlay):
         """
         _parts = ParticlesOverlay.add_particles(self,parts)
         if hasattr(parts.collection_attributes, "subsystems"):
-            for parent, sys in parts.collection_attributes.subsystems.items():
-                self.collection_attributes.subsystems[parent.as_particle_in_set(self)] = sys
+            for parent, sys in parts.collection_attributes.subsystems.values():
+                parent = parent.as_particle_in_set(self)
+                self.collection_attributes.subsystems[parent.key] = (parent, sys)
 
         return _parts
 
@@ -56,7 +57,7 @@ class HierarchicalParticles(ParticlesOverlay):
             recenter=recenter
         )
         parent = self.add_particle(parent)
-        self.collection_attributes.subsystems[parent] = sys
+        self.collection_attributes.subsystems[parent.key] = (parent, sys)
 
         return parent
 
@@ -127,7 +128,7 @@ class HierarchicalParticles(ParticlesOverlay):
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
                 executor.submit(calculate_com, parent.position, parent.velocity, sys): parent
-                for parent, sys in self.collection_attributes.subsystems.items()
+                for parent, sys in self.collection_attributes.subsystems.values()
             }
 
             for future in as_completed(futures):
@@ -144,7 +145,7 @@ class HierarchicalParticles(ParticlesOverlay):
             parts (Particles):  The particle to be removed
         """
         for p in parts:
-            self.collection_attributes.subsystems.pop(p, None)
+            self.collection_attributes.subsystems.pop(p.key, None)
 
         ParticlesOverlay.remove_particles(self, parts)
 
@@ -160,11 +161,10 @@ class HierarchicalParticles(ParticlesOverlay):
         parts.syst_id = -1
 
         subsystems = self.collection_attributes.subsystems
-        for system_id, (parent, sys) in enumerate(subsystems.items()):
+        for system_id, (parent, sys) in enumerate(subsystems.values()):
             parts.remove_particle(parent)
 
             subsys = parts.add_particles(sys)
-            subsys.sub_worker_radius = subsys.radius
             subsys.position += parent.position
             subsys.velocity += parent.velocity
             subsys.syst_id = system_id + 1

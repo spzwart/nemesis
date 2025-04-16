@@ -32,7 +32,8 @@ def create_output_directories(dir_path: str):
         "event_data", 
         "collision_snapshot",
         "sim_stats",
-        "simulation_snapshot"
+        "simulation_snapshot",
+        "temp"
     ]
 
     for subdir in subdirs:
@@ -194,11 +195,10 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
 
     nemesis.particles.add_particles(parents)
     nemesis.commit_particles()
-    nemesis._split_subcodes()  # Check for any splits at t=0
-
-    if (nemesis._dE_track):
+    nemesis.split_subcodes()  # Check for any splits at t=0
+    if (nemesis.dE_track):
         energy_arr = [ ]
-        E0 = nemesis._calculate_total_energy()
+        E0 = nemesis.calculate_total_energy()
 
     if snapshot_no == 0:
         allparts = nemesis.particles.all()
@@ -252,7 +252,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
             t_diag += dt_diag
             
         if (dE_track) and (prev_step != nemesis.dt_step):
-            E1 = nemesis._calculate_total_energy()
+            E1 = nemesis.calculate_total_energy()
             E1 += nemesis.corr_energy
             energy_arr.append(abs((E1-E0)/E0))
 
@@ -284,13 +284,13 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
                 \nTime step: {dtbridge.in_(units.Myr)}")
 
     # Kill all workers
-    for parent, code in nemesis.subcodes.items():
-        pid = nemesis._pid_workers[parent]
+    for parent_key, code in nemesis.subcodes.items():
+        pid = nemesis.pid_workers[parent_key]
         nemesis.resume_workers(pid)
         code.stop()
 
-    nemesis._stellar_code.stop()  
-    nemesis._parent_code.stop()
+    nemesis.stellar_code.stop()  
+    nemesis.parent_code.stop()
 
     if (dE_track):
         with open(os.path.join(directory_path, "energy_error.csv"), 'w') as f:
