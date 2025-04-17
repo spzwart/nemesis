@@ -18,7 +18,6 @@ from src.globals import SI_UNITS
 def compute_gravity(grav_lib, pert_m, pert_x, pert_y, pert_z, infl_x, infl_y, infl_z, npert=None, npart=None) -> tuple:
     """
     Compute gravitational force felt by perturber particles due to externals
-
     Args:
         grav_lib (library):  Library to compute gravity
         pert_m (units.mass):  Mass of perturber particles
@@ -86,7 +85,6 @@ class CorrectionFromCompoundParticle(object):
     def __init__(self, grav_lib, particles, particles_x, particles_y, particles_z, subsystems: Particles, num_of_workers: int):
         """
         Correct force exerted by some parent system on other particles by that of its system.
-
         Args:
             grav_lib (Library): The gravity library (e.g., a wrapped C++ library).
             particles (units.length):  Original parent particle set
@@ -110,10 +108,8 @@ class CorrectionFromCompoundParticle(object):
                         system_mass, system_x, system_y, system_z, removed_idx: int) -> tuple:
         """
         Compute the differential acceleration on the parent system.
-
         Instead of copying and then removing one particle from the arrays,
         we form the “external_parents” set by logically ignoring the removed element.
-    
         Args:
             particles_x (units.length):  x coordinate of parent particles
             particles_y (units.length):  y coordinate of parent particles
@@ -179,8 +175,7 @@ class CorrectionFromCompoundParticle(object):
 
         :math:`dF = \sum_{j} \left( \sum_{i} F_{i} - F_{j} \right)`
 
-        where j is parent and i is system of parent j
-
+        where j is parent and i is constituent childrens of parent j.
         Args:
             radius (units.length):  Radius of parent particles
             x (units.length):  x coordinate of parent particles
@@ -202,7 +197,7 @@ class CorrectionFromCompoundParticle(object):
                 try:
                     removed_idx = parent_idx.pop(parent.key)
 
-                    ### Strip relevant properties. Copy leads to leak -> remove_particles() consumes time.
+                    ### Strip relevant properties. Copying particles leads to leaks.
                     parent_mass = parent.mass
                     parent_x = parent.x
                     parent_y = parent.y
@@ -250,7 +245,6 @@ class CorrectionFromCompoundParticle(object):
     def get_potential_at_point(self, radius, x, y, z) -> np.ndarray:
         """
         Get the potential at a specific location
-
         Args:
             radius (units.length):  Radius of the particle at that location
             x (units.length):  x coordinate of the location
@@ -293,17 +287,17 @@ class CorrectionForCompoundParticle(object):
     def __init__(self, grav_lib, parent_x, parent_y, parent_z,
                  system_x, system_y, system_z, system: Particles,
                  perturber_mass, perturber_x, perturber_y, perturber_z):
-        """Correct force vector exerted by global particles on systems
-
+        """
+        Correct force vector exerted by global particles on systems
         Args:
             grav_lib (Library): The gravity library (e.g., a wrapped C++ library).
             parent_x (units.length): x coordinate of the parent particle.
             parent_y (units.length): y coordinate of the parent particle.
             parent_z (units.length): z coordinate of the parent particle.
-            system (Particles): The subsystem particles.
             system_x (units.length): x coordinate of the system particle.
             system_y (units.length): y coordinate of the system particle.
             system_z (units.length): z coordinate of the system particle.
+            system (Particles): The subsystem particles.
             perturber_mass (units.mass): Mass of the perturber particle.
             perturber_x (units.length): x coordinate of the perturber particle.
             perturber_y (units.length): y coordinate of the perturber particle.
@@ -330,7 +324,6 @@ class CorrectionForCompoundParticle(object):
     def get_gravity_at_point(self, radius, x, y, z) -> tuple:
         """
         Compute gravitational acceleration felt by system due to parents present.
-
         Args:
             radius (units.length):  Radius of the system particle
             x (units.length):  x coordinate of the system particle
@@ -374,8 +367,7 @@ class CorrectionForCompoundParticle(object):
 
     def get_potential_at_point(self, radius, x, y, z) -> np.ndarray:
         """
-        Get the potential at a specific location
-
+        Get the potential at a specific location.
         Args:
             radius (units.length):  Radius of the system particle
             x (units.length):  x Location of the system particle

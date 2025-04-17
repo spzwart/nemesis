@@ -11,10 +11,11 @@ def connected_components_kdtree(system: Particles, threshold=None) -> list:
     """
     Returns a list of connected component subsets of particles.
     Uses a KD-Tree for efficient spatial queries.
-    
     Args:
         system (Particles): The particle set
         threshold (units.length): The distance threshold for connected components
+    Returns:
+        list: A list of connected component in form of AMUSE particles
     """
     coords = np.vstack([
         system.x.value_in(units.m),
@@ -23,7 +24,6 @@ def connected_components_kdtree(system: Particles, threshold=None) -> list:
     ]).T
 
     tree = cKDTree(coords)
-
     n = len(coords)
     visited = np.zeros(n, dtype=bool)
     components = []
@@ -54,7 +54,6 @@ def connected_components_kdtree(system: Particles, threshold=None) -> list:
 def galactic_frame(parent_set: Particles, dx, dy, dz, dvx, dvy, dvz) -> Particles:
     """
     Shift particle set to galactic frame.
-
     Args:
         parent_set (Particles):  The particle set
         dx (units.length): x-coordinate shift in the galactocentric frame
@@ -64,7 +63,7 @@ def galactic_frame(parent_set: Particles, dx, dy, dz, dvx, dvy, dvz) -> Particle
         dvy (units.length): y-velocity shift in the galactocentric frame
         dvz (units.length): z-velocity shift in the galactocentric frame
     Returns:
-        Particles: Particle set with galactocentric coordinates
+        Particles: Particle set shifted to galactocentric coordinates
     """
     parent_set.x += dx
     parent_set.y += dy
@@ -82,7 +81,6 @@ def set_parent_radius(system_mass) -> units.au:
     Merging radius of parent systems. Based on system crossing time.
     - Too large → Poor angular momentum conservation, inaccurate center of mass.
     - Too small → Excessive computation due to frequent small timesteps.
-
     Args:
        system_mass (units.mass):  Total mass of the system
     Returns:
@@ -94,7 +92,6 @@ def set_parent_radius(system_mass) -> units.au:
 def planet_radius(planet_mass) -> units.REarth:
     """
     Compute planet radius (arXiv:2311.12593).
-
     Args:
         planet_mass (units.mass):  Mass of the planet
     Returns:
@@ -111,7 +108,6 @@ def planet_radius(planet_mass) -> units.REarth:
 def ZAMS_radius(star_mass) -> units.RSun:
     """
     Define stellar radius at ZAMS.
-
     Args:
         star_mass (units.mass):  Mass of the star
     Returns:
