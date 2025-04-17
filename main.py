@@ -1,3 +1,11 @@
+##################################### NOTES ###############################
+# 1. Implement cleaner way to initialise children.
+# 2. Upon resumption, code assumes single star population.  Stellar ages 
+#    correspond to the time of the simulation at last stop. 
+#    To account for multi-stellar population, add a channel in nemesis class 
+#    that copies between stellar_code.particles and lonely parents
+###########################################################################
+
 import glob
 from natsort import natsorted
 import numpy as np
@@ -14,18 +22,13 @@ from src.globals import EPS, MIN_EVOL_MASS, START_TIME
 from src.hierarchical_particles import HierarchicalParticles
 from src.nemesis import Nemesis
 
-#### ROOM FOR IMPROVEMENT
-# 1. IMPLEMENT CLEANER WAY TO INITIALISE SUBSYSTEMS
 
 
 def create_output_directories(dir_path: str):
     """
     Creates directories for output.
-
     Args:
-        dir_path (str):  Simulation directory path
-    Returns:
-        String: Directory path for specific run
+        dir_path (str):  Simulation directory path.
     """
     # Create main directory and subdirectories in a single pass
     subdirs = [
@@ -42,11 +45,10 @@ def create_output_directories(dir_path: str):
 def load_particle_set(ic_file: str) -> Particles:
     """
     Load particle set from file.
-
     Args:
-        ic_file (str):  Path to initial conditions
+        ic_file (str):  Path to initial conditions.
     Returns:
-        Particles:  Initial particle set
+        Particles:  Initial particle set.
     """
     particle_set = read_set_from_file(ic_file)
     if len(particle_set) == 0:
@@ -59,11 +61,10 @@ def load_particle_set(ic_file: str) -> Particles:
 def configure_galactic_frame(particle_set: Particles) -> Particles:
     """
     Shift particle set to galactocentric reference frame.
-
     Args:
-        particle_set (particles):  The particle set
+        particle_set (particles):  The particle set.
     Returns:
-        Particles: Particle set with galactocentric coordinates
+        Particles: Particle set with galactocentric coordinates.
     """
     return galactic_frame(particle_set, 
                           dx=-8.4 | units.kpc, 
@@ -76,13 +77,13 @@ def configure_galactic_frame(particle_set: Particles) -> Particles:
 def identify_parents(particle_set: Particles) -> Particles:
     """
     Identify parents in particle set. These are either:
-        - Isolated particles (syst_id < 0)
-        - Hosts of subsystem (max mass in system)
-
+        - Isolated particles (syst_id < 0).
+        - Hosts of subsystem (max mass in system).
     Args:
-        particle_set (Particles):  The particle set
+        particle_set (Particles):  The particle set.
     Returns:
-        Particles:  Parents in particle set
+        Particles:  Parents (Lonely + Host) in particle set. 
+                    Host are identified as the most massive object in the system.
     """
     parents = particle_set[particle_set.syst_id <= 0]
     system_ids = np.unique(particle_set.syst_id[particle_set.syst_id > 0])
@@ -95,10 +96,8 @@ def identify_parents(particle_set: Particles) -> Particles:
 def setup_simulation(dir_path: str, particle_set: Particles) -> tuple:
     """
     Setup simulation directories and load particle set.
-
     Args:
         dir_path (str):  Directory path for outputs
-        sim_dir (str):  Simulation directory path
         particle_set (Particles): The particle set
     Returns:
         tuple: (directory_path, snapshot_path, particle_set)
@@ -111,7 +110,6 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
                    dE_track: bool, gal_field: bool, star_evol: bool, verbose: bool) -> None:
     """
     Run simulation and output data.
-
     Args:
         particle_set (String):  Path to initial conditions
         tend (units.time):  Simulation end time
@@ -129,38 +127,38 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     coll_dir = os.path.join(directory_path, "collision_snapshot")
 
     if os.path.exists(init_params):
-        if (verbose):
+        if verbose:
             print("...Loading from previous simulation...")
 
         with open(init_params, 'r') as f:
             iparams = f.readlines()
             diag_dt = iparams[3].split(":")[1].split("yr")[0]
             end_time = iparams[5].split(":")[1].split("Myr")[0]
-            
+
             diag_dt = float(diag_dt) | units.yr
             end_time = float(end_time) | units.Myr
 
         snapshot_path = os.path.join(directory_path, "simulation_snapshot")
         previous_snaps = natsorted(glob.glob(os.path.join(snapshot_path, "*")))
-
         snapshot_no = len(previous_snaps)
         particle_set = read_set_from_file(previous_snaps[-1])
-
-        # Set these parameters to ensure SeBa doesn't reset age
-        stars = particle_set[particle_set.mass > MIN_EVOL_MASS]
-        stars.relative_mass = stars.mass
-        stars.relative_age = stars.age
 
         time_offset = (snapshot_no - 1) * dt_diag
         tend = tend - time_offset
         current_mergers = particle_set.coll_events.sum()
-        if (verbose):
+        if verbose:
             print(f"{tend.in_(units.Myr)} remaining in simulation")
             print(f"# Mergers: {current_mergers}")
             print(f"# Snaps: {snapshot_no}")
-    
+            
+        # These parameters ensure SeBa doesn't reset stellar age.
+        stars = particle_set[particle_set.mass > MIN_EVOL_MASS]
+        stars.relative_mass = stars.mass
+        stars.age = time_offset
+        stars.relative_age = stars.age
+
     else:
-        if (verbose):
+        if verbose:
             print("...Starting new simulation...")
 
         time_offset = 0. | units.yr
@@ -173,13 +171,13 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     
     snap_path = os.path.join(snapshot_path, "snap_{}.hdf5")
     major_bodies = identify_parents(particle_set)
-    isolated_systems = major_bodies[major_bodies.syst_id <= 0]
-    bounded_systems = major_bodies[major_bodies.syst_id > 0]
-
     Rvir = major_bodies.virial_radius()
     conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), 2. * Rvir)
 
     # Setting up system
+    isolated_systems = major_bodies[major_bodies.syst_id <= 0]
+    bounded_systems = major_bodies[major_bodies.syst_id > 0]
+
     parents = HierarchicalParticles(isolated_systems)
     nemesis = Nemesis(par_conv=conv_par, dtbridge=dtbridge, 
                       coll_dir=coll_dir, code_dt=code_dt, 
@@ -232,15 +230,12 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
 
         if (nemesis.model_time >= t_diag) and (nemesis.dt_step != prev_step):
             if verbose:
-                print(
-                    f"Saving snapshot {snapshot_no} at time {t.in_(units.yr)}\n"
-                    f"Time taken since last snapshot saved: {time.time() - snap_time}"
-                )
+                print(f"Saving snapshot {snapshot_no} at time {t.in_(units.yr)}")
+                print(f"Time taken since last snapshot saved: {time.time() - snap_time}")
                 snap_time = time.time()
 
             snapshot_no += 1
             fname = snap_path.format(snapshot_no)
-
             allparts = nemesis.particles.all()
             write_set_to_file(
                 allparts.savepoint(nemesis.model_time),  
@@ -250,7 +245,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
             )
             allparts.remove_particles(allparts)  # Clean memory
             t_diag += dt_diag
-            
+
         if (dE_track) and (prev_step != nemesis.dt_step):
             E1 = nemesis.calculate_total_energy()
             E1 += nemesis.corr_energy
@@ -261,7 +256,6 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
                 print(f"t = {t.in_(units.Myr)}, dE = {abs((E1-E0)/E0)}")
 
         prev_step = nemesis.dt_step
-
         if verbose:
             t1 = time.time()
             print(f"Step took {t1-t0} seconds")
@@ -273,15 +267,14 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         'amuse', close_file=True, overwrite_file=True
     )
 
-    print("...Simulation Ended...")
-
     # Store simulation statistics
+    print("...Simulation Ended...")
     sim_time = (time.time() - START_TIME)/60.
     fname = os.path.join(directory_path, 'sim_stats', f'sim_stats_{RUN_IDX}.txt')
     with open(fname, 'w') as f:
-        f.write(f"Total CPU Time: {sim_time} minutes \
-                \nEnd Time: {t.in_(units.Myr)} \
-                \nTime step: {dtbridge.in_(units.Myr)}")
+        f.write(f"Total CPU Time: {sim_time} minutes")
+        f.write(f"\nEnd Time: {t.in_(units.Myr)}")
+        f.write(f"\nTime step: {dtbridge.in_(units.Myr)}")
 
     # Kill all workers
     for parent_key, code in nemesis.subcodes.items():

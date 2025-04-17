@@ -41,9 +41,9 @@ src/globals.py:
 - `EPS`: Tolerance with which models have successfully integrated to required timestep.
 - `GRAV_THRESHOLD`: Threshold for modifying the parent radius in case it is relatively isolated.
 - `MIN_EVOL_MASS`: The minimum mass for a particle to be flagged for stellar evolution.
+- `PARENT_NWORKER`: Number of workers for parent integrator.
 - `PARENT_RADIUS_COEFF`: Pre-factor influencing the parent system radius.
 - `PARENT_RADIUS_MAX`: Maximum allowed parent radius.
-- `PARENT_N_WORKER`: Number of workers for parent integrator.
 
 src/nemesis.py:
 - In `_sub_worker()`: Number of child workers.
