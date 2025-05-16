@@ -204,10 +204,9 @@ class CorrectionFromCompoundParticle(object):
                     parent_z = parent.z
 
                     system_mass = system.mass
-                    system_pos = system.position + parent.position
-                    system_x = system_pos.x
-                    system_y = system_pos.y
-                    system_z = system_pos.z
+                    system_x = system.x
+                    system_y = system.y
+                    system_z = system.z
 
                     future = executor.submit(
                         self.correct_parents,
