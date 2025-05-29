@@ -278,7 +278,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
 
     # Kill all workers
     for parent_key, code in nemesis.subcodes.items():
-        pid = nemesis.pid_workers[parent_key]
+        pid = nemesis._pid_workers[parent_key]
         nemesis.resume_workers(pid)
         code.stop()
 

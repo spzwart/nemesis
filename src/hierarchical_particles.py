@@ -61,7 +61,8 @@ class HierarchicalParticles(ParticlesOverlay):
 
     def assign_parent_attributes(self, sys: Particles, parent: Particle, relative=True, recenter=True) -> None:
         """
-        Create parent from subsystem attributes.
+        Create parent from subsystem attributes
+
         Args:
             sys (Particles):  The subsystem set
             parent (Particle):  The parent particle
@@ -69,24 +70,29 @@ class HierarchicalParticles(ParticlesOverlay):
             recenter (bool):  Flag to recenter the parent
         """
         if not relative:
-            parent.position = 0. * sys[0].position
-            parent.velocity = 0. * sys[0].velocity
+            parent.position = 0.*sys[0].position
+            parent.velocity = 0.*sys[0].velocity
 
         massives = sys[sys.mass != (0. | units.kg)]
-        if recenter:
-            masses = massives.mass.value_in(units.kg)
-            positions = massives.position.value_in(units.m)
-            velocities = massives.velocity.value_in(units.ms)
-
-            com = np.average(positions, weights=masses, axis=0)
-            com_vel = np.average(velocities, weights=masses, axis=0)
-
-            parent.position += com | units.m
-            parent.velocity += com_vel | units.ms
-            sys.position -= com | units.m
-            sys.velocity -= com_vel | units.ms
-
         parent.mass = np.sum(massives.mass)
+        try:
+            if recenter:
+                masses = massives.mass.value_in(units.kg)
+                positions = massives.position.value_in(units.m)
+                velocities = massives.velocity.value_in(units.ms)
+
+                com = np.average(positions, weights=masses, axis=0)
+                com_vel = np.average(velocities, weights=masses, axis=0)
+
+                parent.position += com | units.m
+                parent.velocity += com_vel | units.ms
+                sys.position -= com | units.m
+                sys.velocity -= com_vel | units.ms
+
+        except Exception as e:
+            print(f"Error: {e}")
+            print(f"System: {sys}")
+            exit(-1)
 
     def recenter_subsystems(self, max_workers: int) -> None:
         """
