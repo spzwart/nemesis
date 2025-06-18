@@ -248,7 +248,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
 
         if (dE_track) and (prev_step != nemesis.dt_step):
             E1 = nemesis.calculate_total_energy()
-            E1 += nemesis.corr_energy
+            E0 += nemesis.corr_energy
             energy_arr.append(abs((E1-E0)/E0))
 
             prev_step = nemesis.dt_step
