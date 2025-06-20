@@ -111,7 +111,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     """
     Run simulation and output data.
     Args:
-        particle_set (String):  Path to initial conditions
+        particle_set (str):  Path to initial conditions
         tend (units.time):  Simulation end time
         dtbridge (units.time):  Bridge timestep
         dt_diag (units.time):  Diagnostic time step
@@ -172,7 +172,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     snap_path = os.path.join(snapshot_path, "snap_{}.hdf5")
     major_bodies = identify_parents(particle_set)
     Rvir = major_bodies.virial_radius()
-    conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), 2. * Rvir)
+    conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), Rvir)
 
     # Setting up system
     isolated_systems = major_bodies[major_bodies.syst_id <= 0]

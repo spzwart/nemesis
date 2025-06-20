@@ -90,9 +90,8 @@ class HierarchicalParticles(ParticlesOverlay):
                 sys.velocity -= com_vel | units.ms
 
         except Exception as e:
-            print(f"Error: {e}")
-            print(f"System: {sys}")
-            exit(-1)
+            error_message = f"Error: {e}\nSystem: {sys}"
+            raise AttributeError(error_message)
 
     def recenter_subsystems(self, max_workers: int) -> None:
         """
