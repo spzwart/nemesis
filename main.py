@@ -282,7 +282,8 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         nemesis.resume_workers(pid)
         code.stop()
 
-    nemesis.stellar_code.stop()  
+    if star_evol:
+        nemesis.stellar_code.stop()  
     nemesis.parent_code.stop()
 
     if (dE_track):
