@@ -328,7 +328,7 @@ def new_option_parser():
     result.add_option("--dE_track", 
                       dest="dE_track", 
                       type="int",
-                      default=0, d
+                      default=0,
                       help="Flag to turn on energy error tracker")
     result.add_option("--star_evol", 
                       dest="star_evol", 
