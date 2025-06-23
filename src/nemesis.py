@@ -78,7 +78,6 @@ class Nemesis(object):
         self.__main_process = psutil.Process(os.getpid())
         self.__nmerge = nmerge
         self.__resume_offset = resume_time
-        self.__dE_track = dE_track
 
         # Protected attributes
         self._verbose = verbose
@@ -101,7 +100,8 @@ class Nemesis(object):
         self.particles = HierarchicalParticles(self.parent_code.particles)
         self.subcodes = dict()
         self.dt_step = 0
-        
+        self.dE_track = dE_track
+
         self._major_channel_maker()
         self._validate_initialization()
         self.lib = self._load_grav_lib()
@@ -224,6 +224,7 @@ class Nemesis(object):
         code = Ph4(self._parent_conv, number_of_workers=self.__par_nworker)
         code.parameters.epsilon_squared = (0. | units.au)**2.
         code.parameters.timestep_parameter = self.__code_dt
+        code.parameters.force_sync = True
         return code
 
     def _sub_worker(self, children: Particles, scale_mass, scale_radius):
@@ -244,18 +245,11 @@ class Nemesis(object):
         # Most efficient to keep the number of workers to 1 for each children.
         # Change only if number of cores available > number of children systems.
         number_of_workers = 1
-        if (0. | units.kg) in children.mass:
-            code = Ph4(converter, number_of_workers=number_of_workers)
-            code.parameters.epsilon_squared = (0. | units.au)**2.
-            code.parameters.timestep_parameter = self.__code_dt
-            code.particles.add_particles(children)
-
-        else:
-            code = Huayno(converter, number_of_workers=number_of_workers)
-            code.particles.add_particles(children)
-            code.parameters.epsilon_squared = (0. | units.au)**2.
-            code.parameters.timestep_parameter = self.__code_dt
-            code.set_integrator("SHARED8_COLLISIONS")
+        code = Huayno(converter, number_of_workers=number_of_workers)
+        code.particles.add_particles(children)
+        code.parameters.epsilon_squared = (0. | units.au)**2.
+        code.parameters.timestep_parameter = self.__code_dt
+        code.set_integrator("SHARED8_COLLISIONS")
 
         return code, number_of_workers
 
@@ -357,7 +351,7 @@ class Nemesis(object):
             "radius", "mass"
         ]
 
-        if (self.__star_evol):
+        if self.__star_evol:
             self._child_channels[parent_key] = {
                 "from_star_to_gravity":
                     self.stellar_code.particles.new_channel_to(
@@ -568,6 +562,8 @@ class Nemesis(object):
     def _process_parent_mergers(self) -> None:
         """Process merging of parents from previous timestep in parallel"""
         self.channels["from_gravity_to_parents"].copy()
+        if self.dE_track:
+            E0 = self.calculate_total_energy()
 
         nmergers = len(self._new_systems.keys())
         for parent_key, children in self._new_systems.items():
@@ -604,6 +600,9 @@ class Nemesis(object):
         new_parents = self.particles[-nmergers:]
         overly_massive = new_parents.radius > PARENT_RADIUS_MAX
         new_parents[overly_massive].radius = PARENT_RADIUS_MAX
+        if self.dE_track:
+            E1 = self.calculate_total_energy()
+            self.corr_energy += E1 - E0
 
     def _asteroid_merger(self, local_mass, local_ast) -> None:
         """
@@ -1039,7 +1038,7 @@ class Nemesis(object):
     
     def _handle_supernova(self, SN_detect, bodies: Particles) -> None:
         """Handle SN events"""
-        if self.__dE_track:
+        if self.dE_track:
             E0 = self.calculate_total_energy()
             
         SN_particle = SN_detect.particles(0)
@@ -1054,7 +1053,7 @@ class Nemesis(object):
             SN_parti.vy += natal_kick_y
             SN_parti.vz += natal_kick_z
             
-        if self.__dE_track:
+        if self.dE_track:
             E1 = self.calculate_total_energy()
             self.corr_energy += E1 - E0
 
@@ -1099,9 +1098,8 @@ class Nemesis(object):
         coll_time = None
         while self._evolve_code.model_time < dt * (1. - EPS):
             self._evolve_code.evolve_model(dt)
-            
             if self.grav_coll.is_set():
-                if self.__dE_track:
+                if self.dE_track:
                     E0 = self.calculate_total_energy()
                 coll_time = self.parent_code.model_time
                 coll_sets = self._find_coll_sets(
@@ -1110,7 +1108,7 @@ class Nemesis(object):
                                 )
                 for cs in coll_sets:
                     self._parent_merger(coll_time, cs)
-                if self.__dE_track:
+                if self.dE_track:
                     E1 = self.calculate_total_energy()
                     self.corr_energy += E1 - E0
 
@@ -1118,7 +1116,7 @@ class Nemesis(object):
             while self.parent_code.model_time < dt * (1. - EPS):
                 self.parent_code.evolve_model(dt)
                 if self.grav_coll.is_set():
-                    if self.__dE_track:
+                    if self.dE_track:
                         E0 = self.calculate_total_energy()
                     
                     coll_time = self.parent_code.model_time
@@ -1128,7 +1126,7 @@ class Nemesis(object):
                                     )
                     for cs in coll_sets:
                         self._parent_merger(coll_time, cs)
-                    if self.__dE_track:
+                    if self.dE_track:
                         E1 = self.calculate_total_energy()
                         self.corr_energy += E1 - E0
 
@@ -1198,10 +1196,9 @@ class Nemesis(object):
             evol_time = dt - self._time_offsets[code]
             while code.model_time < evol_time * (1. - EPS):
                 code.evolve_model(evol_time)
-
                 if stopping_condition.is_set():
                     with self._lock:
-                        if self.__dE_track:
+                        if self.dE_track:
                             KE = code.particles.kinetic_energy()
                             PE = code.particles.potential_energy()
                             E0 = KE + PE
@@ -1212,7 +1209,7 @@ class Nemesis(object):
                                     stopping_condition
                                     )
 
-                        if self.__dE_track:
+                        if self.dE_track:
                             KE = code.particles.kinetic_energy()
                             PE = code.particles.potential_energy()
                             E1 = KE + PE
