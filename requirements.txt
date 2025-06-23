@@ -1,0 +1,5 @@
+numpy
+natsort
+tables
+h5py
+psutil
