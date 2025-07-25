@@ -23,6 +23,7 @@ class HierarchicalParticles(ParticlesOverlay):
     def add_particles(self, parts: Particles) -> Particles:  
         """
         Add particles to particle set.
+
         Args:
             parts (Particles):  The particle to add.
         Returns:
@@ -39,6 +40,7 @@ class HierarchicalParticles(ParticlesOverlay):
     def add_subsystem(self, sys: Particles, recenter=True) -> Particle:
         """
         Create a parent from particle subsytem.
+
         Args:
             sys (Particles):  The subsystem set.
             recenter (bool):  Flag to recenter the parent.
@@ -64,10 +66,10 @@ class HierarchicalParticles(ParticlesOverlay):
         Create parent from subsystem attributes
 
         Args:
-            sys (Particles):  The subsystem set
+            sys (Particles):    The subsystem set
             parent (Particle):  The parent particle
-            relative (bool):  Flag to assign relative attributes
-            recenter (bool):  Flag to recenter the parent
+            relative (bool):    Flag to assign relative attributes
+            recenter (bool):    Flag to recenter the parent
         """
         if not relative:
             parent.position = 0.*sys[0].position
@@ -77,17 +79,13 @@ class HierarchicalParticles(ParticlesOverlay):
         parent.mass = np.sum(massives.mass)
         try:
             if recenter:
-                masses = massives.mass.value_in(units.kg)
-                positions = massives.position.value_in(units.m)
-                velocities = massives.velocity.value_in(units.ms)
+                com = sys.center_of_mass()
+                com_vel = sys.center_of_mass_velocity()
 
-                com = np.average(positions, weights=masses, axis=0)
-                com_vel = np.average(velocities, weights=masses, axis=0)
-
-                parent.position += com | units.m
-                parent.velocity += com_vel | units.ms
-                sys.position -= com | units.m
-                sys.velocity -= com_vel | units.ms
+                parent.position = com
+                parent.velocity = com_vel
+                sys.position -= com
+                sys.velocity -= com_vel
 
         except Exception as e:
             error_message = f"Error: {e}\nSystem: {sys}"
@@ -96,16 +94,18 @@ class HierarchicalParticles(ParticlesOverlay):
     def recenter_subsystems(self, max_workers: int) -> None:
         """
         Recenter subsystems.
+        
         Args:
             max_workers (int):  Number of cores to use.
         """
         def calculate_com(parent_pos, parent_vel, system: Particles) -> tuple:
             """
             Calculate and shift system relative to center of mass.
+            
             Args:
-                parent_pos (units.length):  Parent particle position.
-                parent_vel (units.velocity):  Parent particle velocity.
-                system (Particles):  The subsystem particle set.
+                parent_pos (units.length):    Parent particle position
+                parent_vel (units.velocity):  Parent particle velocity
+                system (Particles):           The subsystem particle set
             Returns:
                 tuple:  The shifted position and velocity.
             """
@@ -139,6 +139,7 @@ class HierarchicalParticles(ParticlesOverlay):
     def remove_particles(self, parts: Particles) -> None:
         """
         Remove particles from particle set.
+        
         Args:
             parts (Particles):  The particle to remove.
         """
@@ -151,6 +152,7 @@ class HierarchicalParticles(ParticlesOverlay):
         """
         Get copy of complete particle set in galactocentric 
         or cluster frame of reference.
+
         Returns:
             Particles:  Complete data on simulated particle set.
         """
