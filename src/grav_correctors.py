@@ -295,7 +295,7 @@ class CorrectionForCompoundParticle(object):
                  perturber_mass, perturber_x, perturber_y, perturber_z):
         """
         Correct force vector exerted by global particles on systems
-        
+
         Args:
             grav_lib (Library):           The gravity library (e.g., a wrapped C++ library).
             parent_x (units.length):      x coordinate of the parent particle.
@@ -376,7 +376,7 @@ class CorrectionForCompoundParticle(object):
     def get_potential_at_point(self, radius, x, y, z) -> np.ndarray:
         """
         Get the potential at a specific location.
-        
+
         Args:
             radius (units.length):  Radius of the system particle
             x (units.length):       x Location of the system particle

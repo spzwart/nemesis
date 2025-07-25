@@ -75,8 +75,7 @@ class HierarchicalParticles(ParticlesOverlay):
             parent.position = 0.*sys[0].position
             parent.velocity = 0.*sys[0].velocity
 
-        massives = sys[sys.mass != (0. | units.kg)]
-        parent.mass = np.sum(massives.mass)
+        parent.mass = np.sum(sys.mass)
         try:
             if recenter:
                 com = sys.center_of_mass()
@@ -94,14 +93,14 @@ class HierarchicalParticles(ParticlesOverlay):
     def recenter_subsystems(self, max_workers: int) -> None:
         """
         Recenter subsystems.
-        
+
         Args:
             max_workers (int):  Number of cores to use.
         """
         def calculate_com(parent_pos, parent_vel, system: Particles) -> tuple:
             """
             Calculate and shift system relative to center of mass.
-            
+
             Args:
                 parent_pos (units.length):    Parent particle position
                 parent_vel (units.velocity):  Parent particle velocity
@@ -139,7 +138,7 @@ class HierarchicalParticles(ParticlesOverlay):
     def remove_particles(self, parts: Particles) -> None:
         """
         Remove particles from particle set.
-        
+
         Args:
             parts (Particles):  The particle to remove.
         """
