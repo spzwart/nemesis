@@ -19,6 +19,7 @@ def compute_gravity(grav_lib, pert_m, pert_x, pert_y, pert_z, infl_x, infl_y, in
     """
     Compute gravitational force felt by perturber particles due to externals
 
+
     Args:
         grav_lib (library):     Library to compute gravity
         pert_m (units.mass):    Mass of perturber particles

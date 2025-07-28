@@ -26,6 +26,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 *.vscode
+*.vscode
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -161,7 +162,11 @@ cython_debug/
 #.idea/
 
 
+<<<<<<< HEAD
+examples/*
+=======
 examples/*/N*
 examples/*/initial_particles
+>>>>>>> 8dd104f82353b140edc3163cec2898d9c44cb987
 plotters/*
 *.mp4

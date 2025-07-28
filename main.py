@@ -100,6 +100,7 @@ def identify_parents(particle_set: Particles) -> Particles:
 def setup_simulation(dir_path: str, particle_set: Particles) -> tuple:
     """
     Setup simulation directories and load particle set.
+    
     Args:
         dir_path (str):            Directory path for outputs
         particle_set (Particles):  The particle set
