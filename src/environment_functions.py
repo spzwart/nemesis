@@ -35,14 +35,14 @@ def connected_components_kdtree(system: Particles, threshold=None) -> list:
             component = []
             stack = [i]
             visited[i] = True
-            
+
             while stack:
                 current = stack.pop()
                 component.append(current)
                 # Find all neighbors within the threshold
                 neighbors = tree.query_ball_point(x=coords[current], 
                                                   r=threshold.value_in(units.m))
-                
+
                 for nb in neighbors:
                     if not visited[nb]:
                         visited[nb] = True

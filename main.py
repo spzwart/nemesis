@@ -87,7 +87,7 @@ def identify_parents(particle_set: Particles) -> Particles:
         particle_set (Particles):  The particle set.
     Returns:
         Particles:  Parents (Lonely + Host) in particle set. 
-                    Host are identified as the most massive object in the system.
+        Host are identified as the most massive object in the system.
     """
     parents = particle_set[particle_set.syst_id <= 0]
     system_ids = np.unique(particle_set.syst_id[particle_set.syst_id > 0])
@@ -114,7 +114,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
                    dE_track: bool, gal_field: bool, star_evol: bool, verbose: bool) -> None:
     """
     Run simulation and output data.
-
+    
     Args:
         particle_set (str):     Path to initial conditions
         tend (units.time):      Simulation end time
@@ -215,7 +215,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     with open(init_params, 'w') as f:
         f.write(f"Simulation Parameters:\n")
         f.write(f"  Total number of particles: {len(particle_set)}\n")
-        f.write(f"  Total number of initial subsystems: {particle_set.syst_id.max()}\n")
+        f.write(f"  Total number of initial subsystems: {bounded_systems.syst_id.max()}\n")
         f.write(f"  Diagnostic timestep: {dt_diag.in_(units.yr)}\n")
         f.write(f"  Bridge timestep: {dtbridge.in_(units.yr)}\n")
         f.write(f"  End time: {tend.in_(units.Myr)}\n")

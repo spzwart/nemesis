@@ -7,7 +7,6 @@
 # 2. Better defined parent radius --> Currently ignores cluster density. Again, can use a 
 #    physically motivated one (some fraction of external parent gravitational force) or
 #    use machine learning.
-# 3. Asteroids require Ph4 as symplectic codes with test particles do not seem to allow collisions.
 ######################################################################################
 
  
@@ -20,6 +19,7 @@ import os
 import psutil
 import signal
 import threading
+import time
 import traceback
 
 from amuse.community.huayno.interface import Huayno
@@ -70,24 +70,25 @@ class Nemesis(object):
         self.__dt = dtbridge
         self.__coll_dir = coll_dir
         self.__code_dt = code_dt
-        self.__par_nworker = PARENT_NWORKER
-        self.__star_evol = star_evol
         self.__gal_field = gal_field
-        self.__total_free_cpus = available_cpus
         self.__main_process = psutil.Process(os.getpid())
         self.__nmerge = nmerge
+        self.__par_nworker = PARENT_NWORKER
         self.__resume_offset = resume_time
+        self.__star_evol = star_evol
+        self.__total_free_cpus = available_cpus
 
         # Protected attributes
         self._verbose = verbose
         self._parent_conv = par_conv
         self._lock = threading.Lock()
         self._MWG = MWpotentialBovy2015()
-        self._time_offsets = dict()
-        self._pid_workers = dict()
         self._child_channels = dict()
-        self._new_systems = dict()
-        self._new_offsets = dict()
+        self._coll_parents   = dict()
+        self._coll_children  = dict()
+        self._cpu_time = dict()
+        self._pid_workers  = dict()
+        self._time_offsets = dict()
 
         self.parent_code = self._parent_worker()
         self.grav_coll = self.parent_code.stopping_conditions.collision_detection
@@ -189,6 +190,7 @@ class Nemesis(object):
                     code_particles=code.particles, 
                     children=sys
                 )
+                self._cpu_time[parent_key] = 0
 
                 # Store children PID to allow hibernation
                 worker_pid = self.get_child_pids(number_of_workers)
@@ -247,7 +249,7 @@ class Nemesis(object):
         code.particles.add_particles(children)
         code.parameters.epsilon_squared = (0. | units.au)**2.
         code.parameters.timestep_parameter = self.__code_dt
-        code.set_integrator("SHARED8_COLLISIONS")
+        code.set_integrator("SHARED4_COLLISIONS")
 
         return code, number_of_workers
 
@@ -460,20 +462,18 @@ class Nemesis(object):
             self.corr_energy = 0. | units.J
             self.dt_step += 1
 
-            self._sync_grav_to_local()
             if (self.__star_evol):
                 self._stellar_evolution(self.evolve_time + timestep/2.)
                 self._star_channel_copier()
 
             if self.evolve_time == 0. | units.yr:
+                self._sync_grav_to_local()
                 self._correction_kicks(
                     self.particles, 
                     self.subsystems,
                     dt=timestep/2.
                     )
                 kick_corr = timestep/2.
-
-            self.channels["from_gravity_to_parents"].copy()
             self.old_copy = self.particles.copy()
 
             self._drift_global(
@@ -483,7 +483,7 @@ class Nemesis(object):
             if self.subcodes:
                 self._drift_child(self.model_time)
 
-            self._sync_grav_to_local()
+            self.channels["from_gravity_to_parents"].copy()
             self._correction_kicks(
                 self.particles, 
                 self.subsystems,
@@ -501,7 +501,9 @@ class Nemesis(object):
         if self._verbose:
             print(f"Time: {self.model_time.in_(units.Myr)}")
             print(f"Parent code time: {self.parent_code.model_time.in_(units.Myr)}")
+            Nkids = 0
             for parent_key, code in self.subcodes.items():
+                Nkids += 1
                 pid = self._pid_workers[parent_key]
                 self.resume_workers(pid)
                 total_time = code.model_time + self._time_offsets[code]
@@ -513,7 +515,7 @@ class Nemesis(object):
                 self.hibernate_workers(pid)
             if self.__star_evol:
                 print(f"Stellar code time: {self.stellar_code.model_time.in_(units.Myr)}")
-            print(f"#Children: {len(self.subsystems.keys())}")
+            print(f"#Children: {Nkids}")
             print("===" * 50)
 
     def split_subcodes(self) -> None:
@@ -529,7 +531,7 @@ class Nemesis(object):
             furthest = (subsys.position - host.position).lengths().max()
             criteria = CONNECTED_COEFF * par_rad
             if furthest > criteria / 2.:
-                components = connected_components_kdtree(subsys, threshold=criteria)
+                components = connected_components_kdtree(subsys, threshold=1.2*criteria)
                 if len(components) > 1:
                     if self._verbose:
                         print("...Split Detected...")
@@ -542,6 +544,7 @@ class Nemesis(object):
                     code = self.subcodes.pop(parent_key)
                     self._time_offsets.pop(code)
                     self._child_channels.pop(parent_key)
+                    cpu_time = self._cpu_time.pop(parent_key)
                     for c in components:
                         sys = c.copy()
                         sys.position += par_pos
@@ -559,6 +562,7 @@ class Nemesis(object):
                                                                           scale_radius=scale_radius)
                             worker_pid = self.get_child_pids(number_of_workers)
 
+                            self._cpu_time[newparent_key] = cpu_time
                             self.subcodes[newparent_key] = newcode
                             self._time_offsets[newcode] = self.model_time
                             self._child_channel_maker(
@@ -566,6 +570,7 @@ class Nemesis(object):
                                 code_particles=newcode.particles,
                                 children=sys
                             )
+                            self._child_channels[newparent_key]["from_children_to_gravity"].copy()
                             self._pid_workers[newparent_key] = worker_pid
                             self.hibernate_workers(worker_pid)
 
@@ -583,306 +588,163 @@ class Nemesis(object):
             new_isolated[overly_massive].radius = PARENT_RADIUS_MAX
             self.particles.add_particles(new_isolated)
 
-    def _process_parent_mergers(self) -> None:
-        """Process merging of parents from previous timestep in parallel"""
+    def _process_parent_mergers(self, corr_time) -> None:
+        """
+        Process parent mergers by merging children systems into new parents.
+        Reverse kicks are applied to children systems, and new offset is previous timestep.
+
+        Args:
+            corr_time (units.time):  Time to apply correction kicks
+        """
         self.channels["from_gravity_to_parents"].copy()
         if self.dE_track:
             E0 = self.calculate_total_energy()
 
-        nmergers = len(self._new_systems.keys())
-        for parent_key, children in self._new_systems.items():
-            parent_local = self.particles[self.particles.key == parent_key]
-            time_offset = self._new_offsets[parent_key]
+        Nmerger = 0
+        for parent_key, old_parent_set in self._coll_parents.items():
+            if self._verbose:
+                print(f"Processing parent merger: {parent_key}")
+            Nmerger += 1
 
-            children.position += parent_local.position
-            children.velocity += parent_local.velocity
+            # Reverse kicks 
+            child_set = self._coll_children[parent_key]
+            self._correction_kicks(
+                old_parent_set, 
+                child_set, 
+                dt=-corr_time,
+                kick_par=False   # Old parents not kicked
+                )
 
-            newparent = self.particles.add_subsystem(children)
-            newparent_key = newparent.key
-            scale_mass = newparent.mass
+            newparts = Particles()
+            newparts.add_particles(old_parent_set)
+            for _, (old_parent, children) in child_set.items():
+                newparts.remove_particle(old_parent)
+
+                # Shift children positions and velocities
+                children.position += old_parent.position
+                children.velocity += old_parent.velocity
+                newparts.add_particles(children)
+
+            newparts.move_to_center()
+
+            # Extract new parent and assign it subsystem
+            new_parent = self.particles[self.particles.key == parent_key][0]
+
+            self.particles.assign_subsystem(new_parent, newparts)
+            scale_mass = new_parent.mass
             scale_radius = set_parent_radius(scale_mass)
-            newparent.radius = scale_radius
+            new_parent.radius = scale_radius
+            newparent_key = new_parent.key
 
-            newcode, number_of_workers = self._sub_worker(children=children,
+            newcode, number_of_workers = self._sub_worker(children=newparts,
                                                           scale_mass=scale_mass, 
                                                           scale_radius=scale_radius)
             worker_pid = self.get_child_pids(number_of_workers)
 
-            self._time_offsets[newcode] = time_offset
+            self._cpu_time[newparent_key] = 0
+            self._time_offsets[newcode] = self.evolve_time
             self.subcodes[newparent_key] = newcode
-            self.subsystems[newparent_key] = (newparent, children)
             self._child_channel_maker(
                 parent_key=newparent_key, 
                 code_particles=newcode.particles, 
-                children=children
-            )
+                children=newparts
+                )
             self._pid_workers[newparent_key] = worker_pid
             self.hibernate_workers(worker_pid)
 
-            self.particles.remove_particle(parent_local)
-
-        new_parents = self.particles[-nmergers:]
+        new_parents = self.particles[-Nmerger:]
         overly_massive = new_parents.radius > PARENT_RADIUS_MAX
         new_parents[overly_massive].radius = PARENT_RADIUS_MAX
         if self.dE_track:
             E1 = self.calculate_total_energy()
             self.corr_energy += E1 - E0
 
-    def _asteroid_merger(self, local_mass, local_ast) -> None:
-        """
-        Resolve the merging of asteroid with a parent system. 
-
-        Args:
-            local_mass (Particle):  Parent particle
-            local_ast (Particle):   Asteroid particles
-        """
-        ### Although ugly, speed tests show batching processes gives 
-        ### non-negligible gain in speed relative to processing upon collisions
-        local_mass_key = local_mass.key
-        if local_mass_key not in self.subsystems \
-            and local_mass_key not in self._new_systems:
-                if self._verbose:
-                    print("Merging to lonely parent...")
-
-                mass_pos = local_mass.position
-                mass_vel = local_mass.velocity
-
-                system = Particles()
-                system.add_particle(local_mass)
-                system.add_particle(local_ast)
-                system.position -= mass_pos
-                system.velocity -= mass_vel
-
-                newparent = Particle()
-                newparent.mass = local_mass.mass
-                newparent.position = mass_pos
-                newparent.velocity = mass_vel
-                newparent.radius = local_mass.radius
-
-                self.particles.remove_particle(local_mass)
-                self.particles.add_particle(newparent)
-
-                self._new_systems[newparent.key] = system
-                self._new_offsets[newparent.key] = self.model_time
-                        
-        elif local_mass_key in self.subsystems:
-            if self._verbose:
-                print("Subcode exists; no previous massive merger...")
-            
-            local_ast.position -= local_mass.position
-            local_ast.velocity -= local_mass.velocity
-
-            system = self.subsystems[local_mass_key][1]
-            pid = self._pid_workers[local_mass_key]
-            self.resume_workers(pid)
-            code = self.subcodes[local_mass_key]
-            system.add_particle(local_ast)
-            code.particles.add_particle(local_ast)
-            self.hibernate_workers(pid)
-            
-        elif local_mass_key in self._new_systems:
-            if self._verbose:
-                print("Previous lonely merger occured...")
-
-            local_ast.position -= local_mass.position
-            local_ast.velocity -= local_mass.velocity
-
-            system = self._new_systems[local_mass_key]
-            system.add_particle(local_ast)
-
-        else:
-            print("Curious parent merger?")
-
-    def _massive_merger(self, coll_time, coll_set: Particles, corr_time) -> None:
+    def _parent_merger(self, coll_set: Particles) -> None:
         """
         Resolve the merging of two massive parents.
 
         Args:
-            coll_time (units.time):  Time of collision
             coll_set (Particles):    Colliding particle set
-            corr_time (units.time):  Time of correction kick
         """
-        ### Remove the previous applied kick
-        collsubset = Particles()
-        collsyst = dict()
-        old_keys = self.old_copy.key
-
-        apply_corrections = True
-        prev_offset = 0. | units.yr
-        for particle in coll_set:
-            old_p = self.old_copy[old_keys == particle.key]
-            if len(old_p) == 0:
-                ### Particle not found in old copy --> has merged in the step
-                apply_corrections = False
-                pid = self._pid_workers[particle.key]
-
-                self.resume_workers(pid)
-                prev_offset = self.subcodes[particle.key].model_time
-                self.hibernate_workers(pid)
-
-        if apply_corrections:
-            for particle in coll_set:
-                old_p = self.old_copy[old_keys == particle.key]
-                collsubset.add_particle(old_p)
-                if particle.key in self.subsystems:
-                    collsyst[old_p] = self.subsystems[old_p[0].key] 
-
-            self._correction_kicks(
-                collsubset, 
-                collsyst, 
-                dt=-corr_time
-                )
-
-        ### Extract properties from last integration step
-        newparts = Particles()
-        for particle in coll_set:
-            old_p = self.old_copy[old_keys == particle.key]
-            if len(old_p) == 0:
-                old_p = particle.as_particle_in_set(self.particles)
-
-            old_p_key = old_p.key[0]
-            
-            if old_p_key in self.subsystems:
-                pid = self._pid_workers.pop(old_p_key)
-                self.resume_workers(pid)
-                
-                ### Remove all references to code
-                code = self.subcodes.pop(old_p_key)
-                self._time_offsets.pop(code)
-                self._child_channels.pop(old_p_key)
-                code.cleanup_code()
-                code.stop()
-                
-                _, children = self.subsystems.pop(old_p_key)
-                children.position += old_p.position
-                children.velocity += old_p.velocity
-                newparts.add_particles(children)
-                
-            elif old_p_key in self._new_systems:
-                if self._verbose:
-                    print("Merger includes new parent hosting one massive body with test particles...")
-
-                self._new_offsets.pop(old_p_key)
-                children = self._new_systems.pop(old_p_key)
-                children.position += old_p.position
-                children.velocity += old_p.velocity
-                newparts.add_particles(children)
-
-            else:
-                new_particle = newparts.add_particle(old_p)
-                if new_particle.mass < MIN_EVOL_MASS:
-                    new_particle.radius = planet_radius(new_particle.mass)
-                else:
-                    new_particle.radius = ZAMS_radius(new_particle.mass)
-
-        for particle in coll_set:
-            self.particles.remove_particle(particle)
-
-        ### Create a new parent. Parent takes com frame -> circumvent channel copying
-        newparent = self.particles.add_subsystem(newparts)
-        scale_mass = newparent.mass
-        scale_radius = set_parent_radius(scale_mass)
-        newparent.radius = scale_radius
-        if newparent.radius > PARENT_RADIUS_MAX:
-            newparent.radius = PARENT_RADIUS_MAX
-
-        newcode, number_of_workers = self._sub_worker(children=newparts,
-                                                      scale_mass=scale_mass, 
-                                                      scale_radius=scale_radius)
-        worker_pid = self.get_child_pids(number_of_workers)
-
-        newparent_key = newparent.key
-        self._time_offsets[newcode] = self.evolve_time 
-        self.subcodes[newparent_key] = newcode
-        self.subsystems[newparent_key] = (newparent, newparts)
-        self._child_channel_maker(
-            parent_key=newparent_key, 
-            code_particles=newcode.particles, 
-            children=newparts
-        )
-        self._pid_workers[newparent_key] = worker_pid
-
-        ### Integrate the new children from last converged step to tcoll
-        sc = newcode.stopping_conditions.collision_detection
-        sc.enable()
-
-        dt = coll_time - self.evolve_time - prev_offset
-        while newcode.model_time < dt * (1. - EPS):
-            newcode.evolve_model(dt)
-            if sc.is_set():
-                coll_a_particles = sc.particles(0)
-                coll_b_particles = sc.particles(1)
-                Nmergers = max(len(np.unique(coll_a_particles.key)),  
-                               len(np.unique(coll_b_particles.key)))
-
-                resolved_keys = dict()
-                Nresolved = 0
-                for coll_a, coll_b in zip(coll_a_particles, coll_b_particles):
-                    if Nresolved < Nmergers:  # Stop recursive loop
-                        particle_dict = {p.key: p for p in code.particles}
-                        if coll_a.key in resolved_keys.keys():
-                            coll_a = particle_dict.get(resolved_keys[coll_a.key])
-                        if coll_b.key in resolved_keys:
-                            coll_b = particle_dict.get(resolved_keys[coll_b.key])
-
-                        if coll_b.key == coll_a.key:
-                            print("Curious?")
-                            continue
-
-                children = self.subsystems[newparent.key][1]
-                colliding_particles = Particles(particles=[coll_a, coll_b])
-                newparent, resolved_keys = self._handle_collision(
-                                                children, newparent, 
-                                                colliding_particles, 
-                                                code, resolved_keys
-                                                )
-                newparent_key = newparent.key
-                worker_pid = self._pid_workers[newparent_key]
-
-        self._child_channels[newparent_key]["from_gravity_to_children"].copy()
-        self.hibernate_workers(worker_pid)
-
-    def _parent_merger(self, coll_time, coll_set: Particles, corr_time):
-        """
-        Resolve the merging of two parent systems.
-        Args:
-            coll_time (units.time):  Time of collision
-            coll_set (Particles):    Colliding particle set
-            corr_time (units.time):  Time of correction kick
-        """
-
-        # Ugly workaround
         colliders = Particles()
         for collider in coll_set:
             colliders.add_particle(collider)
 
-        masses = colliders.mass
-        try:
-            if min(masses) == (0. | units.kg):
+        ### Store particles merger history
+        old_key = self.old_copy.key
+        coll_parents_temp = Particles()
+        coll_children_temp = dict()
+        new_par = Particles()
+        for particle in colliders:
+            par_key = particle.key
+            new_par.add_particle(particle)
+            if par_key in self.subsystems:  # Not merged yet and hosts children
                 if self._verbose:
-                    print(f"... Asteroid merger @ T={coll_time.value_in(units.Myr):.6f}", end=" Myr: ")
-                    
-                self.channels["from_gravity_to_parents"].copy()
-                asteroid = colliders[masses.argmin()]
-                massive = colliders[masses.argmax()]
-                local_mass = massive.as_particle_in_set(self.particles)
-                local_ast = asteroid.as_particle_in_set(self.particles)
-                local_ast.radius = ASTEROID_RADIUS
+                    print(f"First time Parent {par_key} merging. Has children...")
 
-                self._asteroid_merger(local_mass, local_ast)
-                self.particles.remove_particle(local_ast)
+                ## Remove all references, keep system dynamically younger
+                _, children = self.subsystems.pop(par_key)
+                pid = self._pid_workers.pop(par_key)
+                self.resume_workers(pid)
+
+                code = self.subcodes.pop(par_key)
+                self._time_offsets.pop(code)
+                self._child_channels.pop(par_key)
+                code.cleanup_code()
+                code.stop()
+
+                ## Store old attributes for reverse kicks
+                old_parent = self.old_copy[old_key == par_key]
+                coll_parents_temp.add_particle(old_parent) 
+                coll_children_temp[par_key] = (old_parent[0], children)  # Index to make object
+
+            elif par_key in old_key: # Not merged yet and has no children
+                if self._verbose:
+                    print(f"First time Parent {par_key} merges. Is isolated...")
+                ## Particle is not merged and isolated
+                particle = self.old_copy[old_key == par_key]
+                if particle.mass == (0. | units.kg):
+                    if self._verbose:
+                        print(f"Merging particle is an asteroid")
+                    particle.radius = ASTEROID_RADIUS
+                elif particle.mass < MIN_EVOL_MASS:
+                    particle.radius = planet_radius(particle.mass)
+                else:
+                    particle.radius = ZAMS_radius(particle.mass)
+                coll_parents_temp.add_particle(particle)
+                
+            elif par_key in self._coll_parents:  # Already merged
+                if self._verbose:
+                    print(f"Parent {par_key} merged before...")
+
+                ## All references already popped in earlier merger
+                old_particle = self._coll_parents.pop(par_key)
+                prev_coll_children = self._coll_children.pop(par_key)
+                if prev_coll_children:
+                    # Extract one system
+                    old_particle, children = next(iter(prev_coll_children.values()))
+                    coll_children_temp[par_key] = (old_particle, children)
+                coll_parents_temp.add_particle(old_particle)
 
             else:
-                if self._verbose:
-                    print(f"... Massive merger:@ T={coll_time.value_in(units.Myr):.6f} Myr")
-                self._massive_merger(coll_time, coll_set, corr_time)
+                print(f"Curious particle {particle} in coll_set?")
+                
+            self.particles.remove_particle(particle)
 
-        except Exception as e:
-            print(f"Error while merging {colliders}: {e}")
-            print("Traceback:", traceback.format_exc())
-            exit(-1)
+        newparent = Particles(1)
+        newparent.mass = new_par.mass.sum()
+        newparent.position = new_par.center_of_mass()
+        newparent.velocity = new_par.center_of_mass_velocity()
+        newparent.radius = set_parent_radius(newparent.mass)
+        
+        self.particles.add_particles(newparent)
+        self._coll_parents[newparent.key[0]]  = coll_parents_temp
+        self._coll_children[newparent.key[0]] = coll_children_temp
+        
+        del new_par
     
-    def _handle_collision(self, children: Particles, parent: Particle, enc_parti: Particles, code, resolved_keys: dict):
+    def _handle_collision(self, children: Particles, parent: Particle, 
+                          enc_parti: Particles, code, resolved_keys: dict):
         """
         Merge two particles if the collision stopping condition is met.
 
@@ -928,7 +790,7 @@ class Nemesis(object):
                 self.particles.all().savepoint(0 | units.Myr), 
                 os.path.join(self.__coll_dir, f"Cluster_Merger{self.__nmerge}.hdf5"),
                 'amuse', close_file=True, overwrite_file=True
-            )
+                )
             self.__merged = True
         
         # Create merger remnant
@@ -1102,7 +964,7 @@ class Nemesis(object):
 
         Args:
             dt (units.time):         Time to evolve till
-            corr_time (units.time):  Time of correction kick
+            corr_time (units.time):  Time to correct for drift
         """
         if self._verbose:
             print("...Drifting Global...")
@@ -1110,7 +972,6 @@ class Nemesis(object):
         
         self.__merged = False
         coll_time = None
-
         while self._evolve_code.model_time < dt * (1. - EPS):
             self._evolve_code.evolve_model(dt)
             if self.grav_coll.is_set():
@@ -1121,8 +982,16 @@ class Nemesis(object):
                                 self.grav_coll.particles(0), 
                                 self.grav_coll.particles(1)
                                 )
-                for cs in coll_sets:
-                    self._parent_merger(coll_time, cs, corr_time)
+                try:
+                    if self._verbose:
+                        print(f"... Merger @ T={coll_time.value_in(units.Myr):.6f} Myr")
+                    for cs in coll_sets:
+                        self._parent_merger(cs)
+                except Exception as e:
+                    print(f"Error while merging {coll_sets}: {e}")
+                    print("Traceback:", traceback.format_exc())
+                    exit(-1)
+                    
                 if self.dE_track:
                     E1 = self.calculate_total_energy()
                     self.corr_energy += E1 - E0
@@ -1139,26 +1008,30 @@ class Nemesis(object):
                                     self.grav_coll.particles(0), 
                                     self.grav_coll.particles(1)
                                     )
-                    for cs in coll_sets:
-                        self._parent_merger(coll_time, cs, corr_time)
+                    try:
+                        if self._verbose:
+                            print(f"... Merger @ T={coll_time.value_in(units.Myr):.6f} Myr")
+                        for cs in coll_sets:
+                            self._parent_merger(cs)
+                    except Exception as e:
+                        print(f"Error while merging {coll_sets}: {e}")
+                        print("Traceback:", traceback.format_exc())
+                        exit(-1)
                     if self.dE_track:
                         E1 = self.calculate_total_energy()
                         self.corr_energy += E1 - E0
 
-        ### Only triggered if test particles are present
-        ### Test particles have a different scheme otherwise
-        ### comets will bottleneck the simulation.
-        if coll_time:  
-            self._process_parent_mergers()
-            self._new_offsets.clear()
-            self._new_systems.clear()
+        if coll_time:
+            self._process_parent_mergers(corr_time)
+            self._coll_parents = dict()
+            self._coll_children = dict()
 
     def _drift_child(self, dt) -> None:
         """
         Evolve children system until dt.
 
         Args:
-            dt (units.time): Time to evolve till.
+            dt (units.time):  Time to evolve till.
         """
         def resolve_collisions(code, parent: Particle, children: Particles, stopping_condition):
             """
@@ -1209,13 +1082,16 @@ class Nemesis(object):
             code = self.subcodes[parent_key]
             parent = self.subsystems[parent_key][0]
             children = self.subsystems[parent_key][1]
-            sc = code.stopping_conditions.collision_detection
-            sc.enable()
+            channel = self._child_channels[parent_key]
 
+            stopping_condition = code.stopping_conditions.collision_detection
+            stopping_condition.enable()
             evol_time = dt - self._time_offsets[code]
+            
+            t0 = time.time()
             while code.model_time < evol_time * (1. - EPS):
                 code.evolve_model(evol_time)
-                if sc.is_set():
+                if stopping_condition.is_set():
                     with self._lock:
                         if self.dE_track:
                             KE = code.particles.kinetic_energy()
@@ -1225,7 +1101,7 @@ class Nemesis(object):
                         parent = resolve_collisions(
                                     code, parent, 
                                     children,
-                                    stopping_condition=sc
+                                    stopping_condition
                                     )
 
                         if self.dE_track:
@@ -1233,23 +1109,31 @@ class Nemesis(object):
                             PE = code.particles.potential_energy()
                             E1 = KE + PE
                             self.corr_energy += E1 - E0
-
+            t1 = time.time()
+            channel["from_gravity_to_children"].copy()
+            self._cpu_time[parent.key] = t1 - t0
             self.hibernate_workers(self._pid_workers[parent.key])
 
         if self._verbose:
             print("...Drifting Children...")
         self.__merged = False
+        
+        sorted_cpu_time = sorted(
+            self.subcodes.keys(),
+            key=lambda x: self._cpu_time[x],
+            reverse=True
+        )
         with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
             futures = {
                 executor.submit(evolve_code, parent_key): parent_key 
-                for parent_key in self.subcodes.keys()
+                for parent_key in sorted_cpu_time
             }
             for future in as_completed(futures):  # Iterate over to ensure no silent failures
                 parent_key = futures[future]
                 try:
                     future.result()
                 except Exception as e:
-                    print(f"Error while evolving parent {parent_key}: {e}")
+                    print(f"Error while evolving parent key: {e}")
                     write_set_to_file(
                         self.subsystems[parent_key][1], 
                         "temp/error.hdf5", 'amuse', 
@@ -1331,7 +1215,7 @@ class Nemesis(object):
                         )
         self._kick_particles(subsystem, corr_par, dt)
        
-    def _correction_kicks(self, particles: Particles, subsystems: dict, dt) -> None:
+    def _correction_kicks(self, particles: Particles, subsystems: dict, dt, kick_par=True) -> None:
         """
         Apply correcting kicks onto children and parent particles
 
@@ -1339,6 +1223,7 @@ class Nemesis(object):
             particles (Particles):  Parent particle set
             subsystems (dict):      Dictionary of children system
             dt (units.time):        Time interval for applying kicks
+            kick_par (boolean):     Whether to apply correction to parents
         """
         def process_children_jobs(parent, children):
             removed_idx = abs(particles_mass - parent.mass).argmin()
@@ -1372,36 +1257,31 @@ class Nemesis(object):
             particles_y = particles.y
             particles_z = particles.z
             
-            corr_chd = CorrectionFromCompoundParticle(
-                            grav_lib=self.lib,
-                            particles=particles,
-                            particles_x=particles_x,
-                            particles_y=particles_y,
-                            particles_z=particles_z,
-                            subsystems=subsystems,
-                            num_of_workers=self.avail_cpus
-                            )
-            self._kick_particles(particles, corr_chd, dt)
+            if kick_par:
+                corr_chd = CorrectionFromCompoundParticle(
+                                grav_lib=self.lib,
+                                particles=particles,
+                                particles_x=particles_x,
+                                particles_y=particles_y,
+                                particles_z=particles_z,
+                                subsystems=subsystems,
+                                num_of_workers=self.avail_cpus
+                                )
+                self._kick_particles(particles, corr_chd, dt)
 
             futures = []
             with ThreadPoolExecutor(max_workers=self.avail_cpus) as executor:
-                for parent, children in subsystems.values():
-                    try:
+                try:
+                    for parent, children in subsystems.values():
                         future = process_children_jobs(parent, children)
                         futures.append(future)
-                    except Exception as e:
-                        print(f"Error submitting job for parent {parent.key}: {e}")
-                        print(subsystems[parent.key][1])
-                        print(f"Traceback: {traceback.format_exc()}")
-                        exit(-1)
-
-                for future in as_completed(futures):
-                    try:
+                    for future in as_completed(futures):
                         future.result()
-                    except Exception as e:
-                        print(f"Error in CorrectionFor result: {e}")
-                        print(f"Traceback: {traceback.format_exc()}")
-                        exit(-1)
+                except Exception as e:
+                    print(f"Error submitting job for parent: {e}")
+                    print(f"Traceback: {traceback.format_exc()}")
+                    exit(-1)
+
                
     @property
     def model_time(self) -> float:  
@@ -1423,6 +1303,4 @@ class Nemesis(object):
             - Leave one free for good measure
         """
         ncpu = min(len(self.subsystems), self.__total_free_cpus - self.__par_nworker - 3)
-        if ncpu < 1:
-            return 1
-        return ncpu
+        return max(1, ncpu)  # Ensure at least one CPU is available

@@ -13,7 +13,6 @@ from amuse.datamodel import Particle, Particles, ParticlesOverlay
 from amuse.units import units
 
 
-
 class HierarchicalParticles(ParticlesOverlay):
     """Class to make particle set"""
     def __init__(self, *args, **kwargs):
@@ -37,6 +36,26 @@ class HierarchicalParticles(ParticlesOverlay):
 
         return _parts
 
+    def assign_subsystem(self, parent: Particle, sys: Particles) -> None:
+        """
+        Assign subsystem to parent particle. No reshifting needed.
+
+        Args:
+            parent (Particle):  The parent particle.
+            sys (Particles):    The subsystem set.
+        """
+        if not isinstance(sys, Particles):
+            raise TypeError("sys must be an instance of Particles")
+
+        if not isinstance(parent, Particle):
+            self.add_subsystem(sys)
+        
+        if len(sys) == 1:
+            return self.add_particles(sys)[0]
+        
+        self.collection_attributes.subsystems[parent.key] = (parent, sys)
+        return parent
+    
     def add_subsystem(self, sys: Particles, recenter=True) -> Particle:
         """
         Create a parent from particle subsytem.
@@ -55,7 +74,7 @@ class HierarchicalParticles(ParticlesOverlay):
             sys, parent, 
             relative=False, 
             recenter=recenter
-        )
+            )
         parent = self.add_particle(parent)
         self.collection_attributes.subsystems[parent.key] = (parent, sys)
 
