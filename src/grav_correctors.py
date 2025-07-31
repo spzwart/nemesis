@@ -14,21 +14,28 @@ from amuse.lab import constants, units, Particles
 from src.globals import SI_UNITS
 
 
+ACC_UNITS = units.m/units.s**2
 
-def compute_gravity(grav_lib, pert_m, pert_x, pert_y, pert_z, infl_x, infl_y, infl_z, npert=None, npart=None) -> tuple:
+def compute_gravity(
+        grav_lib, pert_m, 
+        pert_x, pert_y, pert_z, 
+        infl_x, infl_y, infl_z, 
+        npert=None, npart=None
+        ) -> tuple:
     """
     Compute gravitational force felt by perturber particles due to externals
+
     Args:
-        grav_lib (library):  Library to compute gravity
-        pert_m (units.mass):  Mass of perturber particles
+        grav_lib (library):     Library to compute gravity
+        pert_m (units.mass):    Mass of perturber particles
         pert_x (units.length):  x coordinate of perturber particles
         pert_y (units.length):  y coordinate of perturber particles
         pert_z (units.length):  z coordinate of perturber particles
         infl_x (units.length):  x coordinate of influenced particles
         infl_y (units.length):  y coordinate of influenced particles
         infl_z (units.length):  z coordinate of influenced particles
-        npert (int):  Number of perturber particles
-        npart (int):  Number of influenced particles
+        npert (int):            Number of perturber particles
+        npart (int):            Number of influenced particles
     Returns:
         tuple:  Acceleration array of particles (ax, ay, az)
     """
@@ -81,18 +88,71 @@ def compute_gravity(grav_lib, pert_m, pert_x, pert_y, pert_z, infl_x, infl_y, in
     )
     return result_ax, result_ay, result_az
 
+def correct_parents_threaded(
+        lib, acc_units,
+        particles_x, particles_y, particles_z,
+        parent_mass, parent_x, parent_y, parent_z,
+        system_mass, system_x, system_y, system_z,
+        removed_idx
+        ):
+    mask = np.ones(len(particles_x), dtype=bool)
+    mask[removed_idx] = False
+    external_x = particles_x[mask]
+    external_y = particles_y[mask]
+    external_z = particles_z[mask]
+
+    ax_chd, ay_chd, az_chd = compute_gravity(
+        grav_lib=lib,
+        pert_m=system_mass,
+        pert_x=system_x + parent_x,
+        pert_y=system_y + parent_y,
+        pert_z=system_z + parent_z,
+        infl_x=external_x,
+        infl_y=external_y,
+        infl_z=external_z
+    )
+
+    ax_par, ay_par, az_par = compute_gravity(
+        grav_lib=lib,
+        pert_m=parent_mass,
+        pert_x=parent_x,
+        pert_y=parent_y,
+        pert_z=parent_z,
+        infl_x=external_x,
+        infl_y=external_y,
+        infl_z=external_z,
+        npert=1
+    )
+
+    corr_ax = (ax_chd - ax_par) * SI_UNITS
+    corr_ay = (ay_chd - ay_par) * SI_UNITS
+    corr_az = (az_chd - az_par) * SI_UNITS
+
+    corr_ax = np.insert(corr_ax.value_in(acc_units).astype(np.float64), removed_idx, 0.)
+    corr_ay = np.insert(corr_ay.value_in(acc_units).astype(np.float64), removed_idx, 0.)
+    corr_az = np.insert(corr_az.value_in(acc_units).astype(np.float64), removed_idx, 0.)
+
+    return (corr_ax | acc_units,
+            corr_ay | acc_units,
+            corr_az | acc_units)
+
 class CorrectionFromCompoundParticle(object):
-    def __init__(self, grav_lib, particles, particles_x, particles_y, particles_z, subsystems: Particles, num_of_workers: int):
+    def __init__(
+            self, grav_lib, particles, 
+            particles_x, particles_y, particles_z, 
+            subsystems: Particles, num_of_workers: int
+            ):
         """
         Correct force exerted by some parent system on other particles by that of its system.
+
         Args:
-            grav_lib (Library): The gravity library (e.g., a wrapped C++ library).
-            particles (units.length):  Original parent particle set
+            grav_lib (Library):          The gravity library (e.g., a wrapped C++ library).
+            particles (units.length):    Original parent particle set
             particles_x (units.length):  x coordinate of particles
             particles_y (units.length):  y coordinate of particles
             particles_z (units.length):  z coordinate of particles
-            subsystems (Particles):  Collection of subsystems present
-            num_of_workers (int):  Number of cores to use
+            subsystems (Particles):      Collection of subsystems present
+            num_of_workers (int):        Number of cores to use
         """
         self.particles = particles
         self.particles_x = particles_x
@@ -102,70 +162,6 @@ class CorrectionFromCompoundParticle(object):
 
         self.lib = grav_lib
         self.max_workers = num_of_workers
-        self.acc_units = self.particles.vx.unit**2. / particles_x.unit
-
-    def correct_parents(self, particles_x, particles_y, particles_z, parent_mass, parent_x, parent_y, parent_z,
-                        system_mass, system_x, system_y, system_z, removed_idx: int) -> tuple:
-        """
-        Compute the differential acceleration on the parent system.
-        Instead of copying and then removing one particle from the arrays,
-        we form the “external_parents” set by logically ignoring the removed element.
-        Args:
-            particles_x (units.length):  x coordinate of parent particles
-            particles_y (units.length):  y coordinate of parent particles
-            particles_z (units.length):  z coordinate of parent particles
-            parent_mass (units.mass):  Mass of parent particles
-            parent_x (units.length):  x coordinate of parent particles
-            parent_y (units.length):  y coordinate of parent particles
-            parent_z (units.length):  z coordinate of parent particles
-            system_mass (units.mass):  Mass of system particles
-            system_x (units.length):  x coordinate of system particles
-            system_y (units.length):  y coordinate of system particles
-            system_z (units.length):  z coordinate of system particles
-            removed_idx (int):  Index of parent particle to remove
-        Returns:
-            tuple:  Acceleration array of parent particles (ax, ay, az)
-        """
-        mask = np.ones(len(particles_x), dtype=bool)
-        mask[removed_idx] = False
-        external_x = particles_x[mask]
-        external_y = particles_y[mask]
-        external_z = particles_z[mask]
-
-        ax_chd, ay_chd, az_chd = compute_gravity(
-                                    grav_lib=self.lib, 
-                                    pert_m=system_mass, 
-                                    pert_x=system_x+parent_x,
-                                    pert_y=system_y+parent_y, 
-                                    pert_z=system_z+parent_z, 
-                                    infl_x=external_x, 
-                                    infl_y=external_y, 
-                                    infl_z=external_z
-                                    )
-
-        ax_par, ay_par, az_par = compute_gravity(
-                                    grav_lib=self.lib, 
-                                    pert_m=parent_mass, 
-                                    pert_x=parent_x, 
-                                    pert_y=parent_y, 
-                                    pert_z=parent_z,  
-                                    infl_x=external_x,
-                                    infl_y=external_y, 
-                                    infl_z=external_z,
-                                    npert=1
-                                    )
-
-        corr_ax = (ax_chd - ax_par) * SI_UNITS
-        corr_ay = (ay_chd - ay_par) * SI_UNITS
-        corr_az = (az_chd - az_par) * SI_UNITS
-
-        corr_ax = np.insert(corr_ax.value_in(self.acc_units).astype(np.float64), removed_idx, 0.)
-        corr_ay = np.insert(corr_ay.value_in(self.acc_units).astype(np.float64), removed_idx, 0.)
-        corr_az = np.insert(corr_az.value_in(self.acc_units).astype(np.float64), removed_idx, 0.)
-
-        return (corr_ax | self.acc_units,
-                corr_ay | self.acc_units,
-                corr_az | self.acc_units)
 
     def get_gravity_at_point(self, radius, x, y, z) -> tuple:
         """
@@ -176,19 +172,20 @@ class CorrectionFromCompoundParticle(object):
         :math:`dF = \sum_{j} \left( \sum_{i} F_{i} - F_{j} \right)`
 
         where j is parent and i is constituent childrens of parent j.
+
         Args:
             radius (units.length):  Radius of parent particles
-            x (units.length):  x coordinate of parent particles
-            y (units.length):  z coordinate of parent particles
-            z (units.length):  y coordinate of parent particles
+            x (units.length):       x coordinate of parent particles
+            y (units.length):       z coordinate of parent particles
+            z (units.length):       y coordinate of parent particles
         Returns:
             tuple:  Acceleration array of parent particles (ax, ay, az)
         """
         Nparticles = len(self.particles_x)
 
-        ax_corr = np.zeros(Nparticles) | self.acc_units
-        ay_corr = np.zeros(Nparticles) | self.acc_units
-        az_corr = np.zeros(Nparticles) | self.acc_units
+        ax_corr = np.zeros(Nparticles) | ACC_UNITS
+        ay_corr = np.zeros(Nparticles) | ACC_UNITS
+        az_corr = np.zeros(Nparticles) | ACC_UNITS
 
         parent_idx = {parent.key: i for i, parent in enumerate(self.particles)}
         futures = []
@@ -207,12 +204,18 @@ class CorrectionFromCompoundParticle(object):
                     system_x = system.x
                     system_y = system.y
                     system_z = system.z
+                    
+                    particles_x = self.particles_x
+                    particles_y = self.particles_y
+                    particles_z = self.particles_z
 
                     future = executor.submit(
-                        self.correct_parents,
-                        particles_x=self.particles_x,
-                        particles_y=self.particles_y,
-                        particles_z=self.particles_z,
+                        correct_parents_threaded,
+                        lib=self.lib,
+                        acc_units=ACC_UNITS,
+                        particles_x=particles_x,
+                        particles_y=particles_y,
+                        particles_z=particles_z,
                         parent_mass=parent_mass,
                         parent_x=parent_x,
                         parent_y=parent_y,
@@ -236,19 +239,22 @@ class CorrectionFromCompoundParticle(object):
                 ax_corr += ax
                 ay_corr += ay
                 az_corr += az
+                
+                del ax, ay, az
 
-        parent_idx = None
+        del parent_idx, futures
 
         return ax_corr, ay_corr, az_corr
 
     def get_potential_at_point(self, radius, x, y, z) -> np.ndarray:
         """
         Get the potential at a specific location
+
         Args:
             radius (units.length):  Radius of the particle at that location
-            x (units.length):  x coordinate of the location
-            y (units.length):  y coordinate of the location
-            z (units.length):  z coordinate of the location
+            x (units.length):       x coordinate of the location
+            y (units.length):       y coordinate of the location
+            z (units.length):       z coordinate of the location
         Returns:
             Array:  The potential field at the location
         """
@@ -283,24 +289,27 @@ class CorrectionFromCompoundParticle(object):
 
 
 class CorrectionForCompoundParticle(object):  
-    def __init__(self, grav_lib, parent_x, parent_y, parent_z,
-                 system_x, system_y, system_z, system: Particles,
-                 perturber_mass, perturber_x, perturber_y, perturber_z):
+    def __init__(
+            self, grav_lib, parent_x, parent_y, parent_z,
+            system_x, system_y, system_z, system: Particles,
+            perturber_mass, perturber_x, perturber_y, perturber_z
+            ):
         """
         Correct force vector exerted by global particles on systems
+
         Args:
-            grav_lib (Library): The gravity library (e.g., a wrapped C++ library).
-            parent_x (units.length): x coordinate of the parent particle.
-            parent_y (units.length): y coordinate of the parent particle.
-            parent_z (units.length): z coordinate of the parent particle.
-            system_x (units.length): x coordinate of the system particle.
-            system_y (units.length): y coordinate of the system particle.
-            system_z (units.length): z coordinate of the system particle.
-            system (Particles): The subsystem particles.
-            perturber_mass (units.mass): Mass of the perturber particle.
-            perturber_x (units.length): x coordinate of the perturber particle.
-            perturber_y (units.length): y coordinate of the perturber particle.
-            perturber_z (units.length): z coordinate of the perturber particle.
+            grav_lib (Library):           The gravity library (e.g., a wrapped C++ library).
+            parent_x (units.length):      x coordinate of the parent particle.
+            parent_y (units.length):      y coordinate of the parent particle.
+            parent_z (units.length):      z coordinate of the parent particle.
+            system_x (units.length):      x coordinate of the system particle.
+            system_y (units.length):      y coordinate of the system particle.
+            system_z (units.length):      z coordinate of the system particle.
+            system (Particles):           The subsystem particles.
+            perturber_mass (units.mass):  Mass of the perturber particle.
+            perturber_x (units.length):   x coordinate of the perturber particle.
+            perturber_y (units.length):   y coordinate of the perturber particle.
+            perturber_z (units.length):   z coordinate of the perturber particle.
         """
         self.lib = grav_lib
 
@@ -318,23 +327,22 @@ class CorrectionForCompoundParticle(object):
         self.pert_y = perturber_y
         self.pert_z = perturber_z
 
-        self.acc_units = system.vx.unit**2. / system.x.unit
-
     def get_gravity_at_point(self, radius, x, y, z) -> tuple:
         """
         Compute gravitational acceleration felt by system due to parents present.
+
         Args:
             radius (units.length):  Radius of the system particle
-            x (units.length):  x coordinate of the system particle
-            y (units.length):  y coordinate of the system particle
-            z (units.length):  z coordinate of the system particle
+            x (units.length):       x coordinate of the system particle
+            y (units.length):       y coordinate of the system particle
+            z (units.length):       z coordinate of the system particle
         Returns: 
             tuple:  Acceleration array of system particles (ax, ay, az)
         """
         Nsystem = len(self.system)
-        corr_ax = np.zeros(Nsystem) | self.acc_units
-        corr_ay = np.zeros(Nsystem) | self.acc_units
-        corr_az = np.zeros(Nsystem) | self.acc_units
+        corr_ax = np.zeros(Nsystem) | ACC_UNITS
+        corr_ay = np.zeros(Nsystem) | ACC_UNITS
+        corr_az = np.zeros(Nsystem) | ACC_UNITS
 
         ax_chd, ay_chd, az_chd = compute_gravity(
                                     grav_lib=self.lib, 
@@ -367,11 +375,12 @@ class CorrectionForCompoundParticle(object):
     def get_potential_at_point(self, radius, x, y, z) -> np.ndarray:
         """
         Get the potential at a specific location.
+
         Args:
             radius (units.length):  Radius of the system particle
-            x (units.length):  x Location of the system particle
-            y (units.length):  y Location of the system particle
-            z (units.length):  z Location of the system particle
+            x (units.length):       x Location of the system particle
+            y (units.length):       y Location of the system particle
+            z (units.length):       z Location of the system particle
         Returns:
             Array:  The potential field at the system particle's location
         """

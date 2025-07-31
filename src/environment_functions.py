@@ -11,8 +11,9 @@ def connected_components_kdtree(system: Particles, threshold=None) -> list:
     """
     Returns a list of connected component subsets of particles.
     Uses a KD-Tree for efficient spatial queries.
+
     Args:
-        system (Particles): The particle set
+        system (Particles):       The particle set
         threshold (units.length): The distance threshold for connected components
     Returns:
         list: A list of connected component in form of AMUSE particles
@@ -34,14 +35,14 @@ def connected_components_kdtree(system: Particles, threshold=None) -> list:
             component = []
             stack = [i]
             visited[i] = True
-            
+
             while stack:
                 current = stack.pop()
                 component.append(current)
                 # Find all neighbors within the threshold
                 neighbors = tree.query_ball_point(x=coords[current], 
                                                   r=threshold.value_in(units.m))
-                
+
                 for nb in neighbors:
                     if not visited[nb]:
                         visited[nb] = True
@@ -54,14 +55,15 @@ def connected_components_kdtree(system: Particles, threshold=None) -> list:
 def galactic_frame(parent_set: Particles, dx, dy, dz, dvx, dvy, dvz) -> Particles:
     """
     Shift particle set to galactic frame.
+
     Args:
         parent_set (Particles):  The particle set
-        dx (units.length): x-coordinate shift in the galactocentric frame
-        dy (units.length): y-coordinate shift in the galactocentric frame
-        dz (units.length): z-coordinate shift in the galactocentric frame
-        dvx (units.length): x-velocity shift in the galactocentric frame
-        dvy (units.length): y-velocity shift in the galactocentric frame
-        dvz (units.length): z-velocity shift in the galactocentric frame
+        dx (units.length):       x-coordinate shift in the galactocentric frame
+        dy (units.length):       y-coordinate shift in the galactocentric frame
+        dz (units.length):       z-coordinate shift in the galactocentric frame
+        dvx (units.length):      x-velocity shift in the galactocentric frame
+        dvy (units.length):      y-velocity shift in the galactocentric frame
+        dvz (units.length):      z-velocity shift in the galactocentric frame
     Returns:
         Particles: Particle set shifted to galactocentric coordinates
     """
@@ -81,6 +83,7 @@ def set_parent_radius(system_mass) -> units.au:
     Merging radius of parent systems. Based on system crossing time.
     - Too large → Poor angular momentum conservation, inaccurate center of mass.
     - Too small → Excessive computation due to frequent small timesteps.
+
     Args:
        system_mass (units.mass):  Total mass of the system
     Returns:
@@ -92,6 +95,7 @@ def set_parent_radius(system_mass) -> units.au:
 def planet_radius(planet_mass) -> units.REarth:
     """
     Compute planet radius (arXiv:2311.12593).
+
     Args:
         planet_mass (units.mass):  Mass of the planet
     Returns:
@@ -108,6 +112,7 @@ def planet_radius(planet_mass) -> units.REarth:
 def ZAMS_radius(star_mass) -> units.RSun:
     """
     Define stellar radius at ZAMS.
+
     Args:
         star_mass (units.mass):  Mass of the star
     Returns:

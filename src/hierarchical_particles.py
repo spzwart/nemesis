@@ -23,6 +23,7 @@ class HierarchicalParticles(ParticlesOverlay):
     def add_particles(self, parts: Particles) -> Particles:  
         """
         Add particles to particle set.
+
         Args:
             parts (Particles):  The particle to add.
         Returns:
@@ -36,9 +37,30 @@ class HierarchicalParticles(ParticlesOverlay):
 
         return _parts
 
+    def assign_subsystem(self, parent: Particle, sys: Particles) -> None:
+        """
+        Assign subsystem to parent particle. No reshifting needed
+
+        Args:
+            parent (Particle):  The parent particle.
+            sys (Particles):    The subsystem set.
+        """
+        if not isinstance(sys, Particles):
+            raise TypeError("sys must be an instance of Particles")
+
+        if not isinstance(parent, Particle):
+            self.add_subsystem(sys)
+        
+        if len(sys) == 1:
+            return self.add_particles(sys)[0]
+        
+        self.collection_attributes.subsystems[parent.key] = (parent, sys)
+        return parent
+    
     def add_subsystem(self, sys: Particles, recenter=True) -> Particle:
         """
         Create a parent from particle subsytem.
+
         Args:
             sys (Particles):  The subsystem set.
             recenter (bool):  Flag to recenter the parent.
@@ -53,41 +75,40 @@ class HierarchicalParticles(ParticlesOverlay):
             sys, parent, 
             relative=False, 
             recenter=recenter
-        )
+            )
         parent = self.add_particle(parent)
         self.collection_attributes.subsystems[parent.key] = (parent, sys)
 
         return parent
 
-    def assign_parent_attributes(self, sys: Particles, parent: Particle, relative=True, recenter=True) -> None:
+    def assign_parent_attributes(
+        self, sys: Particles, parent: Particle, 
+        relative=True, recenter=True
+        ) -> None:
         """
         Create parent from subsystem attributes
 
         Args:
-            sys (Particles):  The subsystem set
+            sys (Particles):    The subsystem set
             parent (Particle):  The parent particle
-            relative (bool):  Flag to assign relative attributes
-            recenter (bool):  Flag to recenter the parent
+            relative (bool):    Flag to assign relative attributes
+            recenter (bool):    Flag to recenter the parent
         """
         if not relative:
             parent.position = 0.*sys[0].position
             parent.velocity = 0.*sys[0].velocity
 
-        massives = sys[sys.mass != (0. | units.kg)]
+        massives = sys[sys.mass > (0. | units.kg)]
         parent.mass = np.sum(massives.mass)
         try:
             if recenter:
-                masses = massives.mass.value_in(units.kg)
-                positions = massives.position.value_in(units.m)
-                velocities = massives.velocity.value_in(units.ms)
+                com = massives.center_of_mass()
+                com_vel = massives.center_of_mass_velocity()
 
-                com = np.average(positions, weights=masses, axis=0)
-                com_vel = np.average(velocities, weights=masses, axis=0)
-
-                parent.position += com | units.m
-                parent.velocity += com_vel | units.ms
-                sys.position -= com | units.m
-                sys.velocity -= com_vel | units.ms
+                parent.position = com
+                parent.velocity = com_vel
+                sys.position -= com
+                sys.velocity -= com_vel
 
         except Exception as e:
             error_message = f"Error: {e}\nSystem: {sys}"
@@ -96,16 +117,18 @@ class HierarchicalParticles(ParticlesOverlay):
     def recenter_subsystems(self, max_workers: int) -> None:
         """
         Recenter subsystems.
+
         Args:
             max_workers (int):  Number of cores to use.
         """
         def calculate_com(parent_pos, parent_vel, system: Particles) -> tuple:
             """
             Calculate and shift system relative to center of mass.
+
             Args:
-                parent_pos (units.length):  Parent particle position.
-                parent_vel (units.velocity):  Parent particle velocity.
-                system (Particles):  The subsystem particle set.
+                parent_pos (units.length):    Parent particle position
+                parent_vel (units.velocity):  Parent particle velocity
+                system (Particles):           The subsystem particle set
             Returns:
                 tuple:  The shifted position and velocity.
             """
@@ -126,7 +149,12 @@ class HierarchicalParticles(ParticlesOverlay):
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
-                executor.submit(calculate_com, parent.position, parent.velocity, sys): parent
+                executor.submit(
+                    calculate_com, 
+                    parent.position, 
+                    parent.velocity, 
+                    sys
+                    ): parent
                 for parent, sys in self.collection_attributes.subsystems.values()
             }
 
@@ -139,6 +167,7 @@ class HierarchicalParticles(ParticlesOverlay):
     def remove_particles(self, parts: Particles) -> None:
         """
         Remove particles from particle set.
+
         Args:
             parts (Particles):  The particle to remove.
         """
@@ -151,6 +180,7 @@ class HierarchicalParticles(ParticlesOverlay):
         """
         Get copy of complete particle set in galactocentric 
         or cluster frame of reference.
+
         Returns:
             Particles:  Complete data on simulated particle set.
         """

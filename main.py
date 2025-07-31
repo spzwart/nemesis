@@ -27,6 +27,7 @@ from src.nemesis import Nemesis
 def create_output_directories(dir_path: str):
     """
     Creates directories for output.
+    
     Args:
         dir_path (str):  Simulation directory path.
     """
@@ -45,6 +46,7 @@ def create_output_directories(dir_path: str):
 def load_particle_set(ic_file: str) -> Particles:
     """
     Load particle set from file.
+    
     Args:
         ic_file (str):  Path to initial conditions.
     Returns:
@@ -61,6 +63,7 @@ def load_particle_set(ic_file: str) -> Particles:
 def configure_galactic_frame(particle_set: Particles) -> Particles:
     """
     Shift particle set to galactocentric reference frame.
+    
     Args:
         particle_set (particles):  The particle set.
     Returns:
@@ -79,11 +82,12 @@ def identify_parents(particle_set: Particles) -> Particles:
     Identify parents in particle set. These are either:
         - Isolated particles (syst_id < 0).
         - Hosts of subsystem (max mass in system).
+        
     Args:
         particle_set (Particles):  The particle set.
     Returns:
         Particles:  Parents (Lonely + Host) in particle set. 
-                    Host are identified as the most massive object in the system.
+        Host are identified as the most massive object in the system.
     """
     parents = particle_set[particle_set.syst_id <= 0]
     system_ids = np.unique(particle_set.syst_id[particle_set.syst_id > 0])
@@ -96,11 +100,12 @@ def identify_parents(particle_set: Particles) -> Particles:
 def setup_simulation(dir_path: str, particle_set: Particles) -> tuple:
     """
     Setup simulation directories and load particle set.
+    
     Args:
-        dir_path (str):  Directory path for outputs
-        particle_set (Particles): The particle set
+        dir_path (str):            Directory path for outputs
+        particle_set (Particles):  The particle set
     Returns:
-        tuple: (directory_path, snapshot_path, particle_set)
+        tuple: (directory_path, snapshot_path, particles)
     """
     snapshot_path = os.path.join(dir_path, "simulation_snapshot")
     particle_set = load_particle_set(particle_set)
@@ -110,16 +115,17 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
                    dE_track: bool, gal_field: bool, star_evol: bool, verbose: bool) -> None:
     """
     Run simulation and output data.
+    
     Args:
-        particle_set (str):  Path to initial conditions
-        tend (units.time):  Simulation end time
+        particle_set (str):     Path to initial conditions
+        tend (units.time):      Simulation end time
         dtbridge (units.time):  Bridge timestep
-        dt_diag (units.time):  Diagnostic time step
-        code_dt (float):  Gravitational integrator internal timestep
-        dE_track (boolean):  Flag turning on energy error tracker
-        gal_field (boolean):  Flag turning on galactic field or not
-        star_evol (boolean):  Flag turning on stellar evolution or not
-        verbose (boolean):  Flag turning on print statements or not
+        dt_diag (units.time):   Diagnostic time step
+        code_dt (float):        Gravitational integrator internal timestep
+        dE_track (boolean):     Flag turning on energy error tracker
+        gal_field (boolean):    Flag turning on galactic field or not
+        star_evol (boolean):    Flag turning on stellar evolution or not
+        verbose (boolean):      Flag turning on print statements or not
     """
     sim_dir = particle_set.split("initial_particles/")[0]
     directory_path = os.path.join(sim_dir, f"Nrun{RUN_IDX}")
@@ -210,7 +216,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     with open(init_params, 'w') as f:
         f.write(f"Simulation Parameters:\n")
         f.write(f"  Total number of particles: {len(particle_set)}\n")
-        f.write(f"  Total number of initial subsystems: {id_}\n")
+        f.write(f"  Total number of initial subsystems: {bounded_systems.syst_id.max()}\n")
         f.write(f"  Diagnostic timestep: {dt_diag.in_(units.yr)}\n")
         f.write(f"  Bridge timestep: {dtbridge.in_(units.yr)}\n")
         f.write(f"  End time: {tend.in_(units.Myr)}\n")
@@ -307,12 +313,12 @@ def new_option_parser():
                       dest="tbridge", 
                       type="float", 
                       unit=units.yr, 
-                      default=1000. | units.yr,
+                      default=500. | units.yr,
                       help="Bridge timestep")
     result.add_option("--code_dt", 
                       dest="code_dt", 
                       type="float", 
-                      default=2.**-3,
+                      default=0.1,
                       help="Gravitational integrator internal timestep")
     result.add_option("--dt_diag", 
                       dest="dt_diag", 
