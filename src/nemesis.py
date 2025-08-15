@@ -530,6 +530,9 @@ class Nemesis(object):
         """Check for any isolated children"""
         if self._verbose:
             print("...Checking Splits...")
+            
+        if self.dE_track:
+            E0 = self.calculate_total_energy()
 
         new_isolated = Particles()
         for parent_key, (parent, subsys) in list(self.subsystems.items()):
@@ -537,7 +540,7 @@ class Nemesis(object):
             par_rad = parent.radius
             par_pos = parent.position
             furthest = (subsys.position - host.position).lengths().max()
-            criteria = CONNECTED_COEFF * par_rad
+            criteria = (CONNECTED_COEFF/max(1, self.dt_step)) * par_rad
             if furthest > criteria / 2.:
                 components = connected_components_kdtree(subsys, threshold=1.2*criteria)
                 if len(components) > 1:
@@ -594,8 +597,14 @@ class Nemesis(object):
                     del subsys, parent
 
         if len(new_isolated) > 0:
-            new_isolated.radius = min(PARENT_RADIUS_MAX, set_parent_radius(new_isolated.mass))
+            new_isolated.radius = set_parent_radius(new_isolated.mass)
+            mask = new_isolated.radius > PARENT_RADIUS_MAX
+            new_isolated[mask].radius = PARENT_RADIUS_MAX
             self.particles.add_particles(new_isolated)
+
+        if self.dE_track:
+            E1 = self.calculate_total_energy()
+            self.corr_energy += E1 - E0
 
     def _process_parent_mergers(self, corr_time) -> None:
         """

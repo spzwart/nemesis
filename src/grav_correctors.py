@@ -17,11 +17,11 @@ from src.globals import SI_UNITS
 ACC_UNITS = units.m/units.s**2
 
 def compute_gravity(
-        grav_lib, pert_m, 
-        pert_x, pert_y, pert_z, 
-        infl_x, infl_y, infl_z, 
-        npert=None, npart=None
-        ) -> tuple:
+    grav_lib, pert_m, 
+    pert_x, pert_y, pert_z, 
+    infl_x, infl_y, infl_z, 
+    npert=None, npart=None
+    ) -> tuple:
     """
     Compute gravitational force felt by perturber particles due to externals
 
@@ -138,10 +138,10 @@ def correct_parents_threaded(
 
 class CorrectionFromCompoundParticle(object):
     def __init__(
-            self, grav_lib, particles, 
-            particles_x, particles_y, particles_z, 
-            subsystems: Particles, num_of_workers: int
-            ):
+        self, grav_lib, particles, 
+        particles_x, particles_y, particles_z, 
+        subsystems: Particles, num_of_workers: int
+        ):
         """
         Correct force exerted by some parent system on other particles by that of its system.
 
@@ -290,10 +290,10 @@ class CorrectionFromCompoundParticle(object):
 
 class CorrectionForCompoundParticle(object):  
     def __init__(
-            self, grav_lib, parent_x, parent_y, parent_z,
-            system_x, system_y, system_z, system: Particles,
-            perturber_mass, perturber_x, perturber_y, perturber_z
-            ):
+        self, grav_lib, parent_x, parent_y, parent_z,
+        system_x, system_y, system_z, system: Particles,
+        perturber_mass, perturber_x, perturber_y, perturber_z
+        ):
         """
         Correct force vector exerted by global particles on systems
 

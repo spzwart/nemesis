@@ -53,3 +53,5 @@ To run example script, execute `python basic_cluster/particle_initialiser.py` to
 
 ### NOTES:
 - Children are initially identified as particles with attribute `syst_id > 0`. Their parents are identified with the same `syst_id` value.
+
+[![Watch the video](https://github.com/spzwart/nemesis/tree/main/examples/thumbnail.png)](https://github.com/spzwart/nemesis/tree/main/examples/nemesis_movie.mp4)
