@@ -4,6 +4,9 @@
 #    correspond to the time of the simulation at last stop. 
 #    To account for multi-stellar population, add a channel in nemesis class 
 #    that copies between stellar_code.particles and lonely parents
+#    For any help, please contact:
+#       - Erwan Hochart (hochart@strw.leidenuniv.nl)
+#       - Simon Portegies Zwart (spz@strw.leidenuniv.nl)
 ###########################################################################
 
 import glob
@@ -31,7 +34,6 @@ def create_output_directories(dir_path: str):
     Args:
         dir_path (str):  Simulation directory path.
     """
-    # Create main directory and subdirectories in a single pass
     subdirs = [
         "event_data", 
         "collision_snapshot",
@@ -131,6 +133,9 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     directory_path = os.path.join(sim_dir, f"Nrun{RUN_IDX}")
     init_params = os.path.join(directory_path, 'sim_stats', f'initial_conditions_{RUN_IDX}.txt')
     coll_dir = os.path.join(directory_path, "collision_snapshot")
+    
+    print(f"...Starting Nemesis simulation Run {RUN_IDX}...")
+    print(f"Job ID: {os.getpid()}")
 
     if os.path.exists(init_params):
         if verbose:

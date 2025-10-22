@@ -45,7 +45,7 @@ class HierarchicalParticles(ParticlesOverlay):
 
         Args:
             parent (Particle):  The parent particle.
-            sys (Particles):    The subsystem set.
+            sys (Particles):    The child system particle set.
         """
         if not isinstance(sys, Particles):
             raise TypeError("sys must be an instance of Particles")
@@ -64,7 +64,7 @@ class HierarchicalParticles(ParticlesOverlay):
         Create a parent from particle subsytem.
 
         Args:
-            sys (Particles):  The subsystem set.
+            sys (Particles):  The child system particle set.
             recenter (bool):  Flag to recenter the parent.
         Returns:
             Particle:  The parent particle.
@@ -91,10 +91,10 @@ class HierarchicalParticles(ParticlesOverlay):
         Create parent from subsystem attributes
 
         Args:
-            sys (Particles):    The subsystem set
-            parent (Particle):  The parent particle
-            relative (bool):    Flag to assign relative attributes
-            recenter (bool):    Flag to recenter the parent
+            sys (Particles):    The child system particle set.
+            parent (Particle):  The parent particle.
+            relative (bool):    Flag to assign relative attributes.
+            recenter (bool):    Flag to recenter the parent.
         """
         if not relative:
             parent.position = 0.*child[0].position
@@ -130,9 +130,9 @@ class HierarchicalParticles(ParticlesOverlay):
             Calculate and shift system relative to center of mass.
 
             Args:
-                parent_pos (units.length):    Parent particle position
-                parent_vel (units.velocity):  Parent particle velocity
-                system (Particles):           The subsystem particle set
+                parent_pos (units.length):    Parent particle position.
+                parent_vel (units.velocity):  Parent particle velocity.
+                system (Particles):           The child system particle set.
             Returns:
                 tuple:  The shifted position and velocity.
             """

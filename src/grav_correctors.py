@@ -1,5 +1,5 @@
 ############################## TO WORK ON ##############################
-# 1. AMUSIFY C++ LIBRARY WITH INTERFACE
+# 1. AMUSIFY C++ LIBRARY WITH INTERFACE  --> ASK ORIGINAL AUTHOR FOR SKELETON
 # 2. RELEASE GIL IN C++ LIBRARY
 # 3. GET_POTENTIAL_AT_POINT FUNCTION NOT USED --> TO VALIDATE
 ########################################################################
@@ -96,6 +96,27 @@ def correct_parents_threaded(
         system_mass, system_x, system_y, system_z,
         removed_idx
         ):
+    """
+    Correct the gravitational influence of a parent particle on its child system.
+
+    Args:
+        lib (library):             Library to compute gravity
+        acc_units (units):         Units of acceleration
+        particles_x (units.length):  x coordinate of all particles
+        particles_y (units.length):  y coordinate of all particles
+        particles_z (units.length):  z coordinate of all particles
+        parent_mass (units.mass):    Mass of the parent particle
+        parent_x (units.length):     x coordinate of the parent particle
+        parent_y (units.length):     y coordinate of the parent particle
+        parent_z (units.length):     z coordinate of the parent particle
+        system_mass (units.mass):    Mass of the system particles
+        system_x (units.length):     x coordinate of the system particles
+        system_y (units.length):     y coordinate of the system particles
+        system_z (units.length):     z coordinate of the system particles
+        removed_idx (int):           Index of the parent particle in the original array
+    Returns:
+        tuple:  Acceleration array of parent particles (ax, ay, az)
+    """
     mask = np.ones(len(particles_x), dtype=bool)
     mask[removed_idx] = False
     external_x = particles_x[mask]
