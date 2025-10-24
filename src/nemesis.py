@@ -4,6 +4,10 @@
 ####################################  OTHER ROOM FOR IMPROVEMENT  ###############################
 # 1. Flexible bridge times.
 # 2. Flexible parent radius.
+# 3. Use old workers instead of spawning new ones on splitting.
+# 4. In _handle_collision(), the condition if remnant.key == children[nearest_mass].key 
+#    could be removed entirely. But needs testing to ensure no bugs.
+# 5. Logic of split_subcodes. Particularly poor for protoplanetary disks.
 #################################################################################################
 
  
@@ -528,7 +532,7 @@ class Nemesis(object):
             if self.subcodes:
                 self._drift_child(self.model_time)
 
-            self.channels["from_gravity_to_parents"].copy()
+            self._sync_grav_to_local()
             self._correction_kicks(
                 self.particles, 
                 self.subsystems,
@@ -542,6 +546,7 @@ class Nemesis(object):
 
             self.split_subcodes()
             self.channels["from_parents_to_gravity"].copy()
+
         del self.old_copy
         gc.collect()
 
@@ -871,9 +876,9 @@ class Nemesis(object):
         self._coll_children[newparent.key[0]] = coll_children_temp
         
         del new_par
-    
+
     def _handle_collision(
-            self, children: Particles, parent: Particle, 
+            self, children: Particles, parent: Particle,
             enc_parti: Particles, code, resolved_keys: dict
             ):
         """
@@ -893,7 +898,7 @@ class Nemesis(object):
         print(f"...Collision #{self.__nmerge} Detected...")
         parent_key = parent.key
         self._child_channels[parent_key]["from_gravity_to_children"].copy()
-        
+
         coll_a = enc_parti[0].as_particle_in_set(children)
         coll_b = enc_parti[1].as_particle_in_set(children)
         collider = Particles(particles=[coll_a, coll_b])
@@ -901,7 +906,7 @@ class Nemesis(object):
         sma = kepler_elements[2]
         ecc = kepler_elements[3]
         inc = kepler_elements[4]
-        
+
         tcoll = code.model_time + self._time_offsets[code] + self.__resume_offset
         with open(os.path.join(self.__coll_dir, f"merger{self.__nmerge}.txt"), 'w') as f:
             f.write(f"Tcoll: {tcoll.in_(units.yr)}")
@@ -915,15 +920,15 @@ class Nemesis(object):
             f.write(f"\nSemi-major axis: {abs(sma).in_(units.au)}")
             f.write(f"\nEccentricity: {ecc}")
             f.write(f"\nInclination: {inc.in_(units.deg)}")
-        
+
         if not self.__merged:
             write_set_to_file(
-                self.particles.all().savepoint(0 | units.Myr), 
+                self.particles.all().savepoint(0 | units.Myr),
                 os.path.join(self.__coll_dir, f"Cluster_Merger{self.__nmerge}.hdf5"),
                 'amuse', close_file=True, overwrite_file=True
                 )
             self.__merged = True
-        
+
         # Create merger remnant
         most_massive = collider[collider.mass.argmax()]
         collider_mass = collider.mass
@@ -954,11 +959,8 @@ class Nemesis(object):
                 remnant.radius = planet_radius(remnant.mass)
 
         else:
-            self.cleanup_code()
-            print("Error: Asteroid - Asteroid collision")
-            print(f"Traceback: {traceback.format_exc()}")
-            sys.exit()
-        
+            raise ValueError("Error: Asteroid - Asteroid collision")
+
         print(f"{coll_a.type}, {coll_b.type}")
         print(f"{coll_a.mass.in_(units.MSun)} + {coll_b.mass.in_(units.MSun)} --> {remnant.mass.in_(units.MSun)}")
         print(f"{coll_a.radius.in_(units.RSun)} + {coll_b.radius.in_(units.RSun)} --> {remnant.radius.in_(units.RSun)}")
@@ -966,7 +968,7 @@ class Nemesis(object):
         remnant.coll_events = max(collider.coll_events) + 1
         remnant.type = most_massive.type
         remnant.original_key = most_massive.original_key
-        
+
         # Deal with simultaneous mergers
         changes = [ ]
         coll_a_change = 0
@@ -974,21 +976,21 @@ class Nemesis(object):
         if not resolved_keys:
             resolved_keys[coll_a.key] = remnant.key[0]
             resolved_keys[coll_b.key] = remnant.key[0]
-        else: 
+        else:
             # If the current collider is a remnant of past event, remap
             for prev_collider, resulting_remnant in resolved_keys.items():
-                if coll_a.key == resulting_remnant:  
+                if coll_a.key == resulting_remnant:
                     changes.append((prev_collider, remnant.key[0]))
                     coll_a_change = 1
                 elif coll_b.key == resulting_remnant:
                     changes.append((prev_collider, remnant.key[0]))
                     coll_b_change = 1
-                    
+
             if coll_a_change == 0:
                 resolved_keys[coll_a.key] = remnant.key[0]
             if coll_b_change == 0:
                 resolved_keys[coll_b.key] = remnant.key[0]
-       
+
         for key, new_value in changes:
             resolved_keys[key] = new_value
 
@@ -1001,7 +1003,7 @@ class Nemesis(object):
             if remnant.key == children[nearest_mass].key:  # If the remnant is the host
                 children.position += parent.position
                 children.velocity += parent.velocity
-                
+
                 newparent = self.particles.add_subsystem(children)
                 newparent_key = newparent.key
                 newparent.radius = parent.radius
@@ -1011,30 +1013,29 @@ class Nemesis(object):
                 old_offset = self._time_offsets.pop(old_code)
                 old_channel = self._child_channels.pop(parent_key)
                 old_cpu_time = self._cpu_time.pop(parent_key)
-                
+
                 self.subcodes[newparent_key] = old_code
                 new_code = self.subcodes[newparent_key]
                 self._time_offsets[new_code] = old_offset
                 self._child_channel_maker(
-                    parent_key=newparent_key, 
-                    code_particles=new_code.particles, 
+                    parent_key=newparent_key,
+                    code_particles=new_code.particles,
                     children=children
                     )
                 self._cpu_time[newparent_key] = old_cpu_time
                 child_pid = self._pid_workers.pop(parent_key)
                 self._pid_workers[newparent_key] = child_pid
-                
-                self.particles.remove_particle(parent)
-                
-                del old_channel  # Check if this breaks
 
+                self.particles.remove_particle(parent)
+
+                del old_channel  # Check if this breaks
             else:
                 newparent = parent
         else:
             newparent = parent
-            
+
         children.synchronize_to(self.subcodes[newparent.key].particles)
-          
+
         return newparent, resolved_keys
     
     def _handle_supernova(self, SN_detect, bodies: Particles) -> None:
@@ -1229,7 +1230,7 @@ class Nemesis(object):
             stopping_condition = code.stopping_conditions.collision_detection
             stopping_condition.enable()
             evol_time = dt - self._time_offsets[code]
-            
+
             t0 = time.time()
             while code.model_time < evol_time * (1. - EPS):
                 code.evolve_model(evol_time)
@@ -1241,7 +1242,7 @@ class Nemesis(object):
                             E0 = KE + PE
 
                         parent = resolve_collisions(
-                                    code, parent, 
+                                    code, parent,
                                     children,
                                     stopping_condition
                                     )
@@ -1252,7 +1253,6 @@ class Nemesis(object):
                             E1 = KE + PE
                             self.corr_energy += E1 - E0
             t1 = time.time()
-            self._child_channels[parent_key]["from_gravity_to_children"].copy()
             self._cpu_time[parent.key] = t1 - t0
             self.hibernate_workers(self._pid_workers[parent.key])
 
