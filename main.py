@@ -238,11 +238,6 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         t += dtbridge
         while nemesis.model_time < t*(1. - EPS):
             nemesis.evolve_model(t)
-            
-        write_set_to_file(
-            nemesis.particles.all().savepoint(nemesis.model_time), 
-            "old_file_{}.hdf5".format(nemesis.dt_step)
-            )
 
         if (nemesis.model_time >= t_diag) and (nemesis.dt_step != prev_step):
             if verbose:

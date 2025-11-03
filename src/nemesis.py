@@ -27,6 +27,7 @@ import sys
 from amuse.community.huayno.interface import Huayno
 from amuse.community.ph4.interface import Ph4
 from amuse.community.seba.interface import SeBa
+from amuse.community.symple.interface import Symple
 
 from amuse.couple import bridge
 from amuse.datamodel import Particles, Particle
@@ -159,7 +160,7 @@ class Nemesis(object):
             self.stellar_code.cleanup_code()
             self.stellar_code.stop()
 
-        for parent_key, (_, code) in self.subcodes.items():
+        for parent_key, code in self.subcodes.items():
             pid = self._pid_workers[parent_key]
             self.resume_workers(pid)
             code.cleanup_code()
@@ -273,15 +274,14 @@ class Nemesis(object):
             sys.exit()
 
         converter = nbody_system.nbody_to_si(scale_mass, scale_radius)
-        number_of_workers = 1
 
-        code = Huayno(converter, number_of_workers=number_of_workers)
+        code = Huayno(converter)
         code.particles.add_particles(children)
         code.parameters.epsilon_squared = (0. | units.au)**2.
         code.parameters.timestep_parameter = self.__code_dt
         code.set_integrator("SHARED4_COLLISIONS")
 
-        return code, number_of_workers
+        return code, None
 
     def get_child_pids(self, number_of_workers) -> list:
         """
@@ -297,7 +297,9 @@ class Nemesis(object):
             if len(child_pids) >= number_of_workers:
                 break
             try:
-                if 'ph4_worker' in child.name() or 'huayno_worker' in child.name():
+                if 'ph4_worker' in child.name() \
+                    or 'huayno_worker' in child.name() \
+                        or 'symple_worker' in child.name():
                     child_pids.append(child.pid)
             except Exception as e:
                 self.cleanup_code()
@@ -532,7 +534,7 @@ class Nemesis(object):
             if self.subcodes:
                 self._drift_child(self.model_time)
 
-            self._sync_grav_to_local()
+            self.channels["from_gravity_to_parents"].copy()
             self._correction_kicks(
                 self.particles, 
                 self.subsystems,
@@ -1035,7 +1037,6 @@ class Nemesis(object):
             newparent = parent
 
         children.synchronize_to(self.subcodes[newparent.key].particles)
-
         return newparent, resolved_keys
     
     def _handle_supernova(self, SN_detect, bodies: Particles) -> None:
@@ -1254,6 +1255,7 @@ class Nemesis(object):
                             self.corr_energy += E1 - E0
             t1 = time.time()
             self._cpu_time[parent.key] = t1 - t0
+            self._child_channels[parent.key]["from_gravity_to_children"].copy()
             self.hibernate_workers(self._pid_workers[parent.key])
 
         if self._verbose:

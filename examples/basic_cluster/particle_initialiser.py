@@ -22,8 +22,8 @@ def ZAMS_radius(mass):
             * (0.1148 + 0.8604*mass_sq) / (0.04651 + mass_sq)
     return r_zams | units.RSun
 
-Nbodies = 500
-Nchildren = 20
+Nbodies = 150
+Nchildren = 5
 
 masses = new_kroupa_mass_distribution(Nbodies, mass_min=0.5 | units.MSun, mass_max=30 | units.MSun)
 converter = nbody_system.nbody_to_si(masses.sum(), 0.2 | units.pc)
@@ -33,11 +33,11 @@ bodies.scale_to_standard(convert_nbody=converter, virial_ratio=0.5)
 bodies.radius = ZAMS_radius(bodies.mass)
 bodies.syst_id = -1
 
-solar_systems = bodies[bodies.mass > 0.7 | units.MSun].random_sample(Nchildren)
+solar_systems = bodies.random_sample(Nchildren)
 for i, host in enumerate(solar_systems):
     host_star = make_planets_oligarch.new_system(star_mass=host.mass,
                                                  star_radius=host.radius,
-                                                 disk_minumum_radius=10. | units.au,
+                                                 disk_minumum_radius=2. | units.au,
                                                  disk_maximum_radius=50. | units.au,
                                                  disk_mass=0.005 | units.MSun,)
     planets = host_star.planets[0][:5]

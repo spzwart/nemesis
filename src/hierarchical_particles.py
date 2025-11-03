@@ -33,53 +33,53 @@ class HierarchicalParticles(ParticlesOverlay):
         """
         _parts = ParticlesOverlay.add_particles(self,parts)
         if hasattr(parts.collection_attributes, "subsystems"):
-            for parent, sys in parts.collection_attributes.subsystems.values():
+            for parent, child in parts.collection_attributes.subsystems.values():
                 parent = parent.as_particle_in_set(self)
-                self.collection_attributes.subsystems[parent.key] = (parent, sys)
+                self.collection_attributes.subsystems[parent.key] = (parent, child)
 
         return _parts
 
-    def assign_subsystem(self, parent: Particle, sys: Particles) -> None:
+    def assign_subsystem(self, parent: Particle, child: Particles) -> None:
         """
         Assign subsystem to parent particle. No reshifting needed
 
         Args:
             parent (Particle):  The parent particle.
-            sys (Particles):    The child system particle set.
+            child (Particles):  The child system particle set.
         """
-        if not isinstance(sys, Particles):
-            raise TypeError("sys must be an instance of Particles")
+        if not isinstance(child, Particles):
+            raise TypeError("child must be an instance of Particles")
 
         if not isinstance(parent, Particle):
-            self.add_subsystem(sys)
-        
-        if len(sys) == 1:
-            return self.add_particles(sys)[0]
-        
-        self.collection_attributes.subsystems[parent.key] = (parent, sys)
+            self.add_subsystem(child)
+
+        if len(child) == 1:
+            return self.add_particles(child)[0]
+
+        self.collection_attributes.subsystems[parent.key] = (parent, child)
         return parent
     
-    def add_subsystem(self, sys: Particles, recenter=True) -> Particle:
+    def add_subsystem(self, child: Particles, recenter=True) -> Particle:
         """
         Create a parent from particle subsytem.
 
         Args:
-            sys (Particles):  The child system particle set.
-            recenter (bool):  Flag to recenter the parent.
+            child (Particles):  The child system particle set.
+            recenter (bool):    Flag to recenter the parent.
         Returns:
             Particle:  The parent particle.
         """
-        if len(sys) == 1:
-            return self.add_particles(sys)[0]
+        if len(child) == 1:
+            return self.add_particles(child)[0]
 
         parent = Particle()
         self.assign_parent_attributes(
-            sys, parent, 
+            child, parent, 
             relative=False, 
             recenter=recenter
             )
         parent = self.add_particle(parent)
-        self.collection_attributes.subsystems[parent.key] = (parent, sys)
+        self.collection_attributes.subsystems[parent.key] = (parent, child)
 
         return parent
 
@@ -91,7 +91,7 @@ class HierarchicalParticles(ParticlesOverlay):
         Create parent from subsystem attributes
 
         Args:
-            sys (Particles):    The child system particle set.
+            child (Particles):  The child system particle set.
             parent (Particle):  The parent particle.
             relative (bool):    Flag to assign relative attributes.
             recenter (bool):    Flag to recenter the parent.
@@ -157,9 +157,9 @@ class HierarchicalParticles(ParticlesOverlay):
                     calculate_com, 
                     parent.position, 
                     parent.velocity, 
-                    sys
+                    child
                     ): parent
-                for parent, sys in self.collection_attributes.subsystems.values()
+                for parent, child in self.collection_attributes.subsystems.values()
             }
 
             for future in as_completed(futures):
@@ -192,10 +192,10 @@ class HierarchicalParticles(ParticlesOverlay):
         parts.syst_id = -1
 
         subsystems = self.collection_attributes.subsystems
-        for system_id, (parent, sys) in enumerate(subsystems.values()):
+        for system_id, (parent, child) in enumerate(subsystems.values()):
             parts.remove_particle(parent)
 
-            subsys = parts.add_particles(sys)
+            subsys = parts.add_particles(child)
             subsys.position += parent.position
             subsys.velocity += parent.velocity
             subsys.syst_id = system_id + 1
