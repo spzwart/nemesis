@@ -256,7 +256,7 @@ class Nemesis(object):
         code.parameters.force_sync = True  # Force all particles to be same age
         return code
 
-    def _sub_worker(self, children: Particles, scale_mass, scale_radius):
+    def _sub_worker(self, children: Particles, scale_mass, scale_radius, number_of_workers=1):
         """
         Initialise children integrator.
 
@@ -264,6 +264,7 @@ class Nemesis(object):
             children (Particles):         Children systems
             scale_mass (units.mass):      Mass of the system
             scale_radius (units.length):  Radius of the system
+            number_of_workers (int):      Number of workers to use
         Returns:
             Code:  Gravitational integrator with particle set
         """
@@ -281,7 +282,7 @@ class Nemesis(object):
         code.parameters.timestep_parameter = self.__code_dt
         code.set_integrator("SHARED4_COLLISIONS")
 
-        return code, None
+        return code, number_of_workers
 
     def get_child_pids(self, number_of_workers) -> list:
         """
@@ -343,14 +344,14 @@ class Nemesis(object):
             try:
                 os.kill(pid, signal.SIGCONT)
             except ProcessLookupError:
-                self.cleanup_code()
                 print(f"Warning: Process {pid} not found. It may have exited.")
                 print(f"Traceback: {traceback.format_exc()}")
+                self.cleanup_code()
                 sys.exit()
             except PermissionError:
-                self.cleanup_code()
                 print(f"Error: Insufficient permissions to stop process {pid}.")
                 print(f"Traceback: {traceback.format_exc()}")
+                self.cleanup_code()
                 sys.exit()
 
     def _major_channel_maker(self) -> None:
@@ -535,7 +536,7 @@ class Nemesis(object):
             if self.subcodes:
                 self._drift_child(self.model_time)
 
-            self.channels["from_gravity_to_parents"].copy()
+            self._sync_grav_to_local()
             self._correction_kicks(
                 self.particles, 
                 self.subsystems,
@@ -924,14 +925,6 @@ class Nemesis(object):
             f.write(f"\nEccentricity: {ecc}")
             f.write(f"\nInclination: {inc.in_(units.deg)}")
 
-        if not self.__merged:
-            write_set_to_file(
-                self.particles.all().savepoint(0 | units.Myr),
-                os.path.join(self.__coll_dir, f"Cluster_Merger{self.__nmerge}.hdf5"),
-                'amuse', close_file=True, overwrite_file=True
-                )
-            self.__merged = True
-
         # Create merger remnant
         most_massive = collider[collider.mass.argmax()]
         collider_mass = collider.mass
@@ -967,7 +960,6 @@ class Nemesis(object):
         print(f"{coll_a.type}, {coll_b.type}")
         print(f"{coll_a.mass.in_(units.MSun)} + {coll_b.mass.in_(units.MSun)} --> {remnant.mass.in_(units.MSun)}")
         print(f"{coll_a.radius.in_(units.RSun)} + {coll_b.radius.in_(units.RSun)} --> {remnant.radius.in_(units.RSun)}")
-
         remnant.coll_events = max(collider.coll_events) + 1
         remnant.type = most_massive.type
         remnant.original_key = most_massive.original_key
@@ -1000,7 +992,6 @@ class Nemesis(object):
         children.remove_particle(coll_a)
         children.remove_particle(coll_b)
         children.add_particles(remnant)
-        
         if min(collider_mass) > (0. | units.kg):
             nearest_mass = abs(children.mass - parent.mass).argmin()
             if remnant.key == children[nearest_mass].key:  # If the remnant is the host
@@ -1028,7 +1019,6 @@ class Nemesis(object):
                 self._cpu_time[newparent_key] = old_cpu_time
                 child_pid = self._pid_workers.pop(parent_key)
                 self._pid_workers[newparent_key] = child_pid
-
                 self.particles.remove_particle(parent)
 
                 del old_channel  # Check if this breaks
@@ -1156,6 +1146,7 @@ class Nemesis(object):
                     except Exception as e:
                         print(f"Error while merging {coll_sets}: {e}")
                         print("Traceback:", traceback.format_exc())
+                        self.cleanup_code()
                         sys.exit()
 
                     if self.dE_track:
@@ -1257,12 +1248,10 @@ class Nemesis(object):
                             self.corr_energy += E1 - E0
             t1 = time.time()
             self._cpu_time[parent.key] = t1 - t0
-            self._child_channels[parent.key]["from_gravity_to_children"].copy()
             self.hibernate_workers(self._pid_workers[parent.key])
 
         if self._verbose:
             print("...Drifting Children...")
-        self.__merged = False
         
         sorted_cpu_time = sorted(
             self.subcodes.keys(),
