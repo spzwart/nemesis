@@ -1,14 +1,15 @@
-############################################# NOTES #############################################
+############################################# NOTES ###############################################################
 # 1. Although split_subcodes can be parallelised, the benefit is very little and complexity
 #    outweighs it. No use in putting in lower-level language given dictionary look ups.
-####################################  OTHER ROOM FOR IMPROVEMENT  ###############################
+####################################  OTHER ROOM FOR IMPROVEMENT  #################################################
 # 1. Flexible bridge times.
 # 2. Flexible parent radius.
 # 3. Use old workers instead of spawning new ones on splitting.
 # 4. In _handle_collision(), the condition if remnant.key == children[nearest_mass].key 
 #    could be removed entirely. But needs testing to ensure no bugs.
 # 5. Logic of split_subcodes. Particularly poor for protoplanetary disks.
-#################################################################################################
+# 6. When removing single particle children in _drift_child(), could be prone to error (Not encountered in tests).
+####################################################################################################################
 
  
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -149,16 +150,21 @@ class Nemesis(object):
         lib.find_gravity_at_point.restype = None
         return lib
     
-    def cleanup_code(self) -> None:
-        """Cleanup all codes and processes"""
+    def cleanup_code(self, first_clean=1) -> None:
+        """
+        Cleanup all codes and processes
+        Args:
+            first_clean (bool):  If true, cleans parent and stellar codes
+        """
         if self._verbose:
             print("...Cleaning up Nemesis...")
 
-        self.parent_code.cleanup_code()
-        self.parent_code.stop()
-        if (self.__star_evol):
-            self.stellar_code.cleanup_code()
-            self.stellar_code.stop()
+        if first_clean:
+            self.parent_code.cleanup_code()
+            self.parent_code.stop()
+            if (self.__star_evol):
+                self.stellar_code.cleanup_code()
+                self.stellar_code.stop()
 
         for parent_key, code in self.subcodes.items():
             pid = self._pid_workers[parent_key]
@@ -207,7 +213,7 @@ class Nemesis(object):
             scale_radius = set_parent_radius(scale_mass)
             parent.radius = min(PARENT_RADIUS_MAX, scale_radius)
             if parent not in self.subcodes:
-                code, number_of_workers = self._sub_worker(
+                code, _, child_PID = self._sub_worker(
                     children=sys, 
                     scale_mass=scale_mass, 
                     scale_radius=scale_radius
@@ -224,9 +230,8 @@ class Nemesis(object):
                 self._cpu_time[parent_key] = 0
 
                 # Store children PID to allow hibernation
-                worker_pid = self.get_child_pids(number_of_workers)
-                self._pid_workers[parent_key] = worker_pid
-                self.hibernate_workers(worker_pid)
+                self._pid_workers[parent_key] = child_PID
+                self.hibernate_workers(child_PID)
 
             if self._verbose:
                 print(f"System {nsyst+1}/{ntotal}, radius: {parent.radius.in_(units.au)}")
@@ -274,43 +279,42 @@ class Nemesis(object):
             print(f"Traceback: {traceback.format_exc()}")
             sys.exit()
 
+        PIDs_before = self._snapshot_worker_pids()
         converter = nbody_system.nbody_to_si(scale_mass, scale_radius)
 
-        code = Huayno(converter, number_of_workers=number_of_workers)
+        code = Huayno(
+            converter, 
+            number_of_workers=number_of_workers, 
+            channel_type="sockets"
+            )
         code.particles.add_particles(children)
         code.parameters.epsilon_squared = (0. | units.au)**2.
         code.parameters.timestep_parameter = self.__code_dt
         code.set_integrator("SHARED4_COLLISIONS")
 
-        return code, number_of_workers
+        PIDs_after = self._snapshot_worker_pids()
+        worker_PID = list(PIDs_after - PIDs_before)
 
-    def get_child_pids(self, number_of_workers) -> list:
-        """
-        Returns the PID of the most recently spawned children worker
+        return code, number_of_workers, worker_PID
 
-        Args:
-            number_of_workers (int):  Number of workers to return
-        Returns:
-            list:  List of PIDs of children workers
-        """
-        child_pids = []
+    def _snapshot_worker_pids(self) -> set[int]:
+        """Return the set of PIDs of all children workers"""
+        pids = set()
         for child in self.__main_process.children(recursive=True):
-            if len(child_pids) >= number_of_workers:
-                break
             try:
-                if 'ph4_worker' in child.name() \
-                    or 'huayno_worker' in child.name() \
-                        or 'symple_worker' in child.name():
-                    child_pids.append(child.pid)
-            except Exception as e:
+                name = child.name()
+            except Exception:
                 self.cleanup_code()
                 error = f"Error extracting PID from child process: {child.name()} \n" \
                          "Check if child worker name matches expected name in get_child_pids."
                 print(error)
                 print(f"Traceback: {traceback.format_exc()}")
                 sys.exit()
-
-        return child_pids
+            if "huayno_worker" in name \
+                or "ph4_worker" in name or \
+                    "symple_worker" in name:
+                pids.add(child.pid)
+        return pids
 
     def hibernate_workers(self, pid_list: list) -> None:
         """
@@ -623,12 +627,11 @@ class Nemesis(object):
                         scale_radius = set_parent_radius(scale_mass)
                         newparent.radius = scale_radius
 
-                        newcode, number_of_workers = self._sub_worker(
+                        newcode, _, child_PID = self._sub_worker(
                             children=sys,
                             scale_mass=scale_mass,
                             scale_radius=scale_radius
                             )
-                        worker_pid = self.get_child_pids(number_of_workers)
 
                         self._cpu_time[newparent_key] = cpu_time
                         self.subcodes[newparent_key] = newcode
@@ -641,8 +644,8 @@ class Nemesis(object):
                         )
                         self._child_channels[newparent_key]["from_children_to_gravity"].copy()  # More precise
                         
-                        self._pid_workers[newparent_key] = worker_pid
-                        new_pids.append(worker_pid)
+                        self._pid_workers[newparent_key] = child_PID
+                        new_pids.append(child_PID)
                         if len(new_pids) > int(self.avail_cpus // 2):
                             for pid in new_pids:
                                 self.hibernate_workers(pid)
@@ -717,19 +720,19 @@ class Nemesis(object):
             scale_mass = newparts.mass.sum()
             scale_radius = set_parent_radius(scale_mass)
             with self.__lock:
-                newcode, number_of_workers = self._sub_worker(
+                newcode, _, child_PID = self._sub_worker(
                     children=newparts,
                     scale_mass=scale_mass,
                     scale_radius=scale_radius,
                     )
-                worker_pid = self.get_child_pids(number_of_workers)
+                self._pid_workers[parent_key] = child_PID
 
             result.update({
                 "parent_key": parent_key,
                 "newcode": newcode,
                 "offset": offset,
                 "scale_radius": scale_radius,
-                "worker_pid": worker_pid,
+                "worker_pid": child_PID,
                 "children": newparts,
                 })
             return result
@@ -1264,12 +1267,15 @@ class Nemesis(object):
                 executor.submit(evolve_code, parent_key): parent_key 
                 for parent_key in sorted_cpu_time
             }
-            for future in as_completed(futures):  # Iterate over to ensure no silent failures
+            for ifut, future in enumerate(as_completed(futures)):  # Iterate over to ensure no silent failures
                 parent_key = futures[future]
                 try:
                     future.result()
                 except Exception as e:
-                    self.cleanup_code()
+                    if ifut == 0:
+                        self.cleanup_code()
+                    else:
+                        self.cleanup_code(first_clean=0)
                     print(f"Error while evolving parent {parent_key}: {e}")
                     print(f"Traceback: {traceback.format_exc()}")
                     sys.exit()
