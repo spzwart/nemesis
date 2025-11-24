@@ -259,7 +259,7 @@ class Nemesis(object):
         code = Ph4(self._parent_conv, number_of_workers=self.__par_nworker)
         code.parameters.epsilon_squared = (0. | units.au)**2.
         code.parameters.timestep_parameter = self.__code_dt
-        code.set_integrator("SHARED4_COLLISIONS")
+        code.parameters.force_sync = True
         return code
 
     def _sub_worker(self, children: Particles, scale_mass, scale_radius, number_of_workers=1):
@@ -299,7 +299,7 @@ class Nemesis(object):
         return code, number_of_workers, worker_PID
     
     def _set_worker_affinity(self, pid_list):
-        """Give child workers access to all visible CPUs."""
+        """Ensure child workers have access to all visible CPUs."""
         try:
             ncpu = os.cpu_count()
             if ncpu is None:
