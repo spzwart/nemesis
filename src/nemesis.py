@@ -657,6 +657,7 @@ class Nemesis(object):
                             scale_mass=scale_mass,
                             scale_radius=scale_radius
                             )
+                        self._set_worker_affinity(worker_pid)
                         self._time_offsets[newcode] = self.model_time
                     
                     self._cpu_time[newparent_key] = cpu_time
