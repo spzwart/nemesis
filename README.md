@@ -9,7 +9,7 @@ Nemesis works by decoupling tight subsystems from the global environment, integr
 
 A full description is given in *Hochart & Portegies Zwart (in prep.)*.  
 A demonstration video is available [here](https://youtu.be/cycIn8hDZKY).  
-For AMUSE installation instructions, see [this guide](https://github.com/LourensVeen/amuse-course).
+For AMUSE installation instructions, see [this guide](https://amuse.readthedocs.io/en/latest/install/installing.html).
 
 At runtime, Nemesis automatically creates output directories for a given run. These are hosted under `data/`:
 - **`simulation_snapshot/`** – HDF5 snapshots of particle phase-space and masses
@@ -17,11 +17,6 @@ At runtime, Nemesis automatically creates output directories for a given run. Th
 - **`sim_stats/`** – text files with run statistics  
 
 Runs can be **resumed automatically**, provided diagnostic parameters (`dtbridge`, `dt_diag`) are unchanged.
-
-
-### Example Scientific Runs
-- [van Elteren et al. 2019: Survivability of planetary systems in young
-and dense star clusters](https://www.aanda.org/articles/aa/full_html/2019/04/aa34641-18/aa34641-18.html)
 
 
 ### Installation & Running
@@ -75,8 +70,10 @@ src/nemesis.py:
 ### EXAMPLE:
 To run example script, execute `python basic_cluster/particle_initialiser.py` to create an AMUSE particle set. Afterwards, execute `python main.py`.
 
+### Example Scientific Runs
+- [van Elteren et al. 2019: Survivability of planetary systems in young
+and dense star clusters](https://www.aanda.org/articles/aa/full_html/2019/04/aa34641-18/aa34641-18.html)
+
 ### NOTES:
 - To setup children at the initial time step, it is required that the particle set contains a `syst_id` attribute whose value is an integer. The set of particles with the same `syst_id` value will be flagged as a subsystem as long as `syst_id` > 0.
 - Since Nemesis relies heavily on frequent stop/start (hibernate/resume) cycles for its child integrators, sockets are used instead of MPI. The persistent stop/start cycles conflict with MPI worker behaviour since MPI workers cannot safely handle repeated suspend/resume signals, especially in large-N simulations where hundreds of worker processes are active. Repeated stop/start operations can lead to workers being incorrectly terminated, crashing the simulation altogether. Socket-based channels, however, can tolerate stop/start cyles because they do not use the tightly coupled, state-sensitive collective semantics of MPI. The problem, however, is that children code are restricted to one core per.
-
-[!Watch Nemesis in action](https://youtu.be/cycIn8hDZKY)

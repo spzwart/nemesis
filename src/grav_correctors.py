@@ -25,7 +25,6 @@ def compute_gravity(
     ) -> tuple:
     """
     Compute gravitational force felt by perturber particles due to externals
-
     Args:
         grav_lib (library):     Library to compute gravity
         pert_m (units.mass):    Mass of perturber particles
@@ -98,10 +97,9 @@ def correct_parents_threaded(
         ):
     """
     Correct the gravitational influence of a parent particle on its child system.
-
     Args:
-        lib (library):             Library to compute gravity
-        acc_units (units):         Units of acceleration
+        lib (library):               Library to compute gravity
+        acc_units (units):           Units of acceleration
         particles_x (units.length):  x coordinate of all particles
         particles_y (units.length):  y coordinate of all particles
         particles_z (units.length):  z coordinate of all particles
@@ -166,7 +164,6 @@ class CorrectionFromCompoundParticle(object):
         ):
         """
         Correct force exerted by some parent system on other particles by that of its system.
-
         Args:
             grav_lib (Library):          The gravity library (e.g., a wrapped C++ library).
             particles (units.length):    Original parent particle set
@@ -194,7 +191,6 @@ class CorrectionFromCompoundParticle(object):
         :math:`dF = \sum_{j} \left( \sum_{i} F_{i} - F_{j} \right)`
 
         where j is parent and i is constituent childrens of parent j.
-
         Args:
             radius (units.length):  Radius of parent particles
             x (units.length):       x coordinate of parent particles
@@ -272,7 +268,6 @@ class CorrectionFromCompoundParticle(object):
     def get_potential_at_point(self, radius, x, y, z) -> np.ndarray:
         """
         Get the potential at a specific location
-
         Args:
             radius (units.length):  Radius of the particle at that location
             x (units.length):       x coordinate of the location
@@ -319,7 +314,6 @@ class CorrectionForCompoundParticle(object):
         ):
         """
         Correct force vector exerted by global particles on systems
-
         Args:
             grav_lib (Library):           The gravity library (e.g., a wrapped C++ library).
             parent_x (units.length):      x coordinate of the parent particle.
@@ -353,7 +347,6 @@ class CorrectionForCompoundParticle(object):
     def get_gravity_at_point(self, radius, x, y, z) -> tuple:
         """
         Compute gravitational acceleration felt by system due to parents present.
-
         Args:
             radius (units.length):  Radius of the system particle
             x (units.length):       x coordinate of the system particle
@@ -398,7 +391,6 @@ class CorrectionForCompoundParticle(object):
     def get_potential_at_point(self, radius, x, y, z) -> np.ndarray:
         """
         Get the potential at a specific location.
-
         Args:
             radius (units.length):  Radius of the system particle
             x (units.length):       x Location of the system particle

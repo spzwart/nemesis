@@ -1,4 +1,6 @@
 ############################################# NOTES ###############################################################
+####################################################################################################################
+####################################################################################################################
 # 1. Although split_subcodes can be parallelised, the benefit is very little and complexity
 #    outweighs it. No use in putting in lower-level language given dictionary look ups.
 ####################################  OTHER ROOM FOR IMPROVEMENT  #################################################
@@ -7,8 +9,12 @@
 # 3. Use old workers instead of spawning new ones on splitting.
 # 4. In _handle_collision(), the condition if remnant.key == children[nearest_mass].key 
 #    could be removed entirely. But needs testing to ensure no bugs.
-# 5. Logic of split_subcodes. Particularly poor for protoplanetary disks.
+# 5. Logic of split_subcodes. Main bottleneck is in spawning codes, but parallelising is made difficult due to
+#    needing PID management. Could be significantly improved if a technique identifying which thread has which PID.
 # 6. When removing single particle children in _drift_child(), could be prone to error (Not encountered in tests).
+# 7. In _process_parent_mergers(), recycling old codes would be more efficient.
+####################################################################################################################
+####################################################################################################################
 ####################################################################################################################
 
  
@@ -582,7 +588,7 @@ class Nemesis(object):
                 total_time = code.model_time + self._time_offsets[code]
 
                 if not abs(total_time - self.model_time)/self.__dt < 0.01:
-                    print(f"Parent: {parent_key}, Kids: {code.particles.mass.in_(units.MJupiter)}", end=", ")
+                    print(f"Parent: {parent_key}, # Children: {len(code.particles)}", end=", ")
                     print(f"Excess simulation: {(total_time - self.model_time).in_(units.kyr)}")
 
                 self.hibernate_workers(pid)
@@ -593,37 +599,48 @@ class Nemesis(object):
 
     def split_subcodes(self) -> None:
         """Check for any isolated children"""
+        def get_linking_info(radius, subsys):
+            components = connected_components_kdtree(
+                system=subsys, 
+                threshold=CONNECTED_COEFF/2.*radius
+                )
+            return components
+        
         if self._verbose:
-            print("...Checking Splits...")
-            
+            print("...Checking Splits...")    
         if self.dE_track:
             E0 = self.calculate_total_energy()
 
         new_pids = [ ]
         new_isolated = Particles()
-        for parent_key, (parent, subsys) in list(self.subsystems.items()):
-            host = subsys[subsys.mass.argmax()]
-            par_rad = parent.radius
-            par_pos = parent.position
-            
-            criteria = CONNECTED_COEFF * par_rad
-            criteria_sq = criteria * criteria
-            furthest_sq = (subsys.position - host.position).lengths_squared().max()
-            if furthest_sq < criteria_sq/4:
-                continue
-            
-            components = connected_components_kdtree(
-                system=subsys, 
-                threshold=1.5*criteria
-                )
-            if len(components) <= 1:
-                continue
-            
+        to_process = [ ]
+        with ThreadPoolExecutor(max_workers=max(1, self.avail_cpus//2)) as executor:
+            futures = {
+                executor.submit(get_linking_info, parent.radius, children) : parent_key
+                for parent_key, (parent, children) in self.subsystems.items()
+            }
+            for future in as_completed(futures):
+                parent_key = futures[future]
+                try:
+                    components = future.result()
+                    if len(components) <= 1:
+                        continue
+                    to_process.append((parent_key, components))
+                except Exception as e:
+                    self.cleanup_code()
+                    print(f"Error during split detection for parent {parent_key}: {e}")
+                    print(f"Traceback: {traceback.format_exc()}")
+                    sys.exit()
+
+        for parent_key, components in to_process:
             if self._verbose:
                 print("...Split Detected...")
-
             rework_code = False
+
+            parent, _ = self.subsystems[parent_key]
+            par_pos = parent.position
             par_vel = parent.velocity
+
             pid = self._pid_workers.pop(parent_key)
             self.resume_workers(pid)
             self.particles.remove_particle(parent)
@@ -651,7 +668,7 @@ class Nemesis(object):
                         self._time_offsets[newcode] = offset
                         worker_pid = pid
                         
-                    else:
+                    else:  # Could be optimised if done in parallel.
                         newcode, worker_pid = self._sub_worker(
                             children=sys,
                             scale_mass=scale_mass,

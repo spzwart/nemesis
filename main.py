@@ -2,9 +2,8 @@
 # 1. Implement cleaner way to initialise children.
 # 2. Upon resumption, code assumes single star population.  Stellar ages 
 #    correspond to the time of the simulation at last stop. 
-#    To account for multi-stellar population, add a channel in nemesis class 
-#    that copies between stellar_code.particles and lonely parents
-#    For any help, please contact:
+#    To account for multi-stellar population, may require several stellar 
+#    workers. For any help, please contact:
 #       - Erwan Hochart (hochart@strw.leidenuniv.nl)
 #       - Simon Portegies Zwart (spz@strw.leidenuniv.nl)
 ###########################################################################
@@ -30,7 +29,6 @@ from src.nemesis import Nemesis
 def create_output_directories(dir_path: str):
     """
     Creates directories for output.
-    
     Args:
         dir_path (str):  Simulation directory path.
     """
@@ -48,7 +46,6 @@ def create_output_directories(dir_path: str):
 def load_particle_set(ic_file: str) -> Particles:
     """
     Load particle set from file.
-    
     Args:
         ic_file (str):  Path to initial conditions.
     Returns:
@@ -65,26 +62,26 @@ def load_particle_set(ic_file: str) -> Particles:
 def configure_galactic_frame(particle_set: Particles) -> Particles:
     """
     Shift particle set to galactocentric reference frame.
-    
     Args:
         particle_set (particles):  The particle set.
     Returns:
         Particles: Particle set with galactocentric coordinates.
     """
-    return galactic_frame(particle_set, 
-                          dx=-8.4 | units.kpc, 
-                          dy=0.0 | units.kpc, 
-                          dz=17  | units.pc,
-                          dvx=11.352 | units.kms,
-                          dvy=12.25 | units.kms,
-                          dvz=7.41 | units.kms)
+    return galactic_frame(
+        particle_set,
+        dx=-8.4 | units.kpc,
+        dy=0.0 | units.kpc,
+        dz=17 | units.pc,
+        dvx=11.352 | units.kms,
+        dvy=12.25 | units.kms,
+        dvz=7.41 | units.kms
+    )
 
 def identify_parents(particle_set: Particles) -> Particles:
     """
     Identify parents in particle set. These are either:
         - Isolated particles (syst_id < 0).
         - Hosts of subsystem (max mass in system).
-        
     Args:
         particle_set (Particles):  The particle set.
     Returns:
@@ -102,7 +99,6 @@ def identify_parents(particle_set: Particles) -> Particles:
 def setup_simulation(dir_path: str, particle_set: Particles) -> tuple:
     """
     Setup simulation directories and load particle set.
-    
     Args:
         dir_path (str):            Directory path for outputs
         particle_set (Particles):  The particle set
@@ -117,7 +113,6 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
                    dE_track: bool, gal_field: bool, star_evol: bool, verbose: bool) -> None:
     """
     Run simulation and output data.
-    
     Args:
         particle_set (str):     Path to initial conditions
         tend (units.time):      Simulation end time
@@ -189,12 +184,18 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     bounded_systems = major_bodies[major_bodies.syst_id > 0]
 
     parents = HierarchicalParticles(isolated_systems)
-    nemesis = Nemesis(par_conv=conv_par, dtbridge=dtbridge, 
-                      coll_dir=coll_dir, code_dt=code_dt, 
-                      dE_track=dE_track, star_evol=star_evol, 
-                      gal_field=gal_field, verbose=verbose, 
-                      nmerge=current_mergers, 
-                      resume_time=time_offset)
+    nemesis = Nemesis(
+        par_conv=conv_par, 
+        dtbridge=dtbridge, 
+        coll_dir=coll_dir, 
+        code_dt=code_dt,
+        dE_track=dE_track,
+        star_evol=star_evol,
+        gal_field=gal_field,
+        verbose=verbose,
+        nmerge=current_mergers,
+        resume_time=time_offset
+    )
 
     for id_ in np.unique(bounded_systems.syst_id):
         subsystem = particle_set[particle_set.syst_id == id_]
@@ -205,7 +206,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     nemesis.commit_particles()
     nemesis.split_subcodes()  # Check for any splits at t=0
     if (nemesis.dE_track):
-        energy_arr = [ ]
+        energy_arr = []
         E0 = nemesis.calculate_total_energy()
 
     if snapshot_no == 0:

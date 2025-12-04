@@ -25,7 +25,6 @@ class HierarchicalParticles(ParticlesOverlay):
     def add_particles(self, parts: Particles) -> Particles:  
         """
         Add particles to particle set.
-
         Args:
             parts (Particles):  The particle to add.
         Returns:
@@ -42,7 +41,6 @@ class HierarchicalParticles(ParticlesOverlay):
     def assign_subsystem(self, parent: Particle, child: Particles) -> None:
         """
         Assign subsystem to parent particle. No reshifting needed
-
         Args:
             parent (Particle):  The parent particle.
             child (Particles):  The child system particle set.
@@ -61,8 +59,7 @@ class HierarchicalParticles(ParticlesOverlay):
     
     def add_subsystem(self, child: Particles, recenter=True) -> Particle:
         """
-        Create a parent from particle subsytem.
-
+        Create a parent from particle subsystem.
         Args:
             child (Particles):  The child system particle set.
             recenter (bool):    Flag to recenter the parent.
@@ -88,8 +85,7 @@ class HierarchicalParticles(ParticlesOverlay):
         relative=True, recenter=True
         ) -> None:
         """
-        Create parent from subsystem attributes
-
+        Create parent from subsystem attributes.
         Args:
             child (Particles):  The child system particle set.
             parent (Particle):  The parent particle.
@@ -121,7 +117,6 @@ class HierarchicalParticles(ParticlesOverlay):
     def recenter_subsystems(self, max_workers: int) -> None:
         """
         Recenter subsystems.
-
         Args:
             max_workers (int):  Number of cores to use.
         """
@@ -184,7 +179,6 @@ class HierarchicalParticles(ParticlesOverlay):
         """
         Get copy of complete particle set in galactocentric 
         or cluster frame of reference.
-
         Returns:
             Particles:  Complete data on simulated particle set.
         """

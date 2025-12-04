@@ -3,4 +3,4 @@ natsort
 tables
 h5py
 psutil
-scipy
+scikit-learn
