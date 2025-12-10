@@ -274,7 +274,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     allparts = nemesis.particles.all()
     write_set_to_file(
         allparts.savepoint(nemesis.model_time), 
-        os.path.join(snapshot_path, f"snap_{snapshot_no+1}"), 
+        os.path.join(snapshot_path, f"snap_{snapshot_no+1}.hdf5"), 
         'amuse', close_file=True, overwrite_file=True
     )
 
