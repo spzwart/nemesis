@@ -70,6 +70,27 @@ src/nemesis.py:
 ### EXAMPLE:
 To run example script, execute `python basic_cluster/particle_initialiser.py` to create an AMUSE particle set. Afterwards, execute `python main.py`.
 
+### TESTS:
+An example Nemesis test is provided, comparing its performance relative to N-body integrators in capturing the von Zeipel-Lidov-Kozai effect.
+To run this test follow:
+- Set-up initial conditions: `python /tests/ZKL_test/initialise_LZK.py`
+- To run Nemesis: `python /tests/ZKL_test/run_ZKL.py`
+- To plot results: `python/tests/ZKL_test/plot_ZKL.py`
+
+Some vital notes regarding the test:
+- At times, `Huayno` is unable to capture the LZK effect. These are some suggested parameters:
+    - In `nemesis._parent_worker`, use `Huayno` as parent integrator with mode `SHARED10_COLLISIONS`.
+    - In `nemesis._sub_worker`, use `Huayno` as children integrator with mode `SHARED10_COLLISIONS`.
+    - In `nemesis._sub_worker` set child converter with `scale_radius/10.`
+    - End time: 10 Myr
+    - Bridge time: 500 yr
+    - Diagnostic time: 5000 yr
+    - Code internal time-step: 0.1
+    - Turn off galactic field + stellar evolution
+    - Change `PARENT_RADIUS_COEFF` in `src/globals` to 1e-5 au, 100 au and 1000 au.
+    - Turn off children collisions
+Make sure that the parent and child code is the same integrator. This allows testing the performance of the child split algorithm vs. non-splitting scenarios.
+
 ### Example Scientific Runs
 - [van Elteren et al. 2019: Survivability of planetary systems in young
 and dense star clusters](https://www.aanda.org/articles/aa/full_html/2019/04/aa34641-18/aa34641-18.html)

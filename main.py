@@ -39,7 +39,6 @@ def create_output_directories(dir_path: str):
         "simulation_snapshot",
         "temp"
     ]
-
     for subdir in subdirs:
         os.makedirs(os.path.join(dir_path, subdir), exist_ok=True)
 
@@ -109,12 +108,17 @@ def setup_simulation(dir_path: str, particle_set: Particles) -> tuple:
     particle_set = load_particle_set(particle_set)
     return snapshot_path, particle_set
 
-def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: float,
-                   dE_track: bool, gal_field: bool, star_evol: bool, verbose: bool) -> None:
+def run_simulation(
+    IC_file: str, run_idx: int, 
+    tend, dtbridge, dt_diag, code_dt: float,
+    dE_track: bool, gal_field: bool, 
+    star_evol: bool, verbose: bool
+    ) -> None:
     """
     Run simulation and output data.
     Args:
-        particle_set (str):     Path to initial conditions
+        IC_file (str):          Path to initial conditions
+        run_idx (int):          Index of specific run
         tend (units.time):      Simulation end time
         dtbridge (units.time):  Bridge timestep
         dt_diag (units.time):   Diagnostic time step
@@ -124,12 +128,17 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
         star_evol (boolean):    Flag turning on stellar evolution or not
         verbose (boolean):      Flag turning on print statements or not
     """
-    sim_dir = particle_set.split("initial_particles/")[0]
-    directory_path = os.path.join(sim_dir, f"Nrun{RUN_IDX}")
-    init_params = os.path.join(directory_path, 'sim_stats', f'initial_conditions_{RUN_IDX}.txt')
+    sim_dir = IC_file.split("ICs/")[0]
+    if "tests" in IC_file:
+        from src.globals import PARENT_RADIUS_COEFF
+        rpar_in_au = int(PARENT_RADIUS_COEFF.value_in(units.au))
+        directory_path = os.path.join(sim_dir, f"ZKL_Rpar{rpar_in_au}au")
+    else:
+        directory_path = os.path.join(sim_dir, f"Nrun{run_idx}")
+    init_params = os.path.join(directory_path, 'sim_stats', f'initial_conditions_{run_idx}.txt')
     coll_dir = os.path.join(directory_path, "collision_snapshot")
     
-    print(f"...Starting Nemesis simulation Run {RUN_IDX}...")
+    print(f"...Starting Nemesis simulation Run {run_idx}...")
     print(f"Job ID: {os.getpid()}")
     if os.path.exists(init_params):
         if verbose:
@@ -139,7 +148,6 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
             iparams = f.readlines()
             diag_dt = iparams[3].split(":")[1].split("yr")[0]
             end_time = iparams[5].split(":")[1].split("Myr")[0]
-
             diag_dt = float(diag_dt) | units.yr
             end_time = float(end_time) | units.Myr
 
@@ -176,7 +184,10 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     
     snap_path = os.path.join(snapshot_path, "snap_{}.hdf5")
     major_bodies = identify_parents(particle_set)
-    Rvir = major_bodies.virial_radius()
+    if len(major_bodies) > 2:
+        Rvir = major_bodies.virial_radius()
+    else:
+        Rvir = (particle_set[1:].position - particle_set[0].position).lengths().max()
     conv_par = nbody_system.nbody_to_si(np.sum(major_bodies.mass), Rvir)
 
     # Setting up system
@@ -281,7 +292,7 @@ def run_simulation(particle_set: Particles, tend, dtbridge, dt_diag, code_dt: fl
     # Store simulation statistics
     print("...Simulation Ended...")
     sim_time = (time.time() - START_TIME)/60.
-    fname = os.path.join(directory_path, 'sim_stats', f'sim_stats_{RUN_IDX}.txt')
+    fname = os.path.join(directory_path, 'sim_stats', f'sim_stats_{run_idx}.txt')
     with open(fname, 'w') as f:
         f.write(f"Total CPU Time: {sim_time} minutes")
         f.write(f"\nEnd Time: {t.in_(units.Myr)}")
@@ -353,18 +364,20 @@ def new_option_parser():
 if __name__ == "__main__":
     o, args = new_option_parser().parse_args()
 
-    RUN_IDX = o.run_idx
-    initial_particles = natsorted(glob.glob("examples/basic_cluster/initial_particles/*"))
+    path = os.getcwd()
+    run_idx = o.run_idx
+    initial_particles = natsorted(glob.glob(f"{path}/examples/basic_cluster/ICs/*"))
     try:
-        particle_set = initial_particles[RUN_IDX]
+        IC_file = initial_particles[run_idx]
     except IndexError:
         raise IndexError(
-            f"Error: Run index {RUN_IDX} out of range. \n"
+            f"Error: Run index {run_idx} out of range. \n"
             f"Available particle sets: {initial_particles}."
             )
 
     run_simulation(
-        particle_set=particle_set, 
+        IC_file=IC_file, 
+        run_idx=run_idx,
         tend=o.tend, 
         dtbridge=o.tbridge,
         code_dt=o.code_dt,

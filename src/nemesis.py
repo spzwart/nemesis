@@ -609,6 +609,8 @@ class Nemesis(object):
         if self._verbose:
             print("...Checking Splits...")    
         if self.dE_track:
+            if self.model_time == 0. | units.yr:
+                self.corr_energy = 0. | units.J
             E0 = self.calculate_total_energy()
 
         new_pids = [ ]
