@@ -1,4 +1,12 @@
-# NEMESIS
+# NEMESIS-depbricated
+
+This package of Nemesis is debpricated as of 30 January 2026.
+The package repository is continued at:https://gitlab.strw.leidenuniv.nl/spz/nemesis
+from where it can be downloaded from: git@gitlab.strw.leidenuniv.nl:spz/nemesis.git
+
+Apologies for the inconvenience.
+Simon Portegies Zwart
+
 
 **Nemesis** is a flexible, **multi-physics**, **multi-scale algorithm** for integrating hierarchical systems (e.g., planetary systems in star clusters, circumstellar disks, or binaries in galactic environments) embedded within the [AMUSE](https://amuse.readthedocs.io/en/latest/) library.  
 
