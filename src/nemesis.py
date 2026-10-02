@@ -809,7 +809,7 @@ class Nemesis(object):
         kepler_elements = orbital_elements(collider, G=GRAV_CONST)
         sma = kepler_elements[2]
         ecc = kepler_elements[3]
-        inc = kepler_elements[4]
+        inc = kepler_elements[5]
 
         tcoll = code.model_time + self._time_offsets[code] + self.__resume_offset
         file_name = os.path.join(self.__coll_dir, f"merger{self.__nmerge}.txt")
