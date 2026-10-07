@@ -56,6 +56,7 @@ from amuse.ext.basicgraph import UnionFind
 from amuse.ext.composition_methods import SPLIT_4TH_S_M6
 from amuse.ext.galactic_potentials import MWpotentialBovy2015
 from amuse.ext.orbital_elements import orbital_elements
+from amuse.lab import write_set_to_file
 from amuse.units import units, nbody_system
 
 from src.environment_functions import (
@@ -772,7 +773,6 @@ class Nemesis(object):
             enc_parti: Particles,
             code: object,
             resolved_keys: dict,
-            first_merger: bool
     ) -> tuple[Particles, dict]:
         """
         Merge two particles if the collision stopping condition is met.
@@ -812,8 +812,11 @@ class Nemesis(object):
         inc = kepler_elements[5]
 
         tcoll = code.model_time + self._time_offsets[code] + self.__resume_offset
-        file_name = os.path.join(self.__coll_dir, f"merger{self.__nmerge}.txt")
-        with open(file_name, "w") as f:
+        
+        file_name = f"merger{self.__nmerge}"
+        file_txt = os.path.join(self.__coll_dir, f"{file_name}.txt")
+        file_hdf5 = os.path.join(self.__coll_dir, f"{file_name}.hdf5")
+        with open(file_txt, "w") as f:
             f.write(f"Tcoll: {tcoll.in_(units.yr)}")
             f.write(f"\nParent Key: {parent.key}")
             f.write(f"\nKey1: {enc_parti[0].key}")
@@ -825,6 +828,14 @@ class Nemesis(object):
             f.write(f"\nSemi-major axis: {abs(sma).in_(units.au)}")
             f.write(f"\nEccentricity: {ecc}")
             f.write(f"\nInclination: {inc.in_(units.deg)}")
+
+        write_set_to_file(
+            children,
+            file_hdf5,
+            "amuse",
+            close_file=True,
+            overwrite_file=True
+        )
 
         # Create merger remnant
         most_massive = collider[collider.mass.argmax()]
@@ -1096,8 +1107,7 @@ class Nemesis(object):
                 code: object,
                 parent: Particle,
                 children: Particles,
-                stopping_condition,
-                first_merger: bool
+                stopping_condition
         ) -> Particle:
             """
             Function to resolve collisions
@@ -1136,8 +1146,7 @@ class Nemesis(object):
                         parent,
                         colliding_particles,
                         code,
-                        resolved_keys,
-                        first_merger
+                        resolved_keys
                         )
                     Nresolved += 1
 
