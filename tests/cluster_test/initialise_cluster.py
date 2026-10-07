@@ -1,3 +1,9 @@
+"""
+This script initialises a star cluster with planetary systems
+and minor bodies to test the performance and accuracy of Nemesis.
+"""
+
+
 import numpy as np
 import os
 from numpy import random
@@ -10,8 +16,7 @@ from amuse.lab import nbody_system, write_set_to_file, constants
 from amuse.units import units
 
 
-
-def get_disk_radius(host_mass):
+def get_disk_radius(host_mass) -> tuple:
     """
     Calculate disk radius based on host star mass.
     Inner radius defined as when Porb = 1 year.
@@ -27,7 +32,7 @@ def get_disk_radius(host_mass):
     return Rinner, Router
 
 
-def new_rotation_matrix_from_euler_angles(phi, theta, chi):
+def new_rotation_matrix_from_euler_angles(phi, theta, chi) -> np.ndarray:
     """Rotation matrix for planetary system orientation"""
     cosp = np.cos(phi)
     sinp = np.sin(phi)
@@ -36,13 +41,13 @@ def new_rotation_matrix_from_euler_angles(phi, theta, chi):
     cosc = np.cos(chi)
     sinc = np.sin(chi)
     return np.asarray([
-        [cost*cosc, -cosp*sinc+sinp*sint*cosc, sinp*sinc+cosp*sint*cosc], 
+        [cost*cosc, -cosp*sinc+sinp*sint*cosc, sinp*sinc+cosp*sint*cosc],
         [cost*sinc, cosp*cosc+sinp*sint*sinc, -sinp*cosc+cosp*sint*sinc],
         [-sint,  sinp*cost,  cosp*cost]
-    ])
+        ])
 
 
-def rotate(position, velocity, phi, theta, psi):
+def rotate(position, velocity, phi, theta, psi) -> tuple:
     """Rotate planetary system"""
     Runit = position.unit
     Vunit = velocity.unit
@@ -51,10 +56,10 @@ def rotate(position, velocity, phi, theta, psi):
     return (
         np.dot(matrix, position.value_in(Runit)) | Runit,
         np.dot(matrix, velocity.value_in(Vunit)) | Vunit
-    )
+        )
 
 
-def setup_cluster(Nstars, Rvir, Qvir, nchild):
+def setup_cluster(Nstars, Rvir, Qvir, nchild) -> None:
     """
     Create cluster particle set
     Args:
@@ -70,26 +75,26 @@ def setup_cluster(Nstars, Rvir, Qvir, nchild):
         os.mkdir(configuration)
     if not os.path.exists(initial_set_dir):
         os.mkdir(initial_set_dir)
-    
+
     masses = new_kroupa_mass_distribution(
-        Nstars, 
-        mass_min=0.08 | units.MSun, 
+        Nstars,
+        mass_min=0.08 | units.MSun,
         mass_max=30. | units.MSun
         )
     converter = nbody_system.nbody_to_si(masses.sum(), Rvir)
-    
+
     bodies = new_plummer_model(Nstars, convert_nbody=converter)
     bodies.mass = masses
     bodies.syst_id = -1
     bodies.type = "STAR"
     mask = (masses > 0.5 | units.MSun) & (masses < 2 | units.MSun)
-    host_stars = bodies[mask].random_sample(nchild)
-    
+    host_stars = bodies[mask].random_sample(int(nchild))
+
     particle_set = Particles()
     for syst_id, host in enumerate(host_stars):
         host.syst_id = syst_id + 1
         host.type = "HOST"
-        
+
     converter = nbody_system.nbody_to_si(np.sum(bodies.mass), Rvir)
     bodies.scale_to_standard(convert_nbody=converter, virial_ratio=Qvir)
     for host in bodies[bodies.syst_id > 0]:
@@ -103,8 +108,8 @@ def setup_cluster(Nstars, Rvir, Qvir, nchild):
             disk_mass=0.01*host.mass
         )
         planets = host_star.planets[0]
-        Nplanets = min(len(planets), np.random.uniform(1, 6))
-        planets = planets.random_sample(Nplanets)
+        Nplanets = min(len(planets), np.random.randint(1, 6))
+        planets = planets.random_sample(int(Nplanets))
         planets.type = "PLANET"
         planets.syst_id = host.syst_id
 
@@ -112,28 +117,31 @@ def setup_cluster(Nstars, Rvir, Qvir, nchild):
         current_system.add_particle(host)
         current_system.add_particles(planets)
 
-        print(f"System {host.syst_id}: Mhost= {host.mass.in_(units.MSun)}", end=", ")
+        print(f"System {syst_id + 1}", end=": ")
+        print(f"Mhost= {host.mass.in_(units.MSun)}", end=", ")
         print(f"Np= {Nplanets}, Rdisk= {max_disk_size.in_(units.au)}")
 
-        local_converter = nbody_system.nbody_to_si(host.mass, 1|units.au)
+        local_converter = nbody_system.nbody_to_si(host.mass, 1 | units.au)
         asteroids = ProtoPlanetaryDisk(
-            NUM_ASTEROID, 
-            densitypower=1.5, 
-            Rmin=10*min_disk_size.value_in(units.au), 
-            Rmax=max_disk_size.value_in(units.au), 
+            NUM_ASTEROID,
+            densitypower=1.5,
+            radius_min=10.*min_disk_size.value_in(units.au),
+            radius_max=max_disk_size.value_in(units.au),
             q_out=1, discfraction=0.01,
             convert_nbody=local_converter
-        ).result
+            ).result
         asteroids.type = "ASTEROID"
         asteroids.syst_id = host.syst_id
         asteroids.mass = 0 | units.MSun
         asteroids.radius = 10 | units.km
         current_system.add_particle(asteroids)
-        
-        # Rotate and shift minor bodies
-        phi = np.radians(random.uniform(0.0, 90.0, 1)[0])  # x-plane rotation
-        theta0 = np.radians((random.normal(-90.0,90.0,1)[0]))  # y-plane rotation
-        theta_inclination = np.radians(random.normal(0, 1.0, (1+Nplanets+NUM_ASTEROID)))
+
+        # Rotate the system by random angles to get different orientations
+        phi = np.radians(random.uniform(0.0, 90.0, 1)[0])
+        theta0 = np.radians((random.normal(-90.0, 90.0, 1)[0]))
+        theta_inclination = np.radians(
+            random.normal(0, 1.0, (1+Nplanets+NUM_ASTEROID))
+            )
         theta_inclination[0] = 0
         theta = theta0 + theta_inclination
         psi = np.radians(random.uniform(0.0, 180.0, 1))[0]
@@ -155,21 +163,27 @@ def setup_cluster(Nstars, Rvir, Qvir, nchild):
     particle_set.remove_attribute_from_store("eccentricity")
     particle_set.remove_attribute_from_store("semimajor_axis")
     particle_set.remove_attribute_from_store("u")
-    
+
     isol = bodies[bodies.syst_id == -1]
     particle_set.add_particles(isol)
+
+    Nparticles = len(particle_set)
+    Nstars = len(particle_set[particle_set.type == "STAR"])
+    Nchild = particle_set.syst_id.max()
+
     print("!!! SAVING !!!")
-    print(f"Total number of particles: {len(particle_set)}")
-    print(f"Total number of stars: {len(particle_set[particle_set.type == 'STAR'])}")
-    print(f"Total number of planetary systems: {particle_set.syst_id.max()}")
+    print(f"Total number of particles: {Nparticles}")
+    print(f"Total number of stars: {Nstars}")
+    print(f"Total number of planetary systems: {Nchild}")
     print(f"Total mass: {particle_set.mass.sum().in_(units.MSun)}")
     print(f"Virial radius: {Rvir.in_(units.pc)}")
+
     output_dir = os.path.join(initial_set_dir, "run_0")
     write_set_to_file(
-        particle_set, 
-        output_dir, 
-        "amuse", 
-        close_file=True, 
+        particle_set,
+        output_dir,
+        "amuse",
+        close_file=True,
         overwrite_file=True
     )
 
@@ -181,7 +195,7 @@ Rvir = 0.5 | units.pc
 Nstars = 2048
 setup_cluster(
     Nstars=Nstars,
-    Rvir=Rvir, 
+    Rvir=Rvir,
     Qvir=0.5,
-    nchild=10
+    nchild=30
 )

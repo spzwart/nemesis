@@ -34,7 +34,7 @@ def ZAMS_radius(mass):
     """
     mass_sq = (mass.value_in(units.MSun))**2
     r_zams = pow(mass.value_in(units.MSun), 1.25) \
-            * (0.1148 + 0.8604*mass_sq) / (0.04651 + mass_sq)
+        * (0.1148 + 0.8604*mass_sq) / (0.04651 + mass_sq)
     return r_zams | units.RSun
 
 
@@ -55,10 +55,11 @@ def new_rotation_matrix_from_euler_angles(phi, theta, chi):
     cosc = np.cos(chi)
     sinc = np.sin(chi)
     return np.array([
-        [cost*cosc, -cosp*sinc+sinp*sint*cosc, sinp*sinc+cosp*sint*cosc], 
+        [cost*cosc, -cosp*sinc+sinp*sint*cosc, sinp*sinc+cosp*sint*cosc],
         [cost*sinc, cosp*cosc+sinp*sint*sinc, -sinp*cosc+cosp*sint*sinc],
         [-sint,  sinp*cost,  cosp*cost]
         ])
+
 
 def rotate(position, velocity, phi, theta, psi):
     """
@@ -79,22 +80,24 @@ def rotate(position, velocity, phi, theta, psi):
         np.dot(matrix, position.value_in(Runit)) | Runit,
         np.dot(matrix, velocity.value_in(Vunit)) | Vunit
         )
-        
 
 
-### Create star cluster with planetary systems ###
+# Create star cluster with planetary systems
 Nparents = 200
 Nchildren = 10
 rvir = 0.5 | units.pc
 
 masses = new_kroupa_mass_distribution(
-  Nparents, 
-  mass_min=0.5 | units.MSun, 
+  Nparents,
+  mass_min=0.5 | units.MSun,
   mass_max=30 | units.MSun
   )
 converter = nbody_system.nbody_to_si(masses.sum(), rvir)
 
-bodies = new_plummer_model(number_of_particles=Nparents, convert_nbody=converter)
+bodies = new_plummer_model(
+    number_of_particles=Nparents,
+    convert_nbody=converter
+    )
 bodies.mass = masses
 bodies.scale_to_standard(convert_nbody=converter, virial_ratio=0.5)
 bodies.radius = ZAMS_radius(bodies.mass)
@@ -117,29 +120,30 @@ for i, host in enumerate(solar_systems):
     planets.position -= host_star.position
     planets.velocity -= host_star.velocity
 
-    phi = np.radians(np.random.uniform(0.0, 90.0, 1)[0])  # x-plane rotation
-    theta0 = np.radians((np.random.normal(-90.0, 90.0, 1)[0]))  # y-plane rotation
+    # Randomly rotate planetary system
+    phi = np.radians(np.random.uniform(0.0, 90.0, 1)[0])
+    theta0 = np.radians((np.random.normal(-90.0, 90.0, 1)[0]))
     theta_inclination = np.radians(np.random.normal(0, 1.0, (1+len(planets))))
     theta_inclination[0] = 0
     theta = theta0 + theta_inclination
     psi = np.radians(np.random.uniform(0.0, 180.0, 1))[0]
     for j, p in enumerate(planets):
-      pos = p.position
-      vel = p.velocity
+        pos = p.position
+        vel = p.velocity
 
-      pos, vel = rotate(pos, vel, 0, 0, psi)
-      pos, vel = rotate(pos, vel, 0, theta[j], 0)
-      pos, vel = rotate(pos, vel, phi, 0, 0)
+        pos, vel = rotate(pos, vel, 0, 0, psi)
+        pos, vel = rotate(pos, vel, 0, theta[j], 0)
+        pos, vel = rotate(pos, vel, phi, 0, 0)
 
-      p.position = pos
-      p.velocity = vel
+        p.position = pos
+        p.velocity = vel
 
     planets.position += host.position
     planets.velocity += host.velocity
-    
+
     host.syst_id = i+1
     planets.syst_id = i+1
-    
+
     host.type = "HOST"
     planets.type = "PLANET"
     bodies.add_particles(planets)
@@ -147,17 +151,17 @@ for i, host in enumerate(solar_systems):
 
 for id in np.unique(bodies.syst_id):
     if id > 0:
-      system = bodies[bodies.syst_id == id]
-      major_body = system[system.mass == system.mass.max()]
-      minor_bodies = system - major_body
-      
-      for p in minor_bodies:
-        bin_system = major_body + p
-        ke = orbital_elements(bin_system, G=constants.G)
+        system = bodies[bodies.syst_id == id]
+        major_body = system[system.mass == system.mass.max()]
+        minor_bodies = system - major_body
 
-        # Check that planets are bound
-        assert ke[3] < 0.1
-        assert ke[2] > 0.0 | units.au
+        for p in minor_bodies:
+            bin_system = major_body + p
+            ke = orbital_elements(bin_system, G=constants.G)
+
+            # Check that planets are bound
+            assert ke[3] < 0.1
+            assert ke[2] > 0.0 | units.au
 
 output_dir = "examples/basic_cluster/ICs"
 if not os.path.exists(output_dir):
@@ -166,9 +170,9 @@ if not os.path.exists(output_dir):
 
 Run_ID = 0
 write_set_to_file(
-    bodies, 
-    f"{output_dir}/nemesis_example_{Run_ID}.amuse", 
+    bodies,
+    f"{output_dir}/nemesis_example_{Run_ID}.amuse",
     "amuse",
-    close_file=True, 
+    close_file=True,
     overwrite_file=True
 )
